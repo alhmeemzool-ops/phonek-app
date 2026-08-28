@@ -280,15 +280,15 @@ class _EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
+    return const Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.search_off, size: 64, color: AppColors.textSecondary),
-          const SizedBox(height: 12),
-          const Text('لم نجد ما تبحث عنه', style: TextStyle(fontWeight: FontWeight.bold)),
-          const SizedBox(height: 4),
-          const Text('جرب البحث باسم آخر', style: TextStyle(color: AppColors.textSecondary)),
+          Icon(Icons.search_off, size: 64, color: AppColors.textSecondary),
+          SizedBox(height: 12),
+          Text('لم نجد ما تبحث عنه', style: TextStyle(fontWeight: FontWeight.bold)),
+          SizedBox(height: 4),
+          Text('جرب البحث باسم آخر', style: TextStyle(color: AppColors.textSecondary)),
         ],
       ),
     );

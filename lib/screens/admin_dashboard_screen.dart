@@ -28,11 +28,11 @@ class AdminDashboardScreen extends StatelessWidget {
           const SizedBox(height: 20),
           const Text('إعلانات بانتظار المراجعة', style: TextStyle(fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
-          Card(
+          const Card(
             child: Padding(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.all(16),
               child: Row(
-                children: const [
+                children: [
                   Icon(Icons.check_circle_outline, color: AppColors.textSecondary),
                   SizedBox(width: 8),
                   Text('لا توجد إعلانات معلّقة حالياً', style: TextStyle(color: AppColors.textSecondary)),
@@ -43,11 +43,11 @@ class AdminDashboardScreen extends StatelessWidget {
           const SizedBox(height: 20),
           const Text('البلاغات', style: TextStyle(fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
-          Card(
+          const Card(
             child: Padding(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.all(16),
               child: Row(
-                children: const [
+                children: [
                   Icon(Icons.flag_outlined, color: AppColors.textSecondary),
                   SizedBox(width: 8),
                   Text('لا توجد بلاغات جديدة', style: TextStyle(color: AppColors.textSecondary)),

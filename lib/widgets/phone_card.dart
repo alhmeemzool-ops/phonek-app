@@ -46,20 +46,20 @@ class PhoneCard extends StatelessWidget {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.55),
+                        color: Colors.black.withValues(alpha: 0.55),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: const Text('PhoneK', style: TextStyle(color: AppColors.gold, fontSize: 9)),
                     ),
                   ),
                   if (listing.isFeatured)
-                    Positioned(
+                    const Positioned(
                       top: 6,
                       right: 6,
                       child: _Badge(text: 'مميز', color: AppColors.gold, textColor: Colors.black),
                     ),
                   if (listing.status == ListingStatus.sold)
-                    Positioned(
+                    const Positioned(
                       top: 6,
                       left: 6,
                       child: _Badge(text: 'تم البيع', color: AppColors.danger, textColor: Colors.white),
@@ -106,7 +106,7 @@ class PhoneCard extends StatelessWidget {
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      Icon(Icons.location_on, size: 12, color: AppColors.textSecondary),
+                      const Icon(Icons.location_on, size: 12, color: AppColors.textSecondary),
                       const SizedBox(width: 2),
                       Expanded(
                         child: Text(listing.city,

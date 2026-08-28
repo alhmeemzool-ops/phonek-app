@@ -110,9 +110,9 @@ class PhoneDetailsScreen extends StatelessWidget {
                     width: double.infinity,
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: AppColors.danger.withOpacity(0.12),
+                      color: AppColors.danger.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: AppColors.danger.withOpacity(0.4)),
+                      border: Border.all(color: AppColors.danger.withValues(alpha: 0.4)),
                     ),
                     child: Row(
                       children: [
@@ -426,7 +426,7 @@ class _Pill extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surfaceLight,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.gold.withOpacity(0.5)),
+        border: Border.all(color: AppColors.gold.withValues(alpha: 0.5)),
       ),
       child: Text(text, style: const TextStyle(fontSize: 11, color: AppColors.gold)),
     );

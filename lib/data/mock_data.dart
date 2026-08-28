@@ -4,7 +4,7 @@ import '../models/chat_model.dart';
 /// بيانات تجريبية محلية — تُستبدل لاحقاً بقراءة حقيقية من Firestore
 /// بعد ربط المشروع بحساب Firebase الخاص بك.
 class MockData {
-  static final seller1 = SellerInfo(
+  static const seller1 = SellerInfo(
     id: 's1',
     name: 'محل النور للهواتف',
     phone: '+249900000001',
@@ -18,7 +18,7 @@ class MockData {
     replySpeedLabel: 'يرد عادة خلال دقائق',
   );
 
-  static final seller2 = SellerInfo(
+  static const seller2 = SellerInfo(
     id: 's2',
     name: 'أحمد محمد',
     phone: '+249900000002',

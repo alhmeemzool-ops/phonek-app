@@ -57,7 +57,7 @@ class _AddPhoneScreenState extends State<AddPhoneScreen> {
             const SizedBox(height: 16),
             _label('الماركة'),
             DropdownButtonFormField<String>(
-              value: _brand,
+              initialValue: _brand,
               items: MockData.brands.map((b) => DropdownMenuItem(value: b, child: Text(b))).toList(),
               onChanged: (v) => setState(() => _brand = v),
               decoration: const InputDecoration(hintText: 'اختر الماركة'),
@@ -191,7 +191,7 @@ class _AddPhoneScreenState extends State<AddPhoneScreen> {
             const SizedBox(height: 16),
             _label('المدينة'),
             DropdownButtonFormField<String>(
-              value: _city,
+              initialValue: _city,
               items: MockData.cities.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
               onChanged: (v) => setState(() => _city = v),
               decoration: const InputDecoration(hintText: 'اختر المدينة'),
