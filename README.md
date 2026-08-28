@@ -103,6 +103,31 @@ flutter run
 
 ---
 
+## 🔐 Google OAuth وحساب صاحب المحل
+
+أضيف في هذا الفرع تسجيل دخول Google عبر Supabase Auth، مع تخزين بيانات الحساب في جدول `profiles` الموجود أو الذي تنشئه في Supabase. شغّل ملف SQL مرة واحدة في SQL Editor داخل مشروع Supabase قبل تجربة إنشاء حساب محل.
+
+في Supabase افتح Authentication ثم URL Configuration وأضف عنوان إعادة التوجيه التالي ضمن Additional Redirect URLs:
+
+```text
+io.supabase.phonek://login-callback
+```
+
+وفي Google Cloud Console أنشئ OAuth Client من نوع Android باستخدام `applicationId` الموجود في `android/app/build.gradle.kts`، وأضف بصمة SHA-1 الخاصة بنسخة الاختبار ونسخة الإصدار النهائي. ثم فعّل Google Provider في Supabase وسجّل Client ID. تم تسجيل deep link في `android/app/src/main/AndroidManifest.xml`.
+
+بعد إعداد Supabase اختبر:
+
+```bash
+flutter pub get
+flutter analyze
+flutter test
+flutter run
+```
+
+لا تستخدم مفتاح `service_role` داخل تطبيق Flutter. استخدم Project URL وPublishable Key فقط، واترك حماية البيانات لسياسات RLS التي تضبطها في Supabase.
+
+---
+
 ## 📦 بناء ملف APK للنشر والتوزيع
 
 بعد التأكد أن التطبيق يعمل بدون أخطاء بـ `flutter run`:
