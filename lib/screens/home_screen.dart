@@ -4,6 +4,7 @@ import '../data/app_state.dart';
 import '../data/mock_data.dart';
 import '../models/phone_model.dart';
 import '../theme/app_theme.dart';
+import '../utils/formatters.dart';
 import '../widgets/phone_card.dart';
 import 'phone_details_screen.dart';
 import 'add_phone_screen.dart';
@@ -27,6 +28,8 @@ class _HomeScreenState extends State<HomeScreen> {
   String? _selectedCity;
   String? _selectedBrand;
   SortOption _sortOption = SortOption.newest;
+  double? _minPrice;
+  double? _maxPrice;
   final TextEditingController _searchController = TextEditingController();
 
   List<PhoneListing> _filteredListings(List<PhoneListing> source) {
@@ -36,7 +39,10 @@ class _HomeScreenState extends State<HomeScreen> {
           p.brand.toLowerCase().contains(_searchQuery.toLowerCase());
       final matchesCity = _selectedCity == null || p.city == _selectedCity;
       final matchesBrand = _selectedBrand == null || p.brand == _selectedBrand;
-      return matchesQuery && matchesCity && matchesBrand && p.status != ListingStatus.sold;
+      final matchesPrice = p.priceOnCall ||
+          (_minPrice == null || p.price >= _minPrice!) &&
+              (_maxPrice == null || p.price <= _maxPrice!);
+      return matchesQuery && matchesCity && matchesBrand && matchesPrice && p.status != ListingStatus.sold;
     }).toList();
 
     switch (_sortOption) {
@@ -253,6 +259,32 @@ class _HomeScreenState extends State<HomeScreen> {
                             onSelected: (_) => setSheetState(() => _selectedCity = c),
                           )),
                     ],
+                  ),
+                  const SizedBox(height: 20),
+                  const Text('النطاق السعري', style: TextStyle(color: AppColors.textSecondary)),
+                  RangeSlider(
+                    min: 0,
+                    max: 10000000,
+                    divisions: 100,
+                    values: RangeValues(_minPrice ?? 0, _maxPrice ?? 10000000),
+                    labels: RangeLabels(
+                      AppFormatters.priceSDG((_minPrice ?? 0).round()),
+                      AppFormatters.priceSDG((_maxPrice ?? 10000000).round()),
+                    ),
+                    onChanged: (values) => setSheetState(() {
+                      _minPrice = values.start == 0 ? null : values.start;
+                      _maxPrice = values.end >= 10000000 ? null : values.end;
+                    }),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(AppFormatters.priceSDG((_minPrice ?? 0).round()), style: const TextStyle(color: AppColors.textSecondary)),
+                        Text(AppFormatters.priceSDG((_maxPrice ?? 10000000).round()), style: const TextStyle(color: AppColors.textSecondary)),
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 20),
                   const Text('الترتيب', style: TextStyle(color: AppColors.textSecondary)),
