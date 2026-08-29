@@ -24,8 +24,37 @@ class _PhoneRequestsScreenState extends State<PhoneRequestsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final requests = context.watch<AppState>().phoneRequests;
+    final appState = context.watch<AppState>();
+    if (!appState.isLoggedIn || !appState.isShopOwner) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('طلبات الهواتف')),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.storefront_outlined, color: AppColors.gold, size: 56),
+                const SizedBox(height: 14),
+                Text(
+                  appState.isLoggedIn ? 'طلبات الشراء مخصصة للمحلات' : 'سجّل الدخول بحساب محل للوصول إلى طلبات الشراء',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'يمكن للمحلات نشر طلبات العملاء ومتابعتها من داخل PhoneK.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: AppColors.textSecondary, height: 1.4),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
 
+    final requests = appState.phoneRequests;
     return Scaffold(
       appBar: AppBar(title: const Text('طلبات الهواتف')),
       body: ListView(
