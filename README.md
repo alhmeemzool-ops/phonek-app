@@ -80,6 +80,13 @@ flutter run
 
 ## 🔐 إعداد Supabase (لتفعيل الحسابات، الإعلانات، الصور، والشات)
 
+### مخطط MVP للإعلانات
+
+يوجد الآن ملف migration رسمي في `supabase/migrations/20260829000100_phonek_mvp_listings.sql`. طبّقه على مشروع Supabase المرتبط قبل اختبار تسجيل الإعلانات أو رفع الصور. ينشئ الملف جدولَي `profiles` و`listings`، والفهارس الأساسية، ومشغلات التحديث، وملفًا تلقائيًا للمستخدم الجديد، إضافة إلى bucket باسم `listing-images` وسياسات RLS للقراءة والكتابة حسب مالك الإعلان.
+
+يمكن تطبيقه من Supabase Dashboard عبر SQL Editor أو باستخدام Supabase CLI بعد ربط المشروع. لا تضع `service_role` أو Client Secret داخل التطبيق، ولا تعتبر نجاح عملية البناء دليلًا على أن سياسات RLS صحيحة؛ يجب اختبار مستخدمين مختلفين ومالك الإعلان والمستخدم غير المالك.
+
+
 1. افتح مشروع Supabase المرتبط بالتطبيق، وتأكد من تفعيل Authentication ومزود Google.
 2. اضبط Site URL وAdditional Redirect URLs لنسخة Web والرابط العميق في Android.
 3. طبّق migrations الخاصة بالمشروع لإنشاء الجداول وسياسات RLS المطلوبة.
