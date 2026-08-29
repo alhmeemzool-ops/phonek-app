@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../models/chat_model.dart';
 import '../models/phone_model.dart';
 
 /// Global application state for authentication, listings, favorites, and account role.
@@ -19,6 +20,7 @@ class AppState extends ChangeNotifier {
             data.session?.user.email ??
             'مستخدم PhoneK';
         unawaited(_loadProfile());
+        unawaited(loadChatThreads());
       }
       notifyListeners();
     });
@@ -29,6 +31,7 @@ class AppState extends ChangeNotifier {
           _session!.user.email ??
           'مستخدم PhoneK';
       unawaited(_loadProfile());
+      unawaited(loadChatThreads());
     }
 
     unawaited(loadListings());
@@ -36,6 +39,8 @@ class AppState extends ChangeNotifier {
 
   final Set<String> _favoriteIds = {};
   final List<PhoneListing> _listings = [];
+  final List<ChatThread> _chatThreads = [];
+  final List<RealtimeChannel> _chatChannels = [];
   StreamSubscription<AuthState>? _authSubscription;
   Session? _session;
   bool _isShopOwner = false;
@@ -59,6 +64,7 @@ class AppState extends ChangeNotifier {
   List<PhoneListing> get listings => List.unmodifiable(_listings);
   bool get isLoadingListings => _isLoadingListings;
   String? get listingsError => _listingsError;
+  List<ChatThread> get chatThreads => List.unmodifiable(_chatThreads);
   bool get isLoggedIn => _session != null;
   String? get userName => _userName;
   bool get isShopOwner => _isShopOwner;
@@ -69,6 +75,113 @@ class AppState extends ChangeNotifier {
   void login(String name) {
     _userName = name;
     notifyListeners();
+  }
+
+  Future<void> loadChatThreads() async {
+    final userId = _session?.user.id;
+    if (userId == null) return;
+    try {
+      final rows = await Supabase.instance.client
+          .from('chat_threads')
+          .select('id, listing_id, buyer_id, seller_id, created_at')
+          .or('buyer_id.eq.$userId,seller_id.eq.$userId')
+          .order('created_at', ascending: false);
+      _chatThreads
+        ..clear()
+        ..addAll((rows as List).whereType<Map<String, dynamic>>().map((row) {
+          final listing = _listings.cast<PhoneListing?>().firstWhere(
+                (item) => item?.id == row['listing_id'],
+                orElse: () => null,
+              );
+          return ChatThread(
+            id: row['id'] as String,
+            phoneListingId: row['listing_id'] as String,
+            phoneTitle: listing?.title ?? 'إعلان PhoneK',
+            otherUserName: listing?.seller.name ?? 'مستخدم PhoneK',
+          );
+        }));
+      notifyListeners();
+    } catch (_) {
+      // Chat is optional until a user opens a conversation.
+    }
+  }
+
+  Future<String> ensureChatThread(PhoneListing listing) async {
+    final userId = _session?.user.id;
+    if (userId == null) throw const AuthException('سجّل الدخول لبدء محادثة');
+    final existing = await Supabase.instance.client
+        .from('chat_threads')
+        .select('id')
+        .eq('listing_id', listing.id)
+        .or('buyer_id.eq.$userId,seller_id.eq.$userId')
+        .limit(1);
+    if ((existing as List).isNotEmpty) return existing.first['id'] as String;
+    final inserted = await Supabase.instance.client
+        .from('chat_threads')
+        .insert({
+          'listing_id': listing.id,
+          'buyer_id': userId,
+          'seller_id': listing.seller.id,
+        })
+        .select('id')
+        .single();
+    return inserted['id'] as String;
+  }
+
+  Future<List<ChatMessage>> loadMessages(String threadId) async {
+    final rows = await Supabase.instance.client
+        .from('chat_messages')
+        .select('id, sender_id, text, type, status, offer_amount, created_at')
+        .eq('thread_id', threadId)
+        .order('created_at', ascending: true);
+    return (rows as List).whereType<Map<String, dynamic>>().map(_messageFromRow).toList();
+  }
+
+  Future<void> sendMessage({required String threadId, required String text}) async {
+    final userId = _session?.user.id;
+    if (userId == null) throw const AuthException('سجّل الدخول لإرسال رسالة');
+    await Supabase.instance.client.from('chat_messages').insert({
+      'thread_id': threadId,
+      'sender_id': userId,
+      'text': text,
+      'type': MessageType.text.name,
+      'status': MessageStatus.sent.name,
+    });
+  }
+
+  RealtimeChannel subscribeToMessages(String threadId, void Function(ChatMessage message) onMessage) {
+    final channel = Supabase.instance.client.channel('phonek-chat-$threadId');
+    channel.onPostgresChanges(
+      event: PostgresChangeEvent.insert,
+      schema: 'public',
+      table: 'chat_messages',
+      filter: PostgresChangeFilter(
+        type: PostgresChangeFilterType.eq,
+        column: 'thread_id',
+        value: threadId,
+      ),
+      callback: (payload) => onMessage(_messageFromRow(payload.newRecord)),
+    ).subscribe();
+    _chatChannels.add(channel);
+    return channel;
+  }
+
+  ChatMessage _messageFromRow(Map<String, dynamic> row) {
+    return ChatMessage(
+      id: row['id'] as String,
+      senderId: row['sender_id'] as String? ?? '',
+      text: row['text'] as String? ?? '',
+      type: MessageType.values.firstWhere(
+        (item) => item.name == row['type'],
+        orElse: () => MessageType.text,
+      ),
+      timestamp: DateTime.tryParse(row['created_at'] as String? ?? '') ?? DateTime.now(),
+      status: MessageStatus.values.firstWhere(
+        (item) => item.name == row['status'],
+        orElse: () => MessageStatus.sent,
+      ),
+      offerAmount: (row['offer_amount'] as num?)?.toInt(),
+    );
   }
 
   Future<void> loadListings() async {
@@ -92,6 +205,7 @@ class AppState extends ChangeNotifier {
       _listings
         ..clear()
         ..addAll(loaded);
+      if (_session != null) unawaited(loadChatThreads());
     } on PostgrestException catch (error) {
       _listingsError = error.message;
     } catch (error) {
@@ -239,6 +353,9 @@ class AppState extends ChangeNotifier {
   @override
   void dispose() {
     _authSubscription?.cancel();
+    for (final channel in _chatChannels) {
+      Supabase.instance.client.removeChannel(channel);
+    }
     super.dispose();
   }
 }
