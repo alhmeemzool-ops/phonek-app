@@ -16,11 +16,13 @@ class AppState extends ChangeNotifier {
         _userName = null;
         _isShopOwner = false;
         _shopName = null;
+        _favoriteIds.clear();
       } else {
         _userName = data.session?.user.userMetadata?['full_name'] as String? ??
             data.session?.user.email ??
             'مستخدم PhoneK';
         unawaited(_loadProfile());
+        unawaited(_loadFavorites());
         unawaited(loadChatThreads());
       }
       notifyListeners();
@@ -32,6 +34,7 @@ class AppState extends ChangeNotifier {
           _session!.user.email ??
           'مستخدم PhoneK';
       unawaited(_loadProfile());
+      unawaited(_loadFavorites());
       unawaited(loadChatThreads());
     }
 
@@ -54,12 +57,60 @@ class AppState extends ChangeNotifier {
   bool isFavorite(String id) => _favoriteIds.contains(id);
 
   void toggleFavorite(String id) {
-    if (_favoriteIds.contains(id)) {
+    final wasFavorite = _favoriteIds.contains(id);
+    if (wasFavorite) {
       _favoriteIds.remove(id);
     } else {
       _favoriteIds.add(id);
     }
     notifyListeners();
+
+    final userId = _session?.user.id;
+    if (userId == null) return;
+    unawaited(_persistFavorite(userId: userId, listingId: id, add: !wasFavorite));
+  }
+
+  Future<void> _loadFavorites() async {
+    final userId = _session?.user.id;
+    if (userId == null) return;
+    try {
+      final rows = await Supabase.instance.client
+          .from('favorites')
+          .select('listing_id')
+          .eq('user_id', userId);
+      _favoriteIds
+        ..clear()
+        ..addAll((rows as List)
+            .whereType<Map<String, dynamic>>()
+            .map((row) => row['listing_id'])
+            .whereType<String>());
+      notifyListeners();
+    } catch (_) {
+      // Keep optimistic/local behavior if the optional migration is not applied yet.
+    }
+  }
+
+  Future<void> _persistFavorite({
+    required String userId,
+    required String listingId,
+    required bool add,
+  }) async {
+    try {
+      if (add) {
+        await Supabase.instance.client.from('favorites').upsert({
+          'user_id': userId,
+          'listing_id': listingId,
+        });
+      } else {
+        await Supabase.instance.client
+            .from('favorites')
+            .delete()
+            .eq('user_id', userId)
+            .eq('listing_id', listingId);
+      }
+    } catch (_) {
+      // The UI remains usable while a missing migration or network failure is reported later.
+    }
   }
 
   Set<String> get favoriteIds => Set.unmodifiable(_favoriteIds);
@@ -233,6 +284,7 @@ class AppState extends ChangeNotifier {
           .from('listings')
           .select('*')
           .eq('status', 'active')
+          .gt('expires_at', DateTime.now().toIso8601String())
           .order('created_at', ascending: false);
       final listingRows = (rows as List).whereType<Map<String, dynamic>>().toList();
       final sellerIds = listingRows.map((row) => row['seller_id']).whereType<String>().toSet().toList();

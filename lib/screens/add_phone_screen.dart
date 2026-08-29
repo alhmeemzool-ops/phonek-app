@@ -374,6 +374,7 @@ class _AddPhoneScreenState extends State<AddPhoneScreen> {
         'image_urls': imageUrls,
         'status': ListingStatus.pendingReview.name,
         'description': _descController.text.trim(),
+        'expires_at': DateTime.now().add(const Duration(days: 30)).toIso8601String(),
       });
       } catch (_) {
         if (uploadedPaths.isNotEmpty) {
