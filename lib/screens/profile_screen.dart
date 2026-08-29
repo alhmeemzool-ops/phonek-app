@@ -5,6 +5,7 @@ import '../theme/app_theme.dart';
 import '../utils/formatters.dart';
 import 'login_screen.dart';
 import 'admin_dashboard_screen.dart';
+import 'shop_account_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -44,6 +45,12 @@ class ProfileScreen extends StatelessWidget {
           ),
           const SizedBox(height: 20),
           _tile(context, Icons.list_alt, 'إعلاناتي', () {}),
+          _tile(
+            context,
+            Icons.storefront,
+            appState.isShopOwner ? 'لوحة المحل: ${appState.shopName ?? ''}' : 'إنشاء حساب صاحب محل',
+            () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ShopAccountScreen())),
+          ),
           _tile(context, Icons.bookmark, 'عمليات البحث المحفوظة', () {}),
           _tile(context, Icons.notifications, 'إعدادات الإشعارات', () {}),
           _tile(context, Icons.admin_panel_settings, 'لوحة تحكم الأدمن', () {

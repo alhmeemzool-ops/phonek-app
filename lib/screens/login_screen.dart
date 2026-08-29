@@ -1,10 +1,34 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../data/app_state.dart';
 import '../theme/app_theme.dart';
 
-class LoginScreen extends StatelessWidget {
+class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
+
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  bool _isLoading = false;
+
+  Future<void> _handleGoogleSignIn() async {
+    if (_isLoading) return;
+    setState(() => _isLoading = true);
+    try {
+      await context.read<AppState>().signInWithGoogle();
+      if (mounted) Navigator.pop(context);
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('تعذر تسجيل الدخول عبر Google: $error')),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -19,33 +43,26 @@ class LoginScreen extends StatelessWidget {
             const SizedBox(height: 12),
             const Text('فونك | PhoneK', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppColors.gold)),
             const SizedBox(height: 6),
-            const Text('سجّل دخولك لإضافة إعلانات والتواصل مع البائعين',
-                textAlign: TextAlign.center, style: TextStyle(color: AppColors.textSecondary)),
+            const Text('سجّل دخولك لإضافة إعلانات والتواصل مع البائعين', textAlign: TextAlign.center, style: TextStyle(color: AppColors.textSecondary)),
             const SizedBox(height: 32),
-            ElevatedButton.icon(
-              icon: const Icon(Icons.g_mobiledata, size: 26, color: Colors.black),
-              label: const Text('الدخول عبر Google'),
-              onPressed: () => _handleGoogleSignIn(context),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                icon: _isLoading
+                    ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
+                    : const Icon(Icons.g_mobiledata, size: 26, color: Colors.black),
+                label: Text(_isLoading ? 'جارٍ فتح Google...' : 'الدخول عبر Google'),
+                onPressed: _isLoading ? null : _handleGoogleSignIn,
+              ),
             ),
             const SizedBox(height: 12),
             OutlinedButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: _isLoading ? null : () => Navigator.pop(context),
               child: const Text('تصفح بدون تسجيل دخول'),
             ),
           ],
         ),
       ),
     );
-  }
-
-  void _handleGoogleSignIn(BuildContext context) {
-    // TODO: هذا زر تجريبي فقط.
-    // لتفعيله فعلياً: أضف حزمتي google_sign_in و firebase_auth في pubspec.yaml
-    // واربط مشروعك بـ Firebase Authentication (خطوة تتطلب حسابك الخاص - راجع الـ README).
-    context.read<AppState>().login('مستخدم تجريبي');
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('تم تسجيل الدخول (وضع تجريبي - يتطلب ربط Firebase للتفعيل الحقيقي)')),
-    );
-    Navigator.pop(context);
   }
 }
