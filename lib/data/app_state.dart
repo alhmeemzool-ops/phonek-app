@@ -193,7 +193,7 @@ class AppState extends ChangeNotifier {
     try {
       final rows = await Supabase.instance.client
           .from('listings')
-          .select('*, profiles(*)')
+          .select('*, seller:profiles!listings_seller_id_fkey(*)')
           .eq('status', 'active')
           .order('created_at', ascending: false);
 
@@ -218,8 +218,8 @@ class AppState extends ChangeNotifier {
 
   PhoneListing? _listingFromRow(Map<String, dynamic> row) {
     try {
-      final sellerRow = row['profiles'] is Map<String, dynamic>
-          ? row['profiles'] as Map<String, dynamic>
+      final sellerRow = row['seller'] is Map<String, dynamic>
+          ? row['seller'] as Map<String, dynamic>
           : <String, dynamic>{};
       return PhoneListing(
         id: row['id'] as String,
