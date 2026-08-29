@@ -8,6 +8,7 @@ import 'admin_dashboard_screen.dart';
 import 'shop_account_screen.dart';
 import 'my_listings_screen.dart';
 import 'phone_requests_screen.dart';
+import 'info_page_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -69,8 +70,18 @@ class ProfileScreen extends StatelessWidget {
           _tile(context, Icons.admin_panel_settings, 'لوحة تحكم الأدمن', () {
             Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminDashboardScreen()));
           }),
-          _tile(context, Icons.help_outline, 'الأسئلة الشائعة', () {}),
-          _tile(context, Icons.description_outlined, 'الشروط والأحكام وسياسة الخصوصية', () {}),
+          _tile(
+            context,
+            Icons.help_outline,
+            'الأسئلة الشائعة',
+            () => Navigator.push(context, MaterialPageRoute(builder: (_) => InfoPageScreen.faq())),
+          ),
+          _tile(
+            context,
+            Icons.description_outlined,
+            'الشروط والأحكام وسياسة الخصوصية',
+            () => Navigator.push(context, MaterialPageRoute(builder: (_) => InfoPageScreen.terms())),
+          ),
           const Divider(height: 32),
           _tile(context, Icons.logout, 'تسجيل الخروج', () => appState.logout(), color: AppColors.textSecondary),
           _tile(
