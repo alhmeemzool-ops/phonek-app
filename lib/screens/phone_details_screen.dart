@@ -426,8 +426,8 @@ class _DetailImagePlaceholder extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: const BoxDecoration(
+    return const DecoratedBox(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [Color(0xFF303030), Color(0xFF171717)],
           begin: Alignment.topRight,
