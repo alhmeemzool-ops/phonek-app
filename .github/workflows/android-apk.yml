@@ -29,6 +29,14 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      - name: Patch share_plus Android compile SDK
+        run: |
+          for file in "$PUB_CACHE"/hosted/pub.dev/share_plus-*/android/build.gradle; do
+            if [ -f "$file" ]; then
+              sed -i 's/compileSdkVersion 33/compileSdkVersion 36/g' "$file"
+            fi
+          done
+
       - name: Analyze
         run: flutter analyze
 

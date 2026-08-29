@@ -1,5 +1,3 @@
-import com.android.build.api.dsl.ApplicationExtension
-import com.android.build.api.dsl.LibraryExtension
 import org.gradle.api.file.Directory
 
 allprojects {
@@ -22,13 +20,6 @@ subprojects {
 
 subprojects {
     project.evaluationDependsOn(":app")
-}
-
-subprojects {
-    afterEvaluate {
-        extensions.findByType<ApplicationExtension>()?.compileSdk = 36
-        extensions.findByType<LibraryExtension>()?.compileSdk = 36
-    }
 }
 
 tasks.register<Delete>("clean") {
