@@ -430,7 +430,6 @@ class _AddPhoneScreenState extends State<AddPhoneScreen> {
       _hasBox = true;
       _hasCharger = true;
       _hasInvoice = false;
-      _hasEarphones = false;
       _hasDamage = false;
       _batteryHealth = 100;
       _phoneModel = null;
