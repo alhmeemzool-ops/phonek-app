@@ -62,7 +62,9 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> signInWithGoogle() async {
-    final redirectTo = kIsWeb ? Uri.base.origin : 'io.supabase.phonek://login-callback';
+    final redirectTo = kIsWeb
+        ? '${Uri.base.origin}${Uri.base.path.endsWith('/') ? Uri.base.path : '${Uri.base.path}/'}'
+        : 'io.supabase.phonek://login-callback';
     final response = await Supabase.instance.client.auth.signInWithOAuth(
       OAuthProvider.google,
       redirectTo: redirectTo,
