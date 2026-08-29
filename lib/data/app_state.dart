@@ -193,13 +193,22 @@ class AppState extends ChangeNotifier {
     try {
       final rows = await Supabase.instance.client
           .from('listings')
-          .select('*, seller:profiles!listings_seller_id_fkey(*)')
+          .select('*')
           .eq('status', 'active')
           .order('created_at', ascending: false);
-
-      final loaded = (rows as List)
-          .whereType<Map<String, dynamic>>()
-          .map(_listingFromRow)
+      final listingRows = (rows as List).whereType<Map<String, dynamic>>().toList();
+      final sellerIds = listingRows.map((row) => row['seller_id']).whereType<String>().toSet().toList();
+      final sellerRows = sellerIds.isEmpty
+          ? const <Map<String, dynamic>>[]
+          : (await Supabase.instance.client.from('profiles').select('*').inFilter('id', sellerIds) as List)
+              .whereType<Map<String, dynamic>>()
+              .toList();
+      final sellersById = <String, Map<String, dynamic>>{
+        for (final seller in sellerRows)
+          if (seller['id'] is String) seller['id'] as String: seller,
+      };
+      final loaded = listingRows
+          .map((row) => _listingFromRow(row, sellersById[row['seller_id']]))
           .whereType<PhoneListing>()
           .toList();
       _listings
@@ -216,11 +225,9 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  PhoneListing? _listingFromRow(Map<String, dynamic> row) {
+  PhoneListing? _listingFromRow(Map<String, dynamic> row, [Map<String, dynamic>? profile]) {
     try {
-      final sellerRow = row['seller'] is Map<String, dynamic>
-          ? row['seller'] as Map<String, dynamic>
-          : <String, dynamic>{};
+      final sellerRow = profile ?? <String, dynamic>{};
       return PhoneListing(
         id: row['id'] as String,
         title: row['title'] as String? ?? '',
