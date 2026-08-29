@@ -164,7 +164,7 @@ class _ImagePlaceholder extends StatelessWidget {
           end: Alignment.bottomLeft,
         ),
       ),
-      child: Center(
+      child: const Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [

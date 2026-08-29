@@ -434,10 +434,10 @@ class _DetailImagePlaceholder extends StatelessWidget {
           end: Alignment.bottomLeft,
         ),
       ),
-      child: Center(
+      child: const Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          children: const [
+          children: [
             Icon(Icons.phone_android_rounded, size: 82, color: Colors.white38),
             SizedBox(height: 10),
             Text('لا توجد صورة مضافة', style: TextStyle(color: Colors.white54)),

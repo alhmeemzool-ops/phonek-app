@@ -326,6 +326,7 @@ class _AddPhoneScreenState extends State<AddPhoneScreen> {
       return;
     }
 
+    final appState = context.read<AppState>();
     setState(() => _saving = true);
     try {
       final price = _priceOnCall ? 0 : int.parse(_priceController.text.trim());
@@ -372,7 +373,7 @@ class _AddPhoneScreenState extends State<AddPhoneScreen> {
         }
         rethrow;
       }
-      await context.read<AppState>().loadListings();
+      await appState.loadListings();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('تم إرسال الإعلان للمراجعة قبل النشر')),
