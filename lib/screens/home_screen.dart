@@ -28,8 +28,8 @@ class _HomeScreenState extends State<HomeScreen> {
   SortOption _sortOption = SortOption.newest;
   final TextEditingController _searchController = TextEditingController();
 
-  List<PhoneListing> get _filteredListings {
-    var list = MockData.listings.where((p) {
+  List<PhoneListing> _filteredListings(List<PhoneListing> source) {
+    var list = source.where((p) {
       final matchesQuery = _searchQuery.isEmpty ||
           p.title.toLowerCase().contains(_searchQuery.toLowerCase()) ||
           p.brand.toLowerCase().contains(_searchQuery.toLowerCase());
@@ -81,14 +81,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildHomeBody() {
     final appState = context.watch<AppState>();
-    final listings = _filteredListings;
+    final listings = _filteredListings(appState.listings);
 
     return RefreshIndicator(
       color: AppColors.gold,
-      onRefresh: () async {
-        await Future.delayed(const Duration(milliseconds: 700));
-        setState(() {});
-      },
+      onRefresh: appState.loadListings,
       child: CustomScrollView(
         slivers: [
           SliverAppBar(
@@ -128,7 +125,20 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
           SliverToBoxAdapter(child: _buildBrandChips()),
-          if (listings.isEmpty)
+          if (appState.isLoadingListings && listings.isEmpty)
+            const SliverFillRemaining(
+              hasScrollBody: false,
+              child: Center(child: CircularProgressIndicator(color: AppColors.gold)),
+            )
+          else if (appState.listingsError != null && listings.isEmpty)
+            SliverFillRemaining(
+              hasScrollBody: false,
+              child: _LoadErrorState(
+                message: appState.listingsError!,
+                onRetry: appState.loadListings,
+              ),
+            )
+          else if (listings.isEmpty)
             SliverFillRemaining(
               hasScrollBody: false,
               child: _EmptyState(query: _searchQuery),
@@ -271,6 +281,38 @@ class _HomeScreenState extends State<HomeScreen> {
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+}
+
+class _LoadErrorState extends StatelessWidget {
+  final String message;
+  final Future<void> Function() onRetry;
+
+  const _LoadErrorState({required this.message, required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.cloud_off, size: 56, color: AppColors.warning),
+            const SizedBox(height: 12),
+            const Text('تعذر تحميل الإعلانات', style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 6),
+            Text(message, textAlign: TextAlign.center, style: const TextStyle(color: AppColors.textSecondary)),
+            const SizedBox(height: 16),
+            OutlinedButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh),
+              label: const Text('إعادة المحاولة'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

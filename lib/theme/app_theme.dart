@@ -21,7 +21,9 @@ class AppTheme {
       brightness: Brightness.dark,
       scaffoldBackgroundColor: AppColors.background,
       primaryColor: AppColors.gold,
-      fontFamily: 'Cairo',
+      // استخدم خطًا متاحًا على المنصة مع بدائل عربية لتجنب ظهور الأحرف كعلامات استفهام على Web.
+      fontFamily: 'Arial',
+      fontFamilyFallback: const ['Noto Sans Arabic', 'Tahoma', 'sans-serif'],
       colorScheme: const ColorScheme.dark(
         primary: AppColors.gold,
         secondary: AppColors.gold,

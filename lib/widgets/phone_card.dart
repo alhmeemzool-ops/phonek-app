@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import '../models/phone_model.dart';
 import '../theme/app_theme.dart';
@@ -32,12 +33,14 @@ class PhoneCard extends StatelessWidget {
               child: Stack(
                 children: [
                   Positioned.fill(
-                    child: Container(
-                      color: Colors.grey[850],
-                      child: const Center(
-                        child: Icon(Icons.phone_android, size: 56, color: Colors.white24),
-                      ),
-                    ),
+                    child: listing.imageUrls.isNotEmpty
+                        ? CachedNetworkImage(
+                            imageUrl: listing.imageUrls.first,
+                            fit: BoxFit.cover,
+                            placeholder: (context, url) => const _ImagePlaceholder(),
+                            errorWidget: (context, url, error) => const _ImagePlaceholder(),
+                          )
+                        : const _ImagePlaceholder(),
                   ),
                   // علامة PhoneK المائية
                   Positioned(
@@ -141,6 +144,33 @@ class PhoneCard extends StatelessWidget {
                 ],
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ImagePlaceholder extends StatelessWidget {
+  const _ImagePlaceholder();
+
+  @override
+  Widget build(BuildContext context) {
+    return const DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFF303030), Color(0xFF1B1B1B)],
+          begin: Alignment.topRight,
+          end: Alignment.bottomLeft,
+        ),
+      ),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.phone_android_rounded, size: 48, color: Colors.white38),
+            SizedBox(height: 8),
+            Text('صورة الهاتف', style: TextStyle(color: Colors.white54, fontSize: 11)),
           ],
         ),
       ),

@@ -3,7 +3,10 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-/// Global application state for authentication, favorites, and account role.
+import '../models/chat_model.dart';
+import '../models/phone_model.dart';
+
+/// Global application state for authentication, listings, favorites, and account role.
 class AppState extends ChangeNotifier {
   AppState() {
     _authSubscription = Supabase.instance.client.auth.onAuthStateChange.listen((data) {
@@ -17,6 +20,7 @@ class AppState extends ChangeNotifier {
             data.session?.user.email ??
             'مستخدم PhoneK';
         unawaited(_loadProfile());
+        unawaited(loadChatThreads());
       }
       notifyListeners();
     });
@@ -27,15 +31,23 @@ class AppState extends ChangeNotifier {
           _session!.user.email ??
           'مستخدم PhoneK';
       unawaited(_loadProfile());
+      unawaited(loadChatThreads());
     }
+
+    unawaited(loadListings());
   }
 
   final Set<String> _favoriteIds = {};
+  final List<PhoneListing> _listings = [];
+  final List<ChatThread> _chatThreads = [];
+  final List<RealtimeChannel> _chatChannels = [];
   StreamSubscription<AuthState>? _authSubscription;
   Session? _session;
   bool _isShopOwner = false;
   String? _shopName;
   String? _userName;
+  bool _isLoadingListings = false;
+  String? _listingsError;
 
   bool isFavorite(String id) => _favoriteIds.contains(id);
 
@@ -49,6 +61,10 @@ class AppState extends ChangeNotifier {
   }
 
   Set<String> get favoriteIds => Set.unmodifiable(_favoriteIds);
+  List<PhoneListing> get listings => List.unmodifiable(_listings);
+  bool get isLoadingListings => _isLoadingListings;
+  String? get listingsError => _listingsError;
+  List<ChatThread> get chatThreads => List.unmodifiable(_chatThreads);
   bool get isLoggedIn => _session != null;
   String? get userName => _userName;
   bool get isShopOwner => _isShopOwner;
@@ -59,6 +75,239 @@ class AppState extends ChangeNotifier {
   void login(String name) {
     _userName = name;
     notifyListeners();
+  }
+
+  Future<void> loadChatThreads() async {
+    final userId = _session?.user.id;
+    if (userId == null) return;
+    try {
+      final rows = await Supabase.instance.client
+          .from('chat_threads')
+          .select('id, listing_id, buyer_id, seller_id, created_at')
+          .or('buyer_id.eq.$userId,seller_id.eq.$userId')
+          .order('created_at', ascending: false);
+      _chatThreads
+        ..clear()
+        ..addAll((rows as List).whereType<Map<String, dynamic>>().map((row) {
+          final listing = _listings.cast<PhoneListing?>().firstWhere(
+                (item) => item?.id == row['listing_id'],
+                orElse: () => null,
+              );
+          return ChatThread(
+            id: row['id'] as String,
+            phoneListingId: row['listing_id'] as String,
+            phoneTitle: listing?.title ?? 'إعلان PhoneK',
+            otherUserName: listing?.seller.name ?? 'مستخدم PhoneK',
+          );
+        }));
+      notifyListeners();
+    } catch (_) {
+      // Chat is optional until a user opens a conversation.
+    }
+  }
+
+  Future<String> ensureChatThread(PhoneListing listing) async {
+    final userId = _session?.user.id;
+    if (userId == null) throw const AuthException('سجّل الدخول لبدء محادثة');
+    final existing = await Supabase.instance.client
+        .from('chat_threads')
+        .select('id')
+        .eq('listing_id', listing.id)
+        .or('buyer_id.eq.$userId,seller_id.eq.$userId')
+        .limit(1);
+    if ((existing as List).isNotEmpty) return existing.first['id'] as String;
+    final inserted = await Supabase.instance.client
+        .from('chat_threads')
+        .insert({
+          'listing_id': listing.id,
+          'buyer_id': userId,
+          'seller_id': listing.seller.id,
+        })
+        .select('id')
+        .single();
+    return inserted['id'] as String;
+  }
+
+  Future<List<ChatMessage>> loadMessages(String threadId) async {
+    final rows = await Supabase.instance.client
+        .from('chat_messages')
+        .select('id, sender_id, text, type, status, offer_amount, created_at')
+        .eq('thread_id', threadId)
+        .order('created_at', ascending: true);
+    return (rows as List).whereType<Map<String, dynamic>>().map(_messageFromRow).toList();
+  }
+
+  Future<void> sendMessage({required String threadId, required String text}) async {
+    final userId = _session?.user.id;
+    if (userId == null) throw const AuthException('سجّل الدخول لإرسال رسالة');
+    await Supabase.instance.client.from('chat_messages').insert({
+      'thread_id': threadId,
+      'sender_id': userId,
+      'text': text,
+      'type': MessageType.text.name,
+      'status': MessageStatus.sent.name,
+    });
+  }
+
+  RealtimeChannel subscribeToMessages(String threadId, void Function(ChatMessage message) onMessage) {
+    final channel = Supabase.instance.client.channel('phonek-chat-$threadId');
+    channel.onPostgresChanges(
+      event: PostgresChangeEvent.insert,
+      schema: 'public',
+      table: 'chat_messages',
+      filter: PostgresChangeFilter(
+        type: PostgresChangeFilterType.eq,
+        column: 'thread_id',
+        value: threadId,
+      ),
+      callback: (payload) => onMessage(_messageFromRow(payload.newRecord)),
+    ).subscribe();
+    _chatChannels.add(channel);
+    return channel;
+  }
+
+  ChatMessage _messageFromRow(Map<String, dynamic> row) {
+    return ChatMessage(
+      id: row['id'] as String,
+      senderId: row['sender_id'] as String? ?? '',
+      text: row['text'] as String? ?? '',
+      type: MessageType.values.firstWhere(
+        (item) => item.name == row['type'],
+        orElse: () => MessageType.text,
+      ),
+      timestamp: DateTime.tryParse(row['created_at'] as String? ?? '') ?? DateTime.now(),
+      status: MessageStatus.values.firstWhere(
+        (item) => item.name == row['status'],
+        orElse: () => MessageStatus.sent,
+      ),
+      offerAmount: (row['offer_amount'] as num?)?.toInt(),
+    );
+  }
+
+  Future<void> loadListings() async {
+    if (_isLoadingListings) return;
+    _isLoadingListings = true;
+    _listingsError = null;
+    notifyListeners();
+
+    try {
+      final rows = await Supabase.instance.client
+          .from('listings')
+          .select('*, profiles(*)')
+          .eq('status', 'active')
+          .order('created_at', ascending: false);
+
+      final loaded = (rows as List)
+          .whereType<Map<String, dynamic>>()
+          .map(_listingFromRow)
+          .whereType<PhoneListing>()
+          .toList();
+      _listings
+        ..clear()
+        ..addAll(loaded);
+      if (_session != null) unawaited(loadChatThreads());
+    } on PostgrestException catch (error) {
+      _listingsError = error.message;
+    } catch (error) {
+      _listingsError = 'تعذر تحميل الإعلانات: $error';
+    } finally {
+      _isLoadingListings = false;
+      notifyListeners();
+    }
+  }
+
+  PhoneListing? _listingFromRow(Map<String, dynamic> row) {
+    try {
+      final sellerRow = row['profiles'] is Map<String, dynamic>
+          ? row['profiles'] as Map<String, dynamic>
+          : <String, dynamic>{};
+      return PhoneListing(
+        id: row['id'] as String,
+        title: row['title'] as String? ?? '',
+        brand: row['brand'] as String? ?? '',
+        price: (row['price'] as num?)?.toInt() ?? 0,
+        priceIsNegotiable: row['price_is_negotiable'] as bool? ?? true,
+        priceOnCall: row['price_on_call'] as bool? ?? false,
+        oldPrice: (row['old_price'] as num?)?.toInt(),
+        storage: row['storage'] as String? ?? '',
+        ram: row['ram'] as String? ?? '',
+        batteryHealthPercent: (row['battery_health_percent'] as num?)?.toInt(),
+        condition: _conditionFromValue(row['condition'] as String?),
+        damageNotes: row['damage_notes'] as String?,
+        hasBox: row['has_box'] as bool? ?? false,
+        hasCharger: row['has_charger'] as bool? ?? false,
+        hasInvoice: row['has_invoice'] as bool? ?? false,
+        hasEarphones: row['has_earphones'] as bool? ?? false,
+        warranty: _warrantyFromValue(row['warranty'] as String?),
+        city: row['city'] as String? ?? '',
+        imageUrls: (row['image_urls'] as List?)?.whereType<String>().toList() ?? const [],
+        seller: SellerInfo(
+          id: row['seller_id'] as String? ?? '',
+          name: sellerRow['name'] as String? ?? 'بائع PhoneK',
+          phone: sellerRow['phone'] as String? ?? '',
+          whatsapp: sellerRow['whatsapp'] as String?,
+          bio: sellerRow['bio'] as String?,
+          avatarUrl: sellerRow['avatar_url'] as String?,
+          isVerifiedStore: sellerRow['is_verified_store'] as bool? ?? false,
+          isShop: sellerRow['is_shop'] as bool? ?? false,
+          rating: (sellerRow['rating'] as num?)?.toDouble() ?? 0,
+          completedSales: (sellerRow['completed_sales'] as num?)?.toInt() ?? 0,
+          city: sellerRow['city'] as String? ?? row['city'] as String? ?? '',
+          replySpeedLabel: sellerRow['reply_speed_label'] as String? ?? 'يرد عادة خلال ساعات',
+        ),
+        status: _statusFromValue(row['status'] as String?),
+        createdAt: DateTime.tryParse(row['created_at'] as String? ?? '') ?? DateTime.now(),
+        viewCount: (row['view_count'] as num?)?.toInt() ?? 0,
+        isFeatured: row['is_featured'] as bool? ?? false,
+        description: row['description'] as String? ?? '',
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  DeviceCondition _conditionFromValue(String? value) {
+    switch (value) {
+      case 'new':
+      case 'newDevice':
+        return DeviceCondition.newDevice;
+      case 'minor_scratches':
+      case 'minorScratches':
+        return DeviceCondition.minorScratches;
+      case 'cracked':
+        return DeviceCondition.cracked;
+      default:
+        return DeviceCondition.excellent;
+    }
+  }
+
+  WarrantyType _warrantyFromValue(String? value) {
+    switch (value) {
+      case 'store_warranty':
+      case 'storeWarranty':
+        return WarrantyType.storeWarranty;
+      case 'agent_warranty':
+      case 'agentWarranty':
+        return WarrantyType.agentWarranty;
+      default:
+        return WarrantyType.none;
+    }
+  }
+
+  ListingStatus _statusFromValue(String? value) {
+    switch (value) {
+      case 'sold':
+        return ListingStatus.sold;
+      case 'frozen':
+        return ListingStatus.frozen;
+      case 'expired':
+        return ListingStatus.expired;
+      case 'pending_review':
+      case 'pendingReview':
+        return ListingStatus.pendingReview;
+      default:
+        return ListingStatus.active;
+    }
   }
 
   Future<void> signInWithGoogle() async {
@@ -85,15 +334,15 @@ class AppState extends ChangeNotifier {
     try {
       final row = await Supabase.instance.client
           .from('profiles')
-          .select('display_name, account_type, shop_name')
+          .select('name, is_shop')
           .eq('id', userId)
           .maybeSingle();
       if (row != null) {
-        _userName = (row['display_name'] as String?)?.trim().isNotEmpty == true
-            ? row['display_name'] as String
+        _userName = (row['name'] as String?)?.trim().isNotEmpty == true
+            ? row['name'] as String
             : _userName;
-        _isShopOwner = row['account_type'] == 'shop';
-        _shopName = row['shop_name'] as String?;
+        _isShopOwner = row['is_shop'] as bool? ?? false;
+        _shopName = _isShopOwner ? row['name'] as String? : null;
         notifyListeners();
       }
     } catch (_) {
@@ -104,6 +353,9 @@ class AppState extends ChangeNotifier {
   @override
   void dispose() {
     _authSubscription?.cancel();
+    for (final channel in _chatChannels) {
+      Supabase.instance.client.removeChannel(channel);
+    }
     super.dispose();
   }
 }

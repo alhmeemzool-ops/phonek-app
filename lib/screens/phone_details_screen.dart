@@ -1,8 +1,8 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../data/app_state.dart';
-import '../data/mock_data.dart';
 import '../models/phone_model.dart';
 import '../theme/app_theme.dart';
 import '../utils/formatters.dart';
@@ -16,8 +16,8 @@ class PhoneDetailsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
-    final similar = MockData.listings
-        .where((p) => p.id != listing.id && (p.brand == listing.brand))
+    final similar = appState.listings
+        .where((p) => p.id != listing.id && p.brand == listing.brand)
         .toList();
 
     return Scaffold(
@@ -43,11 +43,17 @@ class PhoneDetailsScreen extends StatelessWidget {
           // معرض الصور
           Stack(
             children: [
-              Container(
+              SizedBox(
                 height: 280,
                 width: double.infinity,
-                color: Colors.grey[850],
-                child: const Center(child: Icon(Icons.phone_android, size: 90, color: Colors.white24)),
+                child: listing.imageUrls.isNotEmpty
+                    ? CachedNetworkImage(
+                        imageUrl: listing.imageUrls.first,
+                        fit: BoxFit.cover,
+                        errorWidget: (context, url, error) => const _DetailImagePlaceholder(),
+                        placeholder: (context, url) => const _DetailImagePlaceholder(),
+                      )
+                    : const _DetailImagePlaceholder(),
               ),
               if (listing.status == ListingStatus.sold)
                 Positioned(
@@ -412,6 +418,33 @@ class PhoneDetailsScreen extends StatelessWidget {
     final msg = Uri.encodeComponent('مرحباً، أنا مهتم بهاتف ${listing.title} المعروض في تطبيق فونك');
     final uri = Uri.parse('https://wa.me/${listing.seller.whatsapp?.replaceAll('+', '')}?text=$msg');
     if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+}
+
+class _DetailImagePlaceholder extends StatelessWidget {
+  const _DetailImagePlaceholder();
+
+  @override
+  Widget build(BuildContext context) {
+    return const DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFF303030), Color(0xFF171717)],
+          begin: Alignment.topRight,
+          end: Alignment.bottomLeft,
+        ),
+      ),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.phone_android_rounded, size: 82, color: Colors.white38),
+            SizedBox(height: 10),
+            Text('لا توجد صورة مضافة', style: TextStyle(color: Colors.white54)),
+          ],
+        ),
+      ),
+    );
   }
 }
 

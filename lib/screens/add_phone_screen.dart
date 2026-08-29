@@ -1,4 +1,10 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../data/app_state.dart';
 import '../data/mock_data.dart';
 import '../models/phone_model.dart';
 import '../theme/app_theme.dart';
@@ -18,6 +24,7 @@ class _AddPhoneScreenState extends State<AddPhoneScreen> {
   final _damageController = TextEditingController();
 
   String? _brand;
+  String? _phoneModel;
   String? _city;
   String _storage = '128GB';
   String _ram = '6GB';
@@ -30,6 +37,9 @@ class _AddPhoneScreenState extends State<AddPhoneScreen> {
   bool _hasEarphones = false;
   bool _hasDamage = false;
   int _batteryHealth = 100;
+  bool _saving = false;
+  final ImagePicker _imagePicker = ImagePicker();
+  final List<XFile> _images = [];
 
   final _storageOptions = ['32GB', '64GB', '128GB', '256GB', '512GB'];
   final _ramOptions = ['3GB', '4GB', '6GB', '8GB', '12GB'];
@@ -48,19 +58,36 @@ class _AddPhoneScreenState extends State<AddPhoneScreen> {
             _label('صور الهاتف'),
             _imagePickerRow(),
             const SizedBox(height: 16),
-            _label('اسم الهاتف'),
-            TextFormField(
-              controller: _titleController,
-              decoration: const InputDecoration(hintText: 'مثال: Samsung Galaxy A73 5G'),
-              validator: (v) => (v == null || v.isEmpty) ? 'مطلوب' : null,
-            ),
-            const SizedBox(height: 16),
             _label('الماركة'),
             DropdownButtonFormField<String>(
               initialValue: _brand,
               items: MockData.brands.map((b) => DropdownMenuItem(value: b, child: Text(b))).toList(),
-              onChanged: (v) => setState(() => _brand = v),
-              decoration: const InputDecoration(hintText: 'اختر الماركة'),
+              onChanged: (value) {
+                setState(() {
+                  _brand = value;
+                  _phoneModel = null;
+                  _titleController.clear();
+                });
+              },
+              decoration: const InputDecoration(hintText: 'اختر الماركة أولاً'),
+              validator: (v) => v == null ? 'مطلوب' : null,
+            ),
+            const SizedBox(height: 16),
+            _label('اسم الهاتف'),
+            DropdownButtonFormField<String>(
+              initialValue: _phoneModel,
+              items: (MockData.phoneModelsByBrand[_brand] ?? const <String>[])
+                  .map((model) => DropdownMenuItem(value: model, child: Text(model)))
+                  .toList(),
+              onChanged: _brand == null
+                  ? null
+                  : (value) => setState(() {
+                        _phoneModel = value;
+                        _titleController.text = value ?? '';
+                      }),
+              decoration: InputDecoration(
+                hintText: _brand == null ? 'اختر الماركة أولاً' : 'اختر اسم الهاتف',
+              ),
               validator: (v) => v == null ? 'مطلوب' : null,
             ),
             const SizedBox(height: 16),
@@ -210,12 +237,14 @@ class _AddPhoneScreenState extends State<AddPhoneScreen> {
             ),
             const SizedBox(height: 24),
             ElevatedButton(
-              onPressed: _submit,
-              child: const Text('نشر الإعلان'),
+              onPressed: _saving ? null : _submit,
+              child: _saving
+                  ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Text('نشر الإعلان'),
             ),
             const SizedBox(height: 10),
             OutlinedButton(
-              onPressed: _saveDraft,
+              onPressed: _saving ? null : _saveDraft,
               child: const Text('حفظ كمسودة'),
             ),
           ],
@@ -232,47 +261,151 @@ class _AddPhoneScreenState extends State<AddPhoneScreen> {
   Widget _imagePickerRow() {
     return SizedBox(
       height: 90,
-      child: ListView(
+      child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        children: [
-          _addImageBox(),
-          const SizedBox(width: 8),
-          // ملاحظة: بعد ربط image_picker + Firebase Storage تُعرض الصور المختارة هنا فعلياً
-        ],
+        itemCount: _images.length + 1,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (context, index) => index == 0 ? _addImageBox() : _imagePreview(index - 1),
       ),
     );
   }
 
   Widget _addImageBox() {
     return InkWell(
-      onTap: () {
-        // TODO: عند ربط image_picker، افتح خيار (الكاميرا / المعرض) هنا
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('يتطلب ربط image_picker + Firebase Storage لرفع الصور فعلياً')),
-        );
-      },
+      onTap: _pickImages,
       child: Container(
         width: 90,
         height: 90,
         decoration: BoxDecoration(
           color: AppColors.surfaceLight,
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: Colors.white24, style: BorderStyle.solid),
+          border: Border.all(color: Colors.white24),
         ),
         child: const Icon(Icons.add_a_photo, color: AppColors.gold),
       ),
     );
   }
 
-  void _submit() {
-    if (!_formKey.currentState!.validate()) return;
-    // TODO: عند ربط Firestore، احفظ PhoneListing جديد هنا بدل SnackBar
-    // ملاحظة: هذه الشاشة تعمل كتبويب ضمن التنقل السفلي وليست شاشة مستقلة،
-    // لذلك لا نستخدم Navigator.pop هنا؛ نكتفي بمسح النموذج وتنبيه المستخدم.
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('تم إرسال الإعلان للمراجعة قبل النشر')),
+  Widget _imagePreview(int index) {
+    final image = _images[index];
+    return FutureBuilder<Uint8List>(
+      future: image.readAsBytes(),
+      builder: (context, snapshot) {
+        return Stack(
+          children: [
+            Container(
+              width: 90,
+              height: 90,
+              clipBehavior: Clip.antiAlias,
+              decoration: BoxDecoration(borderRadius: BorderRadius.circular(10)),
+              child: snapshot.hasData
+                  ? Image.memory(snapshot.data!, fit: BoxFit.cover)
+                  : const ColoredBox(
+                      color: AppColors.surfaceLight,
+                      child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                    ),
+            ),
+            Positioned(
+              top: 3,
+              right: 3,
+              child: GestureDetector(
+                onTap: () => setState(() => _images.removeAt(index)),
+                child: const CircleAvatar(
+                  radius: 11,
+                  backgroundColor: Colors.black87,
+                  child: Icon(Icons.close, size: 14, color: Colors.white),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
     );
-    _resetForm();
+  }
+
+  Future<void> _pickImages() async {
+    final remaining = 6 - _images.length;
+    if (remaining <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('يمكنك إضافة 6 صور كحد أقصى')));
+      return;
+    }
+    final selected = await _imagePicker.pickMultiImage(imageQuality: 80, maxWidth: 1600);
+    if (!mounted || selected.isEmpty) return;
+    setState(() => _images.addAll(selected.take(remaining)));
+  }
+
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+    final user = context.read<AppState>().currentUser;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('سجّل الدخول أولاً حتى تتمكن من نشر إعلان')),
+      );
+      return;
+    }
+
+    final appState = context.read<AppState>();
+    setState(() => _saving = true);
+    try {
+      final price = _priceOnCall ? 0 : int.parse(_priceController.text.trim());
+      final uploadedPaths = <String>[];
+      final imageUrls = <String>[];
+      for (var index = 0; index < _images.length; index++) {
+        final image = _images[index];
+        final path = '${user.id}/${DateTime.now().microsecondsSinceEpoch}_$index.${_extensionFor(image.name)}';
+        final bytes = await image.readAsBytes();
+        await Supabase.instance.client.storage.from('listing-images').uploadBinary(
+              path,
+              bytes,
+              fileOptions: FileOptions(contentType: _contentTypeFor(image.name), upsert: false),
+            );
+        uploadedPaths.add(path);
+        imageUrls.add(Supabase.instance.client.storage.from('listing-images').getPublicUrl(path));
+      }
+      try {
+        await Supabase.instance.client.from('listings').insert({
+        'seller_id': user.id,
+        'title': _titleController.text.trim(),
+        'brand': _brand,
+        'price': price,
+        'price_is_negotiable': _priceNegotiable,
+        'price_on_call': _priceOnCall,
+        'storage': _storage,
+        'ram': _ram,
+        'battery_health_percent': _isIphone ? _batteryHealth : null,
+        'condition': _condition.name,
+        'damage_notes': _hasDamage ? _damageController.text.trim() : null,
+        'has_box': _hasBox,
+        'has_charger': _hasCharger,
+        'has_invoice': _hasInvoice,
+        'has_earphones': _hasEarphones,
+        'warranty': WarrantyType.none.name,
+        'city': _city,
+        'image_urls': imageUrls,
+        'status': ListingStatus.pendingReview.name,
+        'description': _descController.text.trim(),
+      });
+      } catch (_) {
+        if (uploadedPaths.isNotEmpty) {
+          await Supabase.instance.client.storage.from('listing-images').remove(uploadedPaths);
+        }
+        rethrow;
+      }
+      await appState.loadListings();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تم إرسال الإعلان للمراجعة قبل النشر')),
+      );
+      _resetForm();
+    } on PostgrestException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('تعذر حفظ الإعلان: ${error.message}')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
   void _resetForm() {
@@ -295,12 +428,30 @@ class _AddPhoneScreenState extends State<AddPhoneScreen> {
       _hasEarphones = false;
       _hasDamage = false;
       _batteryHealth = 100;
+      _phoneModel = null;
+      _images.clear();
     });
+  }
+
+  String _contentTypeFor(String name) {
+    switch (_extensionFor(name)) {
+      case 'png':
+        return 'image/png';
+      case 'webp':
+        return 'image/webp';
+      default:
+        return 'image/jpeg';
+    }
+  }
+
+  String _extensionFor(String name) {
+    final dot = name.lastIndexOf('.');
+    return dot == -1 ? 'jpg' : name.substring(dot + 1).toLowerCase();
   }
 
   void _saveDraft() {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('تم حفظ الإعلان كمسودة (لمدة 24 ساعة)')),
+      const SnackBar(content: Text('حفظ المسودة سيُفعّل مع نظام الإعلانات القادم')),
     );
   }
 

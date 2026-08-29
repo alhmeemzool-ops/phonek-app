@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import '../data/mock_data.dart';
+import 'package:provider/provider.dart';
+import '../data/app_state.dart';
 import '../theme/app_theme.dart';
 import '../utils/formatters.dart';
 import 'chat_screen.dart';
@@ -9,7 +10,8 @@ class ChatListScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final threads = MockData.chatThreads;
+    final appState = context.watch<AppState>();
+    final threads = appState.chatThreads;
 
     return Scaffold(
       appBar: AppBar(title: const Text('المحادثات')),
@@ -55,11 +57,14 @@ class ChatListScreen extends StatelessWidget {
                       ? null
                       : Text(AppFormatters.timeAgo(last.timestamp), style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
                   onTap: () {
-                    final listing = MockData.listings.firstWhere(
-                      (p) => p.id == t.phoneListingId,
-                      orElse: () => MockData.listings.first,
-                    );
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => ChatScreen(listing: listing, thread: t)));
+                    final matches = appState.listings.where((p) => p.id == t.phoneListingId).toList();
+                    if (matches.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('تعذر العثور على الإعلان المرتبط بالمحادثة')),
+                      );
+                      return;
+                    }
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => ChatScreen(listing: matches.first, thread: t)));
                   },
                 );
               },

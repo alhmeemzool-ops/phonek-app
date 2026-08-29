@@ -34,9 +34,8 @@ class _ShopAccountScreenState extends State<ShopAccountScreen> {
     try {
       await Supabase.instance.client.from('profiles').upsert({
         'id': user.id,
-        'display_name': user.userMetadata?['full_name'] ?? user.email ?? 'مستخدم PhoneK',
-        'account_type': 'shop',
-        'shop_name': _shopNameController.text.trim(),
+        'name': _shopNameController.text.trim(),
+        'is_shop': true,
         'phone': _phoneController.text.trim(),
         'city': _cityController.text.trim(),
       });
