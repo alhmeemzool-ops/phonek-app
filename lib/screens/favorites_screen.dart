@@ -1,7 +1,7 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../data/app_state.dart';
-import '../data/mock_data.dart';
 import '../theme/app_theme.dart';
 import '../utils/formatters.dart';
 import 'phone_details_screen.dart';
@@ -12,7 +12,7 @@ class FavoritesScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
-    final favorites = MockData.listings.where((p) => appState.isFavorite(p.id)).toList();
+    final favorites = appState.listings.where((p) => appState.isFavorite(p.id)).toList();
 
     return Scaffold(
       appBar: AppBar(title: const Text('المفضلة')),
@@ -42,11 +42,20 @@ class FavoritesScreen extends StatelessWidget {
                         context,
                         MaterialPageRoute(builder: (_) => PhoneDetailsScreen(listing: p)),
                       ),
-                      leading: Container(
-                        width: 50,
-                        height: 50,
-                        decoration: BoxDecoration(color: Colors.grey[850], borderRadius: BorderRadius.circular(8)),
-                        child: const Icon(Icons.phone_android, color: Colors.white24),
+                      leading: ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: SizedBox(
+                          width: 50,
+                          height: 50,
+                          child: p.imageUrls.isNotEmpty
+                              ? CachedNetworkImage(
+                                  imageUrl: p.imageUrls.first,
+                                  fit: BoxFit.cover,
+                                  errorWidget: (context, url, error) => const _FavoriteImagePlaceholder(),
+                                  placeholder: (context, url) => const _FavoriteImagePlaceholder(),
+                                )
+                              : const _FavoriteImagePlaceholder(),
+                        ),
                       ),
                       title: Text(p.title),
                       subtitle: Text(AppFormatters.priceSDG(p.price), style: const TextStyle(color: AppColors.gold)),
@@ -56,6 +65,18 @@ class FavoritesScreen extends StatelessWidget {
                 );
               },
             ),
+    );
+  }
+}
+
+class _FavoriteImagePlaceholder extends StatelessWidget {
+  const _FavoriteImagePlaceholder();
+
+  @override
+  Widget build(BuildContext context) {
+    return const ColoredBox(
+      color: Color(0xFF2A2A2A),
+      child: Icon(Icons.phone_android_rounded, color: Colors.white38),
     );
   }
 }

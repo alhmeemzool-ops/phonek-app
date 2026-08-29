@@ -4,9 +4,8 @@
 الأساسية لتطبيق PhoneK بناءً على قراراتك. **يعمل فوراً بعد ربطه بمشروع Flutter**
 ببيانات تجريبية محلية (Mock Data) — أي أنك تقدر تشغّله وتتصفحه اليوم بدون Firebase.
 
-لكن بعض الميزات (تسجيل دخول Google الحقيقي، حفظ الإعلانات الفعلي، الشات الفوري بين
-جهازين، الإشعارات) تحتاج **حساب Firebase خاص بك** لأنها تتطلب مفاتيح API لا يقدر
-أي طرف ثالث توليدها نيابة عنك.
+لكن بعض الميزات (حفظ الإعلانات الفعلي، رفع الصور، الشات الفوري، والإشعارات) تحتاج
+إلى إعداد مشروع **Supabase** وسياساته وربط التخزين والمصادقة بشكل صحيح.
 
 ---
 
@@ -24,19 +23,19 @@
 - الشات: فقاعات رسائل، علامات القراءة، إرسال موقع، مؤشر "متصل الآن"
 - صفحة الحساب: تسجيل خروج، حذف حساب (بتأكيد)، لوحة تحكم أدمن بإحصائيات أساسية
 
-## ⏳ ما يحتاج ربطك بـ Firebase لتفعيله فعلياً
+## ⏳ ما يحتاج إعداد Supabase لتفعيله فعلياً
 
-كل نقطة أدناه موجودة في الواجهة والكود لكنها تعمل حالياً بـ "بيانات وهمية محلية"
-(محدد بتعليق `// TODO` في مكانه بالكود بالضبط):
+كل نقطة أدناه تحتاج إعدادًا أو ربطًا إنتاجيًا في Supabase، وقد تعمل بعض الواجهات
+حاليًا ببيانات معاينة محلية أو بحالة فراغ إلى أن تتوفر بيانات حقيقية:
 
 | الميزة | أين في الكود |
 |---|---|
-| تسجيل دخول Google حقيقي | `lib/screens/login_screen.dart` |
+| تسجيل دخول Google حقيقي | إعداد Google Provider وRedirect URLs في Supabase |
 | حفظ الإعلانات الجديدة فعلياً في قاعدة بيانات | `lib/screens/add_phone_screen.dart` |
-| رفع الصور الحقيقية (كاميرا/معرض) | `lib/screens/add_phone_screen.dart` |
-| الشات الفوري بين جهازين حقيقيين | `lib/screens/chat_screen.dart` |
-| الإشعارات (Push Notifications) | يحتاج `firebase_messaging` |
-| لوحة تحكم الأدمن ببيانات حقيقية | `lib/screens/admin_dashboard_screen.dart` |
+| رفع الصور الحقيقية (كاميرا/معرض) | `lib/screens/add_phone_screen.dart` مع Supabase Storage |
+| الشات الفوري بين جهازين حقيقيين | `lib/screens/chat_screen.dart` مع Realtime وRLS |
+| الإشعارات (Push Notifications) | يحتاج مزود إشعارات وإدارة موافقات |
+| لوحة تحكم الأدمن ببيانات حقيقية | `lib/screens/admin_dashboard_screen.dart` مع صلاحيات الإدارة |
 
 ---
 
@@ -79,33 +78,20 @@ flutter run
 
 ---
 
-## 🔥 ربط Firebase (لتفعيل تسجيل الدخول، الشات الحقيقي، حفظ الإعلانات)
+## 🔐 إعداد Supabase (لتفعيل الحسابات، الإعلانات، الصور، والشات)
 
-1. افتح https://console.firebase.google.com وأنشئ مشروع جديد (مجاني - خطة Spark تكفي للبداية)
-2. من داخل المشروع، أضف تطبيق Android باسم الحزمة نفسه اللي استخدمته في الخطوة 2
-   (`com.phonek.phonek_app`)، وحمّل ملف `google-services.json` وضعه في `android/app/`
-3. فعّل من لوحة Firebase: **Authentication** (فعّل Google Sign-In) و **Firestore
-   Database** و **Storage** و **Cloud Messaging**
-4. ثبّت أداة FlutterFire ثم اربط المشروع تلقائياً:
-   ```bash
-   dart pub global activate flutterfire_cli
-   flutterfire configure
-   ```
-   هذا الأمر يولّد لك ملف `lib/firebase_options.dart` تلقائياً ومربوط بحسابك.
-5. في `pubspec.yaml` أزل علامة `#` عن الحزم المذكورة تحت "عند ربط Firebase"
-6. في `lib/main.dart` أضف قبل `runApp`:
-   ```dart
-   WidgetsFlutterBinding.ensureInitialized();
-   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-   ```
-7. استبدل تدريجياً كل تعليق `// TODO` المذكور في الجدول أعلاه بكود قراءة/كتابة حقيقي
-   من Firestore بدل البيانات الوهمية في `lib/data/mock_data.dart`
+1. افتح مشروع Supabase المرتبط بالتطبيق، وتأكد من تفعيل Authentication ومزود Google.
+2. اضبط Site URL وAdditional Redirect URLs لنسخة Web والرابط العميق في Android.
+3. طبّق migrations الخاصة بالمشروع لإنشاء الجداول وسياسات RLS المطلوبة.
+4. فعّل Supabase Storage عند البدء برفع الصور، وأنشئ سياسات تمنع الوصول غير المصرح به.
+5. استخدم Project URL وPublishable Key فقط داخل Flutter، ولا تضع `service_role` أو Client Secret في التطبيق.
+6. استبدل بيانات المعاينة المحلية بقراءات Supabase تدريجيًا، مع حالات التحميل والخطأ والفراغ وإعادة المحاولة.
 
 ---
 
 ## 🔐 Google OAuth وحساب صاحب المحل
 
-أضيف في هذا الفرع تسجيل دخول Google عبر Supabase Auth، مع تخزين بيانات الحساب في جدول `profiles` الموجود أو الذي تنشئه في Supabase. شغّل ملف SQL مرة واحدة في SQL Editor داخل مشروع Supabase قبل تجربة إنشاء حساب محل.
+أضيف في هذا الفرع تسجيل دخول Google عبر Supabase Auth، مع تخزين بيانات الحساب في جدول `profiles`. تأكد من أن بنية الجدول وسياسات RLS متوافقة مع الكود قبل تجربة إنشاء حساب محل.
 
 في Supabase افتح Authentication ثم URL Configuration وأضف عنوان إعادة التوجيه التالي ضمن Additional Redirect URLs:
 
@@ -173,7 +159,6 @@ phonek_app/
 الخاصة — أي APK أعطيك إياه بدون هذه الخطوة إما لن يعمل فيه تسجيل الدخول/الشات، أو
 سيحتوي مفاتيح تجريبية غير آمنة للنشر العام.
 
-**"هل أقدر أنشر بدون Firebase؟"**
-نعم تماماً — التطبيق يعمل ويُعرض بشكل كامل بالبيانات التجريبية. فقط أزرار تسجيل
-الدخول/نشر إعلان جديد/الشات الحقيقي هتبقى "تجريبية" (تعرض رسالة تنبيه بدل التنفيذ
-الفعلي) لحد ما تربط Firebase.
+**"هل أقدر أشغل التطبيق بدون Supabase؟"**
+يمكن تشغيل الواجهة للمعاينة ببيانات محلية، لكن تسجيل الدخول والإعلانات والصور والشات
+تحتاج إعداد Supabase وربطها بسياسات RLS واختبارها ببيانات حقيقية.
