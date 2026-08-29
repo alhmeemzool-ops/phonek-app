@@ -149,7 +149,14 @@ class _HomeScreenState extends State<HomeScreen> {
           else if (listings.isEmpty)
             SliverFillRemaining(
               hasScrollBody: false,
-              child: _EmptyState(query: _searchQuery),
+              child: _EmptyState(
+                query: _searchQuery,
+                suggestions: _suggestions(appState.listings),
+                onSuggestionTap: (suggestion) {
+                  _searchController.text = suggestion;
+                  setState(() => _searchQuery = suggestion);
+                },
+              ),
             )
           else
             SliverPadding(
@@ -251,12 +258,12 @@ class _HomeScreenState extends State<HomeScreen> {
                       ChoiceChip(
                         label: const Text('الكل'),
                         selected: _selectedCity == null,
-                        onSelected: (_) => setSheetState(() => _selectedCity = null),
+                            onSelected: (_) => setState(() => _selectedCity = null),
                       ),
                       ...MockData.cities.map((c) => ChoiceChip(
                             label: Text(c),
                             selected: _selectedCity == c,
-                            onSelected: (_) => setSheetState(() => _selectedCity = c),
+                            onSelected: (_) => setState(() => _selectedCity = c),
                           )),
                     ],
                   ),
@@ -271,7 +278,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       AppFormatters.priceSDG((_minPrice ?? 0).round()),
                       AppFormatters.priceSDG((_maxPrice ?? 10000000).round()),
                     ),
-                    onChanged: (values) => setSheetState(() {
+                    onChanged: (values) => setState(() {
                       _minPrice = values.start == 0 ? null : values.start;
                       _maxPrice = values.end >= 10000000 ? null : values.end;
                     }),
@@ -295,29 +302,26 @@ class _HomeScreenState extends State<HomeScreen> {
                       ChoiceChip(
                         label: const Text('الأحدث'),
                         selected: _sortOption == SortOption.newest,
-                        onSelected: (_) => setSheetState(() => _sortOption = SortOption.newest),
+                        onSelected: (_) => setState(() => _sortOption = SortOption.newest),
                       ),
                       ChoiceChip(
                         label: const Text('الأقل سعراً'),
                         selected: _sortOption == SortOption.priceLowHigh,
-                        onSelected: (_) => setSheetState(() => _sortOption = SortOption.priceLowHigh),
+                        onSelected: (_) => setState(() => _sortOption = SortOption.priceLowHigh),
                       ),
                       ChoiceChip(
                         label: const Text('الأكثر سعراً'),
                         selected: _sortOption == SortOption.priceHighLow,
-                        onSelected: (_) => setSheetState(() => _sortOption = SortOption.priceHighLow),
+                        onSelected: (_) => setState(() => _sortOption = SortOption.priceHighLow),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 12),
                   SizedBox(
                     width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        setState(() {}); // يطبّق الفلاتر على الشاشة الرئيسية
-                        Navigator.pop(ctx);
-                      },
-                      child: const Text('تطبيق الفلاتر'),
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      child: const Text('إغلاق'),
                     ),
                   ),
                 ],
@@ -327,6 +331,22 @@ class _HomeScreenState extends State<HomeScreen> {
         );
       },
     );
+  }
+
+  List<String> _suggestions(List<PhoneListing> source) {
+    final normalizedQuery = _searchQuery.trim().toLowerCase();
+    final values = <String>{};
+    for (final listing in source) {
+      if (listing.status == ListingStatus.sold) continue;
+      if (normalizedQuery.isEmpty ||
+          listing.brand.toLowerCase().contains(normalizedQuery) ||
+          listing.title.toLowerCase().contains(normalizedQuery)) {
+        values.add(listing.brand);
+        values.add(listing.title);
+      }
+      if (values.length >= 6) break;
+    }
+    return values.take(5).toList();
   }
 
   @override
@@ -370,20 +390,49 @@ class _LoadErrorState extends StatelessWidget {
 
 class _EmptyState extends StatelessWidget {
   final String query;
-  const _EmptyState({required this.query});
+  final List<String> suggestions;
+  final ValueChanged<String> onSuggestionTap;
+
+  const _EmptyState({
+    required this.query,
+    required this.suggestions,
+    required this.onSuggestionTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.search_off, size: 64, color: AppColors.textSecondary),
-          SizedBox(height: 12),
-          Text('لم نجد ما تبحث عنه', style: TextStyle(fontWeight: FontWeight.bold)),
-          SizedBox(height: 4),
-          Text('جرب البحث باسم آخر', style: TextStyle(color: AppColors.textSecondary)),
-        ],
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.search_off, size: 64, color: AppColors.textSecondary),
+            const SizedBox(height: 12),
+            const Text('لم نجد ما تبحث عنه', style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 4),
+            Text(
+              query.isEmpty ? 'جرّب اختيار ماركة أو استخدام الفلاتر' : 'ابحث باسم آخر أو اختر اقتراحًا قريبًا',
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: AppColors.textSecondary),
+            ),
+            if (suggestions.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              Wrap(
+                alignment: WrapAlignment.center,
+                spacing: 8,
+                runSpacing: 8,
+                children: suggestions
+                    .map((suggestion) => ActionChip(
+                          label: Text(suggestion),
+                          avatar: const Icon(Icons.search, size: 16),
+                          onPressed: () => onSuggestionTap(suggestion),
+                        ))
+                    .toList(),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
