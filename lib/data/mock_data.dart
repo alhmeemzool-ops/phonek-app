@@ -1,8 +1,8 @@
 import '../models/phone_model.dart';
 import '../models/chat_model.dart';
 
-/// بيانات تجريبية محلية — تُستبدل لاحقاً بقراءة حقيقية من Firestore
-/// بعد ربط المشروع بحساب Firebase الخاص بك.
+/// بيانات تجريبية محلية للمعاينة فقط.
+/// ستُستبدل تدريجيًا بقراءة حقيقية من Supabase عند اكتمال طبقة البيانات.
 class MockData {
   static const seller1 = SellerInfo(
     id: 's1',
