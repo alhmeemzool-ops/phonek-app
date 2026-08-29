@@ -25,6 +25,13 @@ void main() {
       expect(listing.isIphone, isTrue);
     });
 
+    test('matches Supabase enum names for listing persistence', () {
+      expect(DeviceCondition.newDevice.name, 'newDevice');
+      expect(DeviceCondition.minorScratches.name, 'minorScratches');
+      expect(WarrantyType.storeWarranty.name, 'storeWarranty');
+      expect(ListingStatus.pendingReview.name, 'pendingReview');
+    });
+
     test('keeps a listing without images valid for the fallback UI', () {
       final listing = PhoneListing(
         id: 'test-no-image',
