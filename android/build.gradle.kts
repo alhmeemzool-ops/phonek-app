@@ -25,15 +25,9 @@ subprojects {
 }
 
 subprojects {
-    plugins.withId("com.android.application") {
-        extensions.configure<ApplicationExtension> {
-            compileSdk = 36
-        }
-    }
-    plugins.withId("com.android.library") {
-        extensions.configure<LibraryExtension> {
-            compileSdk = 36
-        }
+    afterEvaluate {
+        extensions.findByType<ApplicationExtension>()?.compileSdk = 36
+        extensions.findByType<LibraryExtension>()?.compileSdk = 36
     }
 }
 
