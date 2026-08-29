@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:phonek_app/models/phone_model.dart';
+import 'package:phonek_app/data/mock_data.dart';
 
 void main() {
   group('PhoneListing', () {
@@ -23,6 +24,12 @@ void main() {
       );
 
       expect(listing.isIphone, isTrue);
+    });
+
+    test('provides models for every supported brand', () {
+      for (final brand in MockData.brands) {
+        expect(MockData.phoneModelsByBrand[brand], isNotEmpty);
+      }
     });
 
     test('matches Supabase enum names for listing persistence', () {

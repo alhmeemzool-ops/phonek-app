@@ -24,6 +24,7 @@ class _AddPhoneScreenState extends State<AddPhoneScreen> {
   final _damageController = TextEditingController();
 
   String? _brand;
+  String? _phoneModel;
   String? _city;
   String _storage = '128GB';
   String _ram = '6GB';
@@ -57,19 +58,36 @@ class _AddPhoneScreenState extends State<AddPhoneScreen> {
             _label('صور الهاتف'),
             _imagePickerRow(),
             const SizedBox(height: 16),
-            _label('اسم الهاتف'),
-            TextFormField(
-              controller: _titleController,
-              decoration: const InputDecoration(hintText: 'مثال: Samsung Galaxy A73 5G'),
-              validator: (v) => (v == null || v.isEmpty) ? 'مطلوب' : null,
-            ),
-            const SizedBox(height: 16),
             _label('الماركة'),
             DropdownButtonFormField<String>(
               initialValue: _brand,
               items: MockData.brands.map((b) => DropdownMenuItem(value: b, child: Text(b))).toList(),
-              onChanged: (v) => setState(() => _brand = v),
-              decoration: const InputDecoration(hintText: 'اختر الماركة'),
+              onChanged: (value) {
+                setState(() {
+                  _brand = value;
+                  _phoneModel = null;
+                  _titleController.clear();
+                });
+              },
+              decoration: const InputDecoration(hintText: 'اختر الماركة أولاً'),
+              validator: (v) => v == null ? 'مطلوب' : null,
+            ),
+            const SizedBox(height: 16),
+            _label('اسم الهاتف'),
+            DropdownButtonFormField<String>(
+              initialValue: _phoneModel,
+              items: (MockData.phoneModelsByBrand[_brand] ?? const <String>[])
+                  .map((model) => DropdownMenuItem(value: model, child: Text(model)))
+                  .toList(),
+              onChanged: _brand == null
+                  ? null
+                  : (value) => setState(() {
+                        _phoneModel = value;
+                        _titleController.text = value ?? '';
+                      }),
+              decoration: InputDecoration(
+                hintText: _brand == null ? 'اختر الماركة أولاً' : 'اختر اسم الهاتف',
+              ),
               validator: (v) => v == null ? 'مطلوب' : null,
             ),
             const SizedBox(height: 16),
@@ -410,6 +428,7 @@ class _AddPhoneScreenState extends State<AddPhoneScreen> {
       _hasEarphones = false;
       _hasDamage = false;
       _batteryHealth = 100;
+      _phoneModel = null;
       _images.clear();
     });
   }
