@@ -22,6 +22,7 @@ class _AddPhoneScreenState extends State<AddPhoneScreen> {
   final _priceController = TextEditingController();
   final _descController = TextEditingController();
   final _damageController = TextEditingController();
+  final _customCityController = TextEditingController();
 
   String? _brand;
   String? _phoneModel;
@@ -34,15 +35,14 @@ class _AddPhoneScreenState extends State<AddPhoneScreen> {
   bool _hasBox = true;
   bool _hasCharger = true;
   bool _hasInvoice = false;
-  bool _hasEarphones = false;
   bool _hasDamage = false;
   int _batteryHealth = 100;
   bool _saving = false;
   final ImagePicker _imagePicker = ImagePicker();
   final List<XFile> _images = [];
 
-  final _storageOptions = ['32GB', '64GB', '128GB', '256GB', '512GB'];
-  final _ramOptions = ['3GB', '4GB', '6GB', '8GB', '12GB'];
+  final _storageOptions = ['32GB', '64GB', '128GB', '256GB', '512GB', '1TB'];
+  final _ramOptions = ['3GB', '4GB', '6GB', '8GB', '12GB', '16GB'];
 
   bool get _isIphone => (_brand ?? '').toLowerCase().contains('iphone');
 
@@ -212,11 +212,6 @@ class _AddPhoneScreenState extends State<AddPhoneScreen> {
                   selected: _hasInvoice,
                   onSelected: (v) => setState(() => _hasInvoice = v),
                 ),
-                FilterChip(
-                  label: const Text('السماعة'),
-                  selected: _hasEarphones,
-                  onSelected: (v) => setState(() => _hasEarphones = v),
-                ),
               ],
             ),
             const SizedBox(height: 16),
@@ -225,9 +220,19 @@ class _AddPhoneScreenState extends State<AddPhoneScreen> {
               initialValue: _city,
               items: MockData.cities.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
               onChanged: (v) => setState(() => _city = v),
-              decoration: const InputDecoration(hintText: 'اختر المدينة'),
+              decoration: const InputDecoration(hintText: 'اختر الولاية أو المدينة'),
               validator: (v) => v == null ? 'مطلوب' : null,
             ),
+            if (_city == 'مدينة أخرى') ...[
+              const SizedBox(height: 10),
+              TextFormField(
+                controller: _customCityController,
+                decoration: const InputDecoration(hintText: 'اكتب اسم المدينة أو المنطقة'),
+                validator: (value) => _city == 'مدينة أخرى' && (value == null || value.trim().isEmpty)
+                    ? 'اكتب اسم المدينة'
+                    : null,
+              ),
+            ],
             const SizedBox(height: 16),
             _label('الوصف'),
             TextFormField(
@@ -324,9 +329,10 @@ class _AddPhoneScreenState extends State<AddPhoneScreen> {
   }
 
   Future<void> _pickImages() async {
-    final remaining = 6 - _images.length;
+          final remaining = 5 - _images.length;
+
     if (remaining <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('يمكنك إضافة 6 صور كحد أقصى')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('يمكنك إضافة 5 صور كحد أقصى')));
       return;
     }
     final selected = await _imagePicker.pickMultiImage(imageQuality: 80, maxWidth: 1600);
@@ -378,9 +384,8 @@ class _AddPhoneScreenState extends State<AddPhoneScreen> {
         'has_box': _hasBox,
         'has_charger': _hasCharger,
         'has_invoice': _hasInvoice,
-        'has_earphones': _hasEarphones,
         'warranty': WarrantyType.none.name,
-        'city': _city,
+        'city': _city == 'مدينة أخرى' ? _customCityController.text.trim() : _city,
         'image_urls': imageUrls,
         'status': ListingStatus.pendingReview.name,
         'description': _descController.text.trim(),
@@ -461,6 +466,7 @@ class _AddPhoneScreenState extends State<AddPhoneScreen> {
     _priceController.dispose();
     _descController.dispose();
     _damageController.dispose();
+    _customCityController.dispose();
     super.dispose();
   }
 }

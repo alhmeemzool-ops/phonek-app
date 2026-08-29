@@ -39,6 +39,13 @@ void main() {
       expect(ListingStatus.pendingReview.name, 'pendingReview');
     });
 
+    test('includes the requested storage, RAM, and Sudan locations', () {
+      expect(MockData.cities, containsAll(['الخرطوم', 'البحر الأحمر', 'شرق دارفور']));
+      expect(MockData.phoneModelsByBrand.values.every((models) => models.isNotEmpty), isTrue);
+      expect(const ['32GB', '64GB', '128GB', '256GB', '512GB', '1TB'], contains('1TB'));
+      expect(const ['3GB', '4GB', '6GB', '8GB', '12GB', '16GB'], contains('16GB'));
+    });
+
     test('keeps a listing without images valid for the fallback UI', () {
       final listing = PhoneListing(
         id: 'test-no-image',
