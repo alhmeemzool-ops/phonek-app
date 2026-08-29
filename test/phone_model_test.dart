@@ -68,5 +68,30 @@ void main() {
       expect(listing.imageUrls, isEmpty);
       expect(listing.isIphone, isFalse);
     });
+
+    test('copies a listing with a new price and keeps its original price', () {
+      final listing = MockData.listings.first;
+      final updated = listing.copyWith(price: 250000, oldPrice: listing.price);
+
+      expect(updated.price, 250000);
+      expect(updated.oldPrice, listing.price);
+      expect(updated.title, listing.title);
+    });
+
+    test('builds a readable phone request title', () {
+      final request = PhoneRequest(
+        id: 'request-test',
+        brand: 'Samsung',
+        model: 'Galaxy A73 5G',
+        city: 'الخرطوم',
+        maxPrice: 300000,
+        notes: 'مع الكرتونة',
+        createdAt: DateTime(2026, 1, 1),
+      );
+
+      expect(request.title, 'Samsung Galaxy A73 5G');
+      expect(request.city, 'الخرطوم');
+      expect(request.maxPrice, 300000);
+    });
   });
 }

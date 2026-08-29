@@ -61,21 +61,33 @@ class PhoneCard extends StatelessWidget {
                       right: 6,
                       child: _Badge(text: 'مميز', color: AppColors.gold, textColor: Colors.black),
                     ),
-                  if (listing.status == ListingStatus.sold)
-                    const Positioned(
-                      top: 6,
-                      left: 6,
-                      child: _Badge(text: 'تم البيع', color: AppColors.danger, textColor: Colors.white),
+                  Positioned(
+                    top: 6,
+                    left: 6,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _Badge(
+                          text: listing.condition == DeviceCondition.newDevice ? 'جديد' : 'مستعمل',
+                          color: listing.condition == DeviceCondition.newDevice
+                              ? AppColors.success
+                              : AppColors.surfaceLight,
+                          textColor: listing.condition == DeviceCondition.newDevice ? Colors.black : Colors.white,
+                        ),
+                        if (listing.status == ListingStatus.sold) ...[
+                          const SizedBox(height: 4),
+                          const _Badge(text: 'تم البيع', color: AppColors.danger, textColor: Colors.white),
+                        ],
+                        if (listing.condition == DeviceCondition.cracked) ...[
+                          const SizedBox(height: 4),
+                          const _Badge(text: 'به عيوب', color: AppColors.warning, textColor: Colors.black),
+                        ],
+                      ],
                     ),
-                  if (listing.condition == DeviceCondition.cracked)
-                    const Positioned(
-                      top: 6,
-                      left: 6,
-                      child: _Badge(text: 'به عيوب', color: AppColors.warning, textColor: Colors.black),
-                    ),
+                  ),
                   Positioned(
                     top: 4,
-                    left: listing.condition == DeviceCondition.cracked ? 70 : 6,
+                    left: 70,
                     child: GestureDetector(
                       onTap: onFavoriteToggle,
                       child: Icon(

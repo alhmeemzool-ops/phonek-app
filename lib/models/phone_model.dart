@@ -1,4 +1,3 @@
-/// حالة الجهاز الخارجية
 enum DeviceCondition { newDevice, excellent, minorScratches, cracked }
 
 extension DeviceConditionLabel on DeviceCondition {
@@ -108,4 +107,66 @@ class PhoneListing {
   });
 
   bool get isIphone => brand.toLowerCase().contains('iphone') || brand.toLowerCase().contains('apple');
+
+  PhoneListing copyWith({
+    int? price,
+    int? oldPrice,
+    bool? priceIsNegotiable,
+    bool? priceOnCall,
+    ListingStatus? status,
+  }) {
+    return PhoneListing(
+      id: id,
+      title: title,
+      brand: brand,
+      price: price ?? this.price,
+      priceIsNegotiable: priceIsNegotiable ?? this.priceIsNegotiable,
+      priceOnCall: priceOnCall ?? this.priceOnCall,
+      oldPrice: oldPrice ?? this.oldPrice,
+      storage: storage,
+      ram: ram,
+      batteryHealthPercent: batteryHealthPercent,
+      condition: condition,
+      damageNotes: damageNotes,
+      hasBox: hasBox,
+      hasCharger: hasCharger,
+      hasInvoice: hasInvoice,
+      hasEarphones: hasEarphones,
+      warranty: warranty,
+      city: city,
+      imageUrls: imageUrls,
+      seller: seller,
+      status: status ?? this.status,
+      createdAt: createdAt,
+      viewCount: viewCount,
+      isFeatured: isFeatured,
+      description: description,
+    );
+  }
+}
+
+/// طلب شراء ينشره المشتري عندما لا يجد الهاتف المطلوب.
+class PhoneRequest {
+  final String id;
+  final String? brand;
+  final String? model;
+  final String city;
+  final int? maxPrice;
+  final String notes;
+  final DateTime createdAt;
+
+  const PhoneRequest({
+    required this.id,
+    this.brand,
+    this.model,
+    required this.city,
+    this.maxPrice,
+    this.notes = '',
+    required this.createdAt,
+  });
+
+  String get title {
+    final parts = [brand, model].whereType<String>().where((item) => item.trim().isNotEmpty).toList();
+    return parts.isEmpty ? 'هاتف غير محدد' : parts.join(' ');
+  }
 }

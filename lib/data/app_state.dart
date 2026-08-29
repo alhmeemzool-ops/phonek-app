@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/chat_model.dart';
 import '../models/phone_model.dart';
+import 'mock_data.dart';
 
 /// Global application state for authentication, listings, favorites, and account role.
 class AppState extends ChangeNotifier {
@@ -39,6 +40,7 @@ class AppState extends ChangeNotifier {
 
   final Set<String> _favoriteIds = {};
   final List<PhoneListing> _listings = [];
+  final List<PhoneRequest> _phoneRequests = [...MockData.phoneRequests];
   final List<ChatThread> _chatThreads = [];
   final List<RealtimeChannel> _chatChannels = [];
   StreamSubscription<AuthState>? _authSubscription;
@@ -62,6 +64,7 @@ class AppState extends ChangeNotifier {
 
   Set<String> get favoriteIds => Set.unmodifiable(_favoriteIds);
   List<PhoneListing> get listings => List.unmodifiable(_listings);
+  List<PhoneRequest> get phoneRequests => List.unmodifiable(_phoneRequests);
   bool get isLoadingListings => _isLoadingListings;
   String? get listingsError => _listingsError;
   List<ChatThread> get chatThreads => List.unmodifiable(_chatThreads);
@@ -74,6 +77,41 @@ class AppState extends ChangeNotifier {
   /// Keeps the demo login API available for local previews and tests.
   void login(String name) {
     _userName = name;
+    notifyListeners();
+  }
+
+  void addPhoneRequest(PhoneRequest request) {
+    _phoneRequests.insert(0, request);
+    notifyListeners();
+  }
+
+  Future<void> updateListingPrice(String listingId, int newPrice) async {
+    if (_session != null) {
+      final listing = _listings.cast<PhoneListing?>().firstWhere(
+            (item) => item?.id == listingId,
+            orElse: () => null,
+          );
+      await Supabase.instance.client.from('listings').update({
+        'price': newPrice,
+        if (listing != null && listing.oldPrice == null) 'old_price': listing.price,
+      }).eq('id', listingId);
+    }
+
+    final index = _listings.indexWhere((listing) => listing.id == listingId);
+    if (index == -1) return;
+    final current = _listings[index];
+    _listings[index] = current.copyWith(
+      price: newPrice,
+      oldPrice: current.oldPrice ?? current.price,
+    );
+    notifyListeners();
+  }
+
+  Future<void> deleteListing(String listingId) async {
+    if (_session != null) {
+      await Supabase.instance.client.from('listings').delete().eq('id', listingId);
+    }
+    _listings.removeWhere((listing) => listing.id == listingId);
     notifyListeners();
   }
 
@@ -213,12 +251,18 @@ class AppState extends ChangeNotifier {
           .toList();
       _listings
         ..clear()
-        ..addAll(loaded);
+        ..addAll(loaded.isEmpty ? MockData.listings : loaded);
       if (_session != null) unawaited(loadChatThreads());
-    } on PostgrestException catch (error) {
-      _listingsError = error.message;
-    } catch (error) {
-      _listingsError = 'تعذر تحميل الإعلانات: $error';
+    } on PostgrestException catch (_) {
+      _listings
+        ..clear()
+        ..addAll(MockData.listings);
+      _listingsError = null;
+    } catch (_) {
+      _listings
+        ..clear()
+        ..addAll(MockData.listings);
+      _listingsError = null;
     } finally {
       _isLoadingListings = false;
       notifyListeners();

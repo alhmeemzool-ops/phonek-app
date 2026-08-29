@@ -36,15 +36,12 @@ class _AddPhoneScreenState extends State<AddPhoneScreen> {
   bool _hasCharger = true;
   bool _hasInvoice = false;
   bool _hasDamage = false;
-  int _batteryHealth = 100;
   bool _saving = false;
   final ImagePicker _imagePicker = ImagePicker();
   final List<XFile> _images = [];
 
   final _storageOptions = ['32GB', '64GB', '128GB', '256GB', '512GB', '1TB'];
   final _ramOptions = ['3GB', '4GB', '6GB', '8GB', '12GB', '16GB'];
-
-  bool get _isIphone => (_brand ?? '').toLowerCase().contains('iphone');
 
   @override
   Widget build(BuildContext context) {
@@ -150,19 +147,6 @@ class _AddPhoneScreenState extends State<AddPhoneScreen> {
                       ))
                   .toList(),
             ),
-            if (_isIphone) ...[
-              const SizedBox(height: 16),
-              _label('صحة البطارية: $_batteryHealth%'),
-              Slider(
-                value: _batteryHealth.toDouble(),
-                min: 50,
-                max: 100,
-                divisions: 50,
-                activeColor: AppColors.gold,
-                label: '$_batteryHealth%',
-                onChanged: (v) => setState(() => _batteryHealth = v.round()),
-              ),
-            ],
             const SizedBox(height: 16),
             _label('حالة الجهاز'),
             RadioGroup<DeviceCondition>(
@@ -238,7 +222,9 @@ class _AddPhoneScreenState extends State<AddPhoneScreen> {
             TextFormField(
               controller: _descController,
               maxLines: 4,
-              decoration: const InputDecoration(hintText: 'اكتب تفاصيل إضافية عن الهاتف...'),
+              decoration: const InputDecoration(
+                hintText: 'اكتب تفاصيل إضافية عن الهاتف... ولأجهزة الآيفون اذكر صحة البطارية هنا.',
+              ),
             ),
             const SizedBox(height: 24),
             ElevatedButton(
@@ -378,7 +364,6 @@ class _AddPhoneScreenState extends State<AddPhoneScreen> {
         'price_on_call': _priceOnCall,
         'storage': _storage,
         'ram': _ram,
-        'battery_health_percent': _isIphone ? _batteryHealth : null,
         'condition': _condition.name,
         'damage_notes': _hasDamage ? _damageController.text.trim() : null,
         'has_box': _hasBox,
@@ -431,7 +416,6 @@ class _AddPhoneScreenState extends State<AddPhoneScreen> {
       _hasCharger = true;
       _hasInvoice = false;
       _hasDamage = false;
-      _batteryHealth = 100;
       _phoneModel = null;
       _images.clear();
     });

@@ -10,6 +10,7 @@ import 'add_phone_screen.dart';
 import 'favorites_screen.dart';
 import 'profile_screen.dart';
 import 'chat_list_screen.dart';
+import 'phone_requests_screen.dart';
 
 enum SortOption { newest, priceLowHigh, priceHighLow }
 
@@ -108,7 +109,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   controller: _searchController,
                   onChanged: (v) => setState(() => _searchQuery = v),
                   decoration: InputDecoration(
-                    hintText: 'ابحث عن هاتف، ماركة، أو سعة...',
+                    hintText: 'ابحث عن هاتف أو ماركة...',
                     prefixIcon: const Icon(Icons.search, color: AppColors.gold),
                     suffixIcon: _searchQuery.isNotEmpty
                         ? IconButton(
@@ -125,6 +126,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
           SliverToBoxAdapter(child: _buildBrandChips()),
+          SliverToBoxAdapter(child: _buildQuickActions()),
           if (appState.isLoadingListings && listings.isEmpty)
             const SliverFillRemaining(
               hasScrollBody: false,
@@ -171,6 +173,24 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildQuickActions() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+      child: OutlinedButton.icon(
+        onPressed: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const PhoneRequestsScreen()),
+        ),
+        icon: const Icon(Icons.campaign_outlined, size: 18),
+        label: const Text('لم تجد هاتفك؟ انشر طلب شراء'),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: AppColors.gold,
+          side: BorderSide(color: AppColors.gold.withValues(alpha: 0.45)),
+        ),
       ),
     );
   }

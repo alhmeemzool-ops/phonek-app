@@ -47,14 +47,34 @@ class PhoneDetailsScreen extends StatelessWidget {
                 height: 280,
                 width: double.infinity,
                 child: listing.imageUrls.isNotEmpty
-                    ? CachedNetworkImage(
-                        imageUrl: listing.imageUrls.first,
-                        fit: BoxFit.cover,
-                        errorWidget: (context, url, error) => const _DetailImagePlaceholder(),
-                        placeholder: (context, url) => const _DetailImagePlaceholder(),
+                    ? PageView.builder(
+                        itemCount: listing.imageUrls.length,
+                        itemBuilder: (context, index) => CachedNetworkImage(
+                          imageUrl: listing.imageUrls[index],
+                          fit: BoxFit.cover,
+                          errorWidget: (context, url, error) => const _DetailImagePlaceholder(),
+                          placeholder: (context, url) => const _DetailImagePlaceholder(),
+                        ),
                       )
                     : const _DetailImagePlaceholder(),
               ),
+              if (listing.imageUrls.length > 1)
+                Positioned(
+                  bottom: 12,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.6),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text('${listing.imageUrls.length} صور • اسحب للتصفح',
+                          style: const TextStyle(color: Colors.white, fontSize: 11)),
+                    ),
+                  ),
+                ),
               if (listing.status == ListingStatus.sold)
                 Positioned(
                   top: 12,

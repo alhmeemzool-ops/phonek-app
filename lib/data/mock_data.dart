@@ -93,6 +93,18 @@ class MockData {
     ),
   ];
 
+  static final List<PhoneRequest> phoneRequests = [
+    PhoneRequest(
+      id: 'r1',
+      brand: 'iPhone',
+      model: 'iPhone 13 Pro',
+      city: 'الخرطوم',
+      maxPrice: 430000,
+      notes: 'يفضل مع بطارية جيدة وكرتونة إن أمكن.',
+      createdAt: DateTime.now().subtract(const Duration(hours: 5)),
+    ),
+  ];
+
   static final List<ChatThread> chatThreads = [
     ChatThread(
       id: 'c1',

@@ -6,6 +6,8 @@ import '../utils/formatters.dart';
 import 'login_screen.dart';
 import 'admin_dashboard_screen.dart';
 import 'shop_account_screen.dart';
+import 'my_listings_screen.dart';
+import 'phone_requests_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -44,7 +46,18 @@ class ProfileScreen extends StatelessWidget {
             child: Text(appState.userName ?? '', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
           ),
           const SizedBox(height: 20),
-          _tile(context, Icons.list_alt, 'إعلاناتي', () {}),
+          _tile(
+            context,
+            Icons.list_alt,
+            'إعلاناتي وتحديث الأسعار',
+            () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MyListingsScreen())),
+          ),
+          _tile(
+            context,
+            Icons.campaign_outlined,
+            'طلبات الهواتف',
+            () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PhoneRequestsScreen())),
+          ),
           _tile(
             context,
             Icons.storefront,
