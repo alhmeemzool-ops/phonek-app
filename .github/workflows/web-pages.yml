@@ -30,6 +30,8 @@ jobs:
         run: flutter pub get
       - name: Analyze
         run: flutter analyze
+      - name: Bust Flutter web cache
+        run: sed -i "s/flutter_bootstrap.js?v=[^\"]*/flutter_bootstrap.js?v=${GITHUB_SHA}/" web/index.html
       - name: Build Web
         run: flutter build web --release --base-href /phonek-app/
       - name: Configure Pages
