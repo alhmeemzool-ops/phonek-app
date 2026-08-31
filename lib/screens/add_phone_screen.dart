@@ -405,7 +405,7 @@ class _AddPhoneScreenState extends State<AddPhoneScreen> {
           'city':
               _city == 'مدينة أخرى' ? _customCityController.text.trim() : _city,
           'image_urls': imageUrls,
-          'status': ListingStatus.pendingReview.name,
+          'status': ListingStatus.active.name,
           'description': _descController.text.trim(),
           'expires_at':
               DateTime.now().add(const Duration(days: 30)).toIso8601String(),
@@ -421,7 +421,7 @@ class _AddPhoneScreenState extends State<AddPhoneScreen> {
       await appState.loadListings();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('تم إرسال الإعلان للمراجعة قبل النشر')),
+        const SnackBar(content: Text('تم نشر الإعلان بنجاح وهو ظاهر الآن للجميع')),
       );
       _resetForm();
     } on StorageException catch (error) {
