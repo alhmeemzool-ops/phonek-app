@@ -17,7 +17,7 @@ dependencies:
   cached_network_image: ^3.3.1
   shared_preferences: ^2.2.2
   provider: ^6.1.2
-  supabase_flutter: ^2.16.0
+  supabase_flutter: ^2.15.4
 
   # عند ربط المشروع بـ Firebase (خطوة مطلوبة منك)، فعّل هذه الحزم:
   # firebase_core: ^2.27.0
