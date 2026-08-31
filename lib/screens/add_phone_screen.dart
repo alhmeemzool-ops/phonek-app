@@ -57,7 +57,7 @@ class _AddPhoneScreenState extends State<AddPhoneScreen> {
             const SizedBox(height: 16),
             _label('الماركة'),
             DropdownButtonFormField<String>(
-              value: _brand,
+              initialValue: _brand,
               items: MockData.brands
                   .map((b) => DropdownMenuItem(value: b, child: Text(b)))
                   .toList(),
@@ -74,7 +74,7 @@ class _AddPhoneScreenState extends State<AddPhoneScreen> {
             const SizedBox(height: 16),
             _label('اسم الهاتف'),
             DropdownButtonFormField<String>(
-              value: _phoneModel,
+              initialValue: _phoneModel,
               items: (MockData.phoneModelsByBrand[_brand] ?? const <String>[])
                   .map((model) =>
                       DropdownMenuItem(value: model, child: Text(model)))
@@ -158,18 +158,20 @@ class _AddPhoneScreenState extends State<AddPhoneScreen> {
             ),
             const SizedBox(height: 16),
             _label('حالة الجهاز'),
-            Column(
-              children: DeviceCondition.values.map<Widget>((c) {
-                return RadioListTile<DeviceCondition>(
-                  contentPadding: EdgeInsets.zero,
-                  value: c,
-                  groupValue: _condition,
-                  onChanged: (value) {
-                    if (value != null) setState(() => _condition = value);
-                  },
-                  title: Text(c.labelAr, style: const TextStyle(fontSize: 13)),
-                );
-              }).toList(),
+            RadioGroup<DeviceCondition>(
+              groupValue: _condition,
+              onChanged: (value) {
+                if (value != null) setState(() => _condition = value);
+              },
+              child: Column(
+                children: DeviceCondition.values.map<Widget>((c) {
+                  return RadioListTile<DeviceCondition>(
+                    contentPadding: EdgeInsets.zero,
+                    value: c,
+                    title: Text(c.labelAr, style: const TextStyle(fontSize: 13)),
+                  );
+                }).toList(),
+              ),
             ),
             CheckboxListTile(
               contentPadding: EdgeInsets.zero,
@@ -210,7 +212,7 @@ class _AddPhoneScreenState extends State<AddPhoneScreen> {
             const SizedBox(height: 16),
             _label('المدينة'),
             DropdownButtonFormField<String>(
-              value: _city,
+              initialValue: _city,
               items: MockData.cities
                   .map((c) => DropdownMenuItem(value: c, child: Text(c)))
                   .toList(),
