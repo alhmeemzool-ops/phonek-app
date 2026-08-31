@@ -57,8 +57,10 @@ class _AddPhoneScreenState extends State<AddPhoneScreen> {
             const SizedBox(height: 16),
             _label('الماركة'),
             DropdownButtonFormField<String>(
-              initialValue: _brand,
-              items: MockData.brands.map((b) => DropdownMenuItem(value: b, child: Text(b))).toList(),
+              value: _brand,
+              items: MockData.brands
+                  .map((b) => DropdownMenuItem(value: b, child: Text(b)))
+                  .toList(),
               onChanged: (value) {
                 setState(() {
                   _brand = value;
@@ -72,9 +74,10 @@ class _AddPhoneScreenState extends State<AddPhoneScreen> {
             const SizedBox(height: 16),
             _label('اسم الهاتف'),
             DropdownButtonFormField<String>(
-              initialValue: _phoneModel,
+              value: _phoneModel,
               items: (MockData.phoneModelsByBrand[_brand] ?? const <String>[])
-                  .map((model) => DropdownMenuItem(value: model, child: Text(model)))
+                  .map((model) =>
+                      DropdownMenuItem(value: model, child: Text(model)))
                   .toList(),
               onChanged: _brand == null
                   ? null
@@ -83,7 +86,8 @@ class _AddPhoneScreenState extends State<AddPhoneScreen> {
                         _titleController.text = value ?? '';
                       }),
               decoration: InputDecoration(
-                hintText: _brand == null ? 'اختر الماركة أولاً' : 'اختر اسم الهاتف',
+                hintText:
+                    _brand == null ? 'اختر الماركة أولاً' : 'اختر اسم الهاتف',
               ),
               validator: (v) => v == null ? 'مطلوب' : null,
             ),
@@ -99,7 +103,9 @@ class _AddPhoneScreenState extends State<AddPhoneScreen> {
                 if (v == null || v.isEmpty) return 'مطلوب';
                 final n = int.tryParse(v);
                 if (n == null) return 'رقم غير صحيح';
-                if (n < 10000) return 'الحد الأدنى للسعر 10,000 ج.س، أو فعّل "اتصل للسعر"';
+                if (n < 10000) {
+                  return 'الحد الأدنى للسعر 10,000 ج.س، أو فعّل "اتصل للسعر"';
+                }
                 return null;
               },
             ),
@@ -109,8 +115,10 @@ class _AddPhoneScreenState extends State<AddPhoneScreen> {
                   child: CheckboxListTile(
                     contentPadding: EdgeInsets.zero,
                     value: _priceNegotiable,
-                    onChanged: (v) => setState(() => _priceNegotiable = v ?? true),
-                    title: const Text('قابل للتفاوض', style: TextStyle(fontSize: 13)),
+                    onChanged: (v) =>
+                        setState(() => _priceNegotiable = v ?? true),
+                    title: const Text('قابل للتفاوض',
+                        style: TextStyle(fontSize: 13)),
                   ),
                 ),
                 Expanded(
@@ -118,7 +126,8 @@ class _AddPhoneScreenState extends State<AddPhoneScreen> {
                     contentPadding: EdgeInsets.zero,
                     value: _priceOnCall,
                     onChanged: (v) => setState(() => _priceOnCall = v ?? false),
-                    title: const Text('اتصل للسعر', style: TextStyle(fontSize: 13)),
+                    title: const Text('اتصل للسعر',
+                        style: TextStyle(fontSize: 13)),
                   ),
                 ),
               ],
@@ -149,31 +158,31 @@ class _AddPhoneScreenState extends State<AddPhoneScreen> {
             ),
             const SizedBox(height: 16),
             _label('حالة الجهاز'),
-            RadioGroup<DeviceCondition>(
-              groupValue: _condition,
-              onChanged: (value) {
-                if (value != null) setState(() => _condition = value);
-              },
-              child: Column(
-                children: DeviceCondition.values.map((c) {
-                  return RadioListTile<DeviceCondition>(
-                    contentPadding: EdgeInsets.zero,
-                    value: c,
-                    title: Text(c.labelAr, style: const TextStyle(fontSize: 13)),
-                  );
-                }).toList(),
-              ),
+            Column(
+              children: DeviceCondition.values.map<Widget>((c) {
+                return RadioListTile<DeviceCondition>(
+                  contentPadding: EdgeInsets.zero,
+                  value: c,
+                  groupValue: _condition,
+                  onChanged: (value) {
+                    if (value != null) setState(() => _condition = value);
+                  },
+                  title: Text(c.labelAr, style: const TextStyle(fontSize: 13)),
+                );
+              }).toList(),
             ),
             CheckboxListTile(
               contentPadding: EdgeInsets.zero,
               value: _hasDamage,
               onChanged: (v) => setState(() => _hasDamage = v ?? false),
-              title: const Text('يوجد عيوب أو أعطال أذكرها', style: TextStyle(fontSize: 13)),
+              title: const Text('يوجد عيوب أو أعطال أذكرها',
+                  style: TextStyle(fontSize: 13)),
             ),
             if (_hasDamage)
               TextFormField(
                 controller: _damageController,
-                decoration: const InputDecoration(hintText: 'مثال: بصمة لا تعمل، خدش بالزاوية'),
+                decoration: const InputDecoration(
+                    hintText: 'مثال: بصمة لا تعمل، خدش بالزاوية'),
                 maxLines: 2,
               ),
             const SizedBox(height: 16),
@@ -201,18 +210,23 @@ class _AddPhoneScreenState extends State<AddPhoneScreen> {
             const SizedBox(height: 16),
             _label('المدينة'),
             DropdownButtonFormField<String>(
-              initialValue: _city,
-              items: MockData.cities.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+              value: _city,
+              items: MockData.cities
+                  .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                  .toList(),
               onChanged: (v) => setState(() => _city = v),
-              decoration: const InputDecoration(hintText: 'اختر الولاية أو المدينة'),
+              decoration:
+                  const InputDecoration(hintText: 'اختر الولاية أو المدينة'),
               validator: (v) => v == null ? 'مطلوب' : null,
             ),
             if (_city == 'مدينة أخرى') ...[
               const SizedBox(height: 10),
               TextFormField(
                 controller: _customCityController,
-                decoration: const InputDecoration(hintText: 'اكتب اسم المدينة أو المنطقة'),
-                validator: (value) => _city == 'مدينة أخرى' && (value == null || value.trim().isEmpty)
+                decoration: const InputDecoration(
+                    hintText: 'اكتب اسم المدينة أو المنطقة'),
+                validator: (value) => _city == 'مدينة أخرى' &&
+                        (value == null || value.trim().isEmpty)
                     ? 'اكتب اسم المدينة'
                     : null,
               ),
@@ -223,14 +237,18 @@ class _AddPhoneScreenState extends State<AddPhoneScreen> {
               controller: _descController,
               maxLines: 4,
               decoration: const InputDecoration(
-                hintText: 'اكتب تفاصيل إضافية عن الهاتف... ولأجهزة الآيفون اذكر صحة البطارية هنا.',
+                hintText:
+                    'اكتب تفاصيل إضافية عن الهاتف... ولأجهزة الآيفون اذكر صحة البطارية هنا.',
               ),
             ),
             const SizedBox(height: 24),
             ElevatedButton(
               onPressed: _saving ? null : _submit,
               child: _saving
-                  ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2))
+                  ? const SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(strokeWidth: 2))
                   : const Text('نشر الإعلان'),
             ),
             const SizedBox(height: 10),
@@ -246,7 +264,9 @@ class _AddPhoneScreenState extends State<AddPhoneScreen> {
 
   Widget _label(String text) => Padding(
         padding: const EdgeInsets.only(bottom: 6),
-        child: Text(text, style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+        child: Text(text,
+            style:
+                const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
       );
 
   Widget _imagePickerRow() {
@@ -256,7 +276,8 @@ class _AddPhoneScreenState extends State<AddPhoneScreen> {
         scrollDirection: Axis.horizontal,
         itemCount: _images.length + 1,
         separatorBuilder: (_, __) => const SizedBox(width: 8),
-        itemBuilder: (context, index) => index == 0 ? _addImageBox() : _imagePreview(index - 1),
+        itemBuilder: (context, index) =>
+            index == 0 ? _addImageBox() : _imagePreview(index - 1),
       ),
     );
   }
@@ -288,12 +309,14 @@ class _AddPhoneScreenState extends State<AddPhoneScreen> {
               width: 90,
               height: 90,
               clipBehavior: Clip.antiAlias,
-              decoration: BoxDecoration(borderRadius: BorderRadius.circular(10)),
+              decoration:
+                  BoxDecoration(borderRadius: BorderRadius.circular(10)),
               child: snapshot.hasData
                   ? Image.memory(snapshot.data!, fit: BoxFit.cover)
                   : const ColoredBox(
                       color: AppColors.surfaceLight,
-                      child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                      child: Center(
+                          child: CircularProgressIndicator(strokeWidth: 2)),
                     ),
             ),
             Positioned(
@@ -315,13 +338,15 @@ class _AddPhoneScreenState extends State<AddPhoneScreen> {
   }
 
   Future<void> _pickImages() async {
-          final remaining = 5 - _images.length;
+    final remaining = 5 - _images.length;
 
     if (remaining <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('يمكنك إضافة 5 صور كحد أقصى')));
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('يمكنك إضافة 5 صور كحد أقصى')));
       return;
     }
-    final selected = await _imagePicker.pickMultiImage(imageQuality: 80, maxWidth: 1600);
+    final selected =
+        await _imagePicker.pickMultiImage(imageQuality: 80, maxWidth: 1600);
     if (!mounted || selected.isEmpty) return;
     setState(() => _images.addAll(selected.take(remaining)));
   }
@@ -331,7 +356,8 @@ class _AddPhoneScreenState extends State<AddPhoneScreen> {
     final user = context.read<AppState>().currentUser;
     if (user == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('سجّل الدخول أولاً حتى تتمكن من نشر إعلان')),
+        const SnackBar(
+            content: Text('سجّل الدخول أولاً حتى تتمكن من نشر إعلان')),
       );
       return;
     }
@@ -344,41 +370,51 @@ class _AddPhoneScreenState extends State<AddPhoneScreen> {
       final imageUrls = <String>[];
       for (var index = 0; index < _images.length; index++) {
         final image = _images[index];
-        final path = '${user.id}/${DateTime.now().microsecondsSinceEpoch}_$index.${_extensionFor(image.name)}';
+        final path =
+            '${user.id}/${DateTime.now().microsecondsSinceEpoch}_$index.${_extensionFor(image.name)}';
         final bytes = await image.readAsBytes();
-        await Supabase.instance.client.storage.from('listing-images').uploadBinary(
+        await Supabase.instance.client.storage
+            .from('listing-images')
+            .uploadBinary(
               path,
               bytes,
-              fileOptions: FileOptions(contentType: _contentTypeFor(image.name), upsert: false),
+              fileOptions: FileOptions(
+                  contentType: _contentTypeFor(image.name), upsert: false),
             );
         uploadedPaths.add(path);
-        imageUrls.add(Supabase.instance.client.storage.from('listing-images').getPublicUrl(path));
+        imageUrls.add(Supabase.instance.client.storage
+            .from('listing-images')
+            .getPublicUrl(path));
       }
       try {
         await Supabase.instance.client.from('listings').insert({
-        'seller_id': user.id,
-        'title': _titleController.text.trim(),
-        'brand': _brand,
-        'price': price,
-        'price_is_negotiable': _priceNegotiable,
-        'price_on_call': _priceOnCall,
-        'storage': _storage,
-        'ram': _ram,
-        'condition': _condition.name,
-        'damage_notes': _hasDamage ? _damageController.text.trim() : null,
-        'has_box': _hasBox,
-        'has_charger': _hasCharger,
-        'has_invoice': _hasInvoice,
-        'warranty': WarrantyType.none.name,
-        'city': _city == 'مدينة أخرى' ? _customCityController.text.trim() : _city,
-        'image_urls': imageUrls,
-        'status': ListingStatus.pendingReview.name,
-        'description': _descController.text.trim(),
-        'expires_at': DateTime.now().add(const Duration(days: 30)).toIso8601String(),
-      });
+          'seller_id': user.id,
+          'title': _titleController.text.trim(),
+          'brand': _brand,
+          'price': price,
+          'price_is_negotiable': _priceNegotiable,
+          'price_on_call': _priceOnCall,
+          'storage': _storage,
+          'ram': _ram,
+          'condition': _condition.name,
+          'damage_notes': _hasDamage ? _damageController.text.trim() : null,
+          'has_box': _hasBox,
+          'has_charger': _hasCharger,
+          'has_invoice': _hasInvoice,
+          'warranty': WarrantyType.none.name,
+          'city':
+              _city == 'مدينة أخرى' ? _customCityController.text.trim() : _city,
+          'image_urls': imageUrls,
+          'status': ListingStatus.pendingReview.name,
+          'description': _descController.text.trim(),
+          'expires_at':
+              DateTime.now().add(const Duration(days: 30)).toIso8601String(),
+        });
       } catch (_) {
         if (uploadedPaths.isNotEmpty) {
-          await Supabase.instance.client.storage.from('listing-images').remove(uploadedPaths);
+          await Supabase.instance.client.storage
+              .from('listing-images')
+              .remove(uploadedPaths);
         }
         rethrow;
       }
@@ -388,15 +424,38 @@ class _AddPhoneScreenState extends State<AddPhoneScreen> {
         const SnackBar(content: Text('تم إرسال الإعلان للمراجعة قبل النشر')),
       );
       _resetForm();
+    } on StorageException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text('تعذر رفع الصور: ${_storageErrorMessage(error)}')),
+        );
+      }
     } on PostgrestException catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('تعذر حفظ الإعلان: ${error.message}')),
         );
       }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('تعذر نشر الإعلان: ${error.toString()}')),
+        );
+      }
     } finally {
       if (mounted) setState(() => _saving = false);
     }
+  }
+
+  String _storageErrorMessage(StorageException error) {
+    final message = error.message.trim();
+    if (message.toLowerCase().contains('row-level security') ||
+        message.toLowerCase().contains('not authorized') ||
+        message.toLowerCase().contains('unauthorized')) {
+      return 'تأكد من تسجيل الدخول وصلاحيات مجلد الصور';
+    }
+    return message.isEmpty ? 'تحقق من الاتصال وحاول مرة أخرى' : message;
   }
 
   void _resetForm() {
@@ -440,7 +499,8 @@ class _AddPhoneScreenState extends State<AddPhoneScreen> {
 
   void _saveDraft() {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('حفظ المسودة سيُفعّل مع نظام الإعلانات القادم')),
+      const SnackBar(
+          content: Text('حفظ المسودة سيُفعّل مع نظام الإعلانات القادم')),
     );
   }
 
