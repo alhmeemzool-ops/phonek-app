@@ -41,7 +41,7 @@ create table if not exists public.listings (
   warranty text not null default 'none' check (warranty in ('none', 'storeWarranty', 'store_warranty', 'agentWarranty', 'agent_warranty')),
   city text not null default '',
   image_urls jsonb not null default '[]'::jsonb,
-  status text not null default 'pendingReview' check (status in ('active', 'sold', 'frozen', 'expired', 'pendingReview', 'pending_review')),
+  status text not null default 'active' check (status in ('active', 'sold', 'frozen', 'expired', 'pendingReview', 'pending_review')),
   description text not null default '',
   view_count integer not null default 0 check (view_count >= 0),
   is_featured boolean not null default false,
