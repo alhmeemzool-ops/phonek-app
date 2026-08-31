@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -10,7 +11,8 @@ import 'mock_data.dart';
 /// Global application state for authentication, listings, favorites, and account role.
 class AppState extends ChangeNotifier {
   AppState() {
-    _authSubscription = Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+    _authSubscription =
+        Supabase.instance.client.auth.onAuthStateChange.listen((data) {
       _session = data.session;
       if (_session == null) {
         _userName = null;
@@ -67,7 +69,8 @@ class AppState extends ChangeNotifier {
 
     final userId = _session?.user.id;
     if (userId == null) return;
-    unawaited(_persistFavorite(userId: userId, listingId: id, add: !wasFavorite));
+    unawaited(
+        _persistFavorite(userId: userId, listingId: id, add: !wasFavorite));
   }
 
   Future<void> _loadFavorites() async {
@@ -144,7 +147,8 @@ class AppState extends ChangeNotifier {
           );
       await Supabase.instance.client.from('listings').update({
         'price': newPrice,
-        if (listing != null && listing.oldPrice == null) 'old_price': listing.price,
+        if (listing != null && listing.oldPrice == null)
+          'old_price': listing.price,
       }).eq('id', listingId);
     }
 
@@ -160,7 +164,10 @@ class AppState extends ChangeNotifier {
 
   Future<void> deleteListing(String listingId) async {
     if (_session != null) {
-      await Supabase.instance.client.from('listings').delete().eq('id', listingId);
+      await Supabase.instance.client
+          .from('listings')
+          .delete()
+          .eq('id', listingId);
     }
     _listings.removeWhere((listing) => listing.id == listingId);
     notifyListeners();
@@ -223,10 +230,14 @@ class AppState extends ChangeNotifier {
         .select('id, sender_id, text, type, status, offer_amount, created_at')
         .eq('thread_id', threadId)
         .order('created_at', ascending: true);
-    return (rows as List).whereType<Map<String, dynamic>>().map(_messageFromRow).toList();
+    return (rows as List)
+        .whereType<Map<String, dynamic>>()
+        .map(_messageFromRow)
+        .toList();
   }
 
-  Future<void> sendMessage({required String threadId, required String text}) async {
+  Future<void> sendMessage(
+      {required String threadId, required String text}) async {
     final userId = _session?.user.id;
     if (userId == null) throw const AuthException('سجّل الدخول لإرسال رسالة');
     await Supabase.instance.client.from('chat_messages').insert({
@@ -238,19 +249,22 @@ class AppState extends ChangeNotifier {
     });
   }
 
-  RealtimeChannel subscribeToMessages(String threadId, void Function(ChatMessage message) onMessage) {
+  RealtimeChannel subscribeToMessages(
+      String threadId, void Function(ChatMessage message) onMessage) {
     final channel = Supabase.instance.client.channel('phonek-chat-$threadId');
-    channel.onPostgresChanges(
-      event: PostgresChangeEvent.insert,
-      schema: 'public',
-      table: 'chat_messages',
-      filter: PostgresChangeFilter(
-        type: PostgresChangeFilterType.eq,
-        column: 'thread_id',
-        value: threadId,
-      ),
-      callback: (payload) => onMessage(_messageFromRow(payload.newRecord)),
-    ).subscribe();
+    channel
+        .onPostgresChanges(
+          event: PostgresChangeEvent.insert,
+          schema: 'public',
+          table: 'chat_messages',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'thread_id',
+            value: threadId,
+          ),
+          callback: (payload) => onMessage(_messageFromRow(payload.newRecord)),
+        )
+        .subscribe();
     _chatChannels.add(channel);
     return channel;
   }
@@ -264,7 +278,8 @@ class AppState extends ChangeNotifier {
         (item) => item.name == row['type'],
         orElse: () => MessageType.text,
       ),
-      timestamp: DateTime.tryParse(row['created_at'] as String? ?? '') ?? DateTime.now(),
+      timestamp: DateTime.tryParse(row['created_at'] as String? ?? '') ??
+          DateTime.now(),
       status: MessageStatus.values.firstWhere(
         (item) => item.name == row['status'],
         orElse: () => MessageStatus.sent,
@@ -280,17 +295,30 @@ class AppState extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final rows = await Supabase.instance.client
+      final listingsQuery = Supabase.instance.client
           .from('listings')
           .select('*')
-          .eq('status', 'active')
-          .gt('expires_at', DateTime.now().toIso8601String())
-          .order('created_at', ascending: false);
-      final listingRows = (rows as List).whereType<Map<String, dynamic>>().toList();
-      final sellerIds = listingRows.map((row) => row['seller_id']).whereType<String>().toSet().toList();
+          .gt('expires_at', DateTime.now().toIso8601String());
+      final rows = _session == null
+          ? await listingsQuery
+              .eq('status', 'active')
+              .order('created_at', ascending: false)
+          : await listingsQuery
+              .or('status.eq.active,seller_id.eq.${_session!.user.id}')
+              .order('created_at', ascending: false);
+      final listingRows =
+          (rows as List).whereType<Map<String, dynamic>>().toList();
+      final sellerIds = listingRows
+          .map((row) => row['seller_id'])
+          .whereType<String>()
+          .toSet()
+          .toList();
       final sellerRows = sellerIds.isEmpty
           ? const <Map<String, dynamic>>[]
-          : (await Supabase.instance.client.from('profiles').select('*').inFilter('id', sellerIds) as List)
+          : (await Supabase.instance.client
+                  .from('profiles')
+                  .select('*')
+                  .inFilter('id', sellerIds) as List)
               .whereType<Map<String, dynamic>>()
               .toList();
       final sellersById = <String, Map<String, dynamic>>{
@@ -321,7 +349,8 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  PhoneListing? _listingFromRow(Map<String, dynamic> row, [Map<String, dynamic>? profile]) {
+  PhoneListing? _listingFromRow(Map<String, dynamic> row,
+      [Map<String, dynamic>? profile]) {
     try {
       final sellerRow = profile ?? <String, dynamic>{};
       return PhoneListing(
@@ -343,7 +372,7 @@ class AppState extends ChangeNotifier {
         hasEarphones: row['has_earphones'] as bool? ?? false,
         warranty: _warrantyFromValue(row['warranty'] as String?),
         city: row['city'] as String? ?? '',
-        imageUrls: (row['image_urls'] as List?)?.whereType<String>().toList() ?? const [],
+        imageUrls: _imageUrlsFromValue(row['image_urls']),
         seller: SellerInfo(
           id: row['seller_id'] as String? ?? '',
           name: sellerRow['name'] as String? ?? 'بائع PhoneK',
@@ -356,10 +385,12 @@ class AppState extends ChangeNotifier {
           rating: (sellerRow['rating'] as num?)?.toDouble() ?? 0,
           completedSales: (sellerRow['completed_sales'] as num?)?.toInt() ?? 0,
           city: sellerRow['city'] as String? ?? row['city'] as String? ?? '',
-          replySpeedLabel: sellerRow['reply_speed_label'] as String? ?? 'يرد عادة خلال ساعات',
+          replySpeedLabel: sellerRow['reply_speed_label'] as String? ??
+              'يرد عادة خلال ساعات',
         ),
         status: _statusFromValue(row['status'] as String?),
-        createdAt: DateTime.tryParse(row['created_at'] as String? ?? '') ?? DateTime.now(),
+        createdAt: DateTime.tryParse(row['created_at'] as String? ?? '') ??
+            DateTime.now(),
         viewCount: (row['view_count'] as num?)?.toInt() ?? 0,
         isFeatured: row['is_featured'] as bool? ?? false,
         description: row['description'] as String? ?? '',
@@ -367,6 +398,24 @@ class AppState extends ChangeNotifier {
     } catch (_) {
       return null;
     }
+  }
+
+  List<String> _imageUrlsFromValue(dynamic value) {
+    if (value is List) {
+      return value
+          .map((item) => item.toString().trim())
+          .where((item) =>
+              item.startsWith('http://') || item.startsWith('https://'))
+          .toList();
+    }
+    if (value is String && value.trim().isNotEmpty) {
+      try {
+        return _imageUrlsFromValue(jsonDecode(value));
+      } catch (_) {
+        return const [];
+      }
+    }
+    return const [];
   }
 
   DeviceCondition _conditionFromValue(String? value) {
@@ -414,13 +463,13 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> signInWithGoogle() async {
-    final redirectTo = kIsWeb
-        ? '${Uri.base.origin}${Uri.base.path.endsWith('/') ? Uri.base.path : '${Uri.base.path}/'}'
-        : 'io.supabase.phonek://login-callback';
+    final redirectTo =
+        kIsWeb ? Uri.base.origin : 'io.supabase.phonek://login-callback';
     final response = await Supabase.instance.client.auth.signInWithOAuth(
       OAuthProvider.google,
       redirectTo: redirectTo,
-      authScreenLaunchMode: kIsWeb ? LaunchMode.platformDefault : LaunchMode.externalApplication,
+      authScreenLaunchMode:
+          kIsWeb ? LaunchMode.platformDefault : LaunchMode.externalApplication,
     );
     if (!response) {
       throw const AuthException('تعذر بدء تسجيل الدخول عبر Google');
