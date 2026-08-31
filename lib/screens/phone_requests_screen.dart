@@ -113,7 +113,7 @@ class _PhoneRequestsScreenState extends State<PhoneRequestsScreen> {
             const Text('طلب جديد', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             const SizedBox(height: 14),
             DropdownButtonFormField<String>(
-              initialValue: _brand,
+              value: _brand,
               items: MockData.brands.map((brand) => DropdownMenuItem(value: brand, child: Text(brand))).toList(),
               onChanged: (value) => setState(() {
                 _brand = value;
@@ -123,7 +123,7 @@ class _PhoneRequestsScreenState extends State<PhoneRequestsScreen> {
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
-              initialValue: _model,
+              value: _model,
               items: (MockData.phoneModelsByBrand[_brand] ?? const <String>[])
                   .map((model) => DropdownMenuItem(value: model, child: Text(model)))
                   .toList(),
@@ -136,7 +136,7 @@ class _PhoneRequestsScreenState extends State<PhoneRequestsScreen> {
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
-              initialValue: _city,
+              value: _city,
               items: MockData.cities.map((city) => DropdownMenuItem(value: city, child: Text(city))).toList(),
               onChanged: (value) => setState(() => _city = value),
               decoration: const InputDecoration(labelText: 'الولاية أو المدينة', prefixIcon: Icon(Icons.location_on_outlined)),
