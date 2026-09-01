@@ -463,17 +463,25 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> signInWithGoogle() async {
-    final redirectTo =
-        kIsWeb ? Uri.base.origin : 'io.supabase.phonek://login-callback';
+    final redirectTo = kIsWeb
+        ? _webOAuthRedirectUri()
+        : 'io.supabase.phonek://login-callback';
     final response = await Supabase.instance.client.auth.signInWithOAuth(
       OAuthProvider.google,
       redirectTo: redirectTo,
-      authScreenLaunchMode:
-          kIsWeb ? LaunchMode.platformDefault : LaunchMode.externalApplication,
+      authScreenLaunchMode: kIsWeb
+          ? LaunchMode.platformDefault
+          : LaunchMode.externalApplication,
     );
     if (!response) {
       throw const AuthException('تعذر بدء تسجيل الدخول عبر Google');
     }
+  }
+
+  String _webOAuthRedirectUri() {
+    final basePath = Uri.base.path.isEmpty ? '/' : Uri.base.path;
+    final normalizedPath = basePath.endsWith('/') ? basePath : '$basePath/';
+    return '${Uri.base.origin}$normalizedPath';
   }
 
   Future<void> logout() async {
