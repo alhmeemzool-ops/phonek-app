@@ -8,6 +8,7 @@ import '../theme/app_theme.dart';
 import '../utils/formatters.dart';
 import '../widgets/phone_card.dart';
 import 'chat_screen.dart';
+import 'fullscreen_image_viewer.dart';
 
 class PhoneDetailsScreen extends StatelessWidget {
   final PhoneListing listing;
@@ -49,11 +50,21 @@ class PhoneDetailsScreen extends StatelessWidget {
                 child: listing.imageUrls.isNotEmpty
                     ? PageView.builder(
                         itemCount: listing.imageUrls.length,
-                        itemBuilder: (context, index) => CachedNetworkImage(
-                          imageUrl: listing.imageUrls[index],
-                          fit: BoxFit.cover,
-                          errorWidget: (context, url, error) => const _DetailImagePlaceholder(),
-                          placeholder: (context, url) => const _DetailImagePlaceholder(),
+                        itemBuilder: (context, index) => GestureDetector(
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (context) => FullscreenImageViewer(
+                                imageUrls: listing.imageUrls,
+                                initialIndex: index,
+                              ),
+                            ),
+                          ),
+                          child: CachedNetworkImage(
+                            imageUrl: listing.imageUrls[index],
+                            fit: BoxFit.cover,
+                            errorWidget: (context, url, error) => const _DetailImagePlaceholder(),
+                            placeholder: (context, url) => const _DetailImagePlaceholder(),
+                          ),
                         ),
                       )
                     : const _DetailImagePlaceholder(),
