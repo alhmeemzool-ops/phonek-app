@@ -39,7 +39,7 @@ class _PhoneRequestsScreenState extends State<PhoneRequestsScreen> {
         children: [
           _introCard(),
           const SizedBox(height: 16),
-          _requestForm(),
+          _requestForm(appState),
           const SizedBox(height: 24),
           const Text('طلبات الشراء الحالية', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
           const SizedBox(height: 10),
@@ -80,7 +80,7 @@ class _PhoneRequestsScreenState extends State<PhoneRequestsScreen> {
     );
   }
 
-  Widget _requestForm() {
+  Widget _requestForm(AppState appState) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -307,6 +307,7 @@ class _PhoneRequestsScreenState extends State<PhoneRequestsScreen> {
       _condition = '';
       _city = null;
     });
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم نشر طلب الهاتف بنجاح')));
   }
 
