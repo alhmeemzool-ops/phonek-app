@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:provider/provider.dart';
 import '../data/app_state.dart';
 import '../data/mock_data.dart';
 import '../models/phone_model.dart';
 import '../theme/app_theme.dart';
 import '../utils/formatters.dart';
-import '../widgets/phone_card.dart';
 import 'phone_details_screen.dart';
 import 'add_phone_screen.dart';
 import 'favorites_screen.dart';
@@ -27,6 +27,7 @@ class _HomeScreenState extends State<HomeScreen> {
   String _searchQuery = '';
   String? _selectedCity;
   String? _selectedBrand;
+  String? _selectedModel;
   SortOption _sortOption = SortOption.newest;
   double? _minPrice;
   double? _maxPrice;
@@ -39,10 +40,11 @@ class _HomeScreenState extends State<HomeScreen> {
           p.brand.toLowerCase().contains(_searchQuery.toLowerCase());
       final matchesCity = _selectedCity == null || p.city == _selectedCity;
       final matchesBrand = _selectedBrand == null || p.brand == _selectedBrand;
+      final matchesModel = _selectedModel == null || p.model == _selectedModel;
       final matchesPrice = p.priceOnCall ||
           (_minPrice == null || p.price >= _minPrice!) &&
               (_maxPrice == null || p.price <= _maxPrice!);
-      return matchesQuery && matchesCity && matchesBrand && matchesPrice && p.status != ListingStatus.sold;
+      return matchesQuery && matchesCity && matchesBrand && matchesModel && matchesPrice && p.status != ListingStatus.sold;
     }).toList();
 
     switch (_sortOption) {
@@ -131,7 +133,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           ),
-          SliverToBoxAdapter(child: _buildBrandChips()),
+          SliverToBoxAdapter(child: _buildFilterBar()),
           SliverToBoxAdapter(child: _buildQuickActions()),
           if (appState.isLoadingListings && listings.isEmpty)
             const SliverFillRemaining(
@@ -160,18 +162,12 @@ class _HomeScreenState extends State<HomeScreen> {
             )
           else
             SliverPadding(
-              padding: const EdgeInsets.all(12),
-              sliver: SliverGrid(
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  childAspectRatio: 0.68,
-                  crossAxisSpacing: 10,
-                  mainAxisSpacing: 10,
-                ),
+              padding: const EdgeInsets.fromLTRB(12, 4, 12, 16),
+              sliver: SliverList(
                 delegate: SliverChildBuilderDelegate(
                   (context, index) {
                     final phone = listings[index];
-                    return PhoneCard(
+                    return _ListingListTile(
                       listing: phone,
                       isFavorite: appState.isFavorite(phone.id),
                       onFavoriteToggle: () => appState.toggleFavorite(phone.id),
@@ -208,6 +204,64 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Widget _buildFilterBar() {
+    return Card(
+      margin: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('تصفية الإعلانات', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+            const SizedBox(height: 8),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  _filterChip('المدينة', _selectedCity ?? 'الكل', () => _openFilterSheet()),
+                  _filterChip('الماركة', _selectedBrand ?? 'الكل', () => _openFilterSheet()),
+                  _filterChip('الموديل', _selectedModel ?? 'الكل', () => _openFilterSheet()),
+                  _filterChip('السعر', _priceLabel(), () => _openFilterSheet()),
+                ],
+              ),
+            ),
+            if (_selectedCity != null || _selectedBrand != null || _selectedModel != null || _minPrice != null || _maxPrice != null)
+              Align(
+                alignment: AlignmentDirectional.centerEnd,
+                child: TextButton.icon(
+                  onPressed: () => setState(() {
+                    _selectedCity = null;
+                    _selectedBrand = null;
+                    _selectedModel = null;
+                    _minPrice = null;
+                    _maxPrice = null;
+                  }),
+                  icon: const Icon(Icons.clear, size: 16),
+                  label: const Text('مسح الفلاتر'),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _filterChip(String label, String value, VoidCallback onTap) {
+    return Padding(
+      padding: const EdgeInsetsDirectional.only(end: 8),
+      child: ActionChip(
+        avatar: const Icon(Icons.tune, size: 16, color: AppColors.gold),
+        label: Text('$label: $value'),
+        onPressed: onTap,
+      ),
+    );
+  }
+
+  String _priceLabel() {
+    if (_minPrice == null && _maxPrice == null) return 'الكل';
+    return '${_minPrice == null ? '0' : AppFormatters.priceSDG(_minPrice!.round())} - ${_maxPrice == null ? 'مفتوح' : AppFormatters.priceSDG(_maxPrice!.round())}';
+  }
+
   Widget _buildBrandChips() {
     return SizedBox(
       height: 44,
@@ -235,6 +289,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _openFilterSheet() {
+    final modelOptions = context.read<AppState>().phoneModelsForBrand(_selectedBrand);
     showModalBottomSheet(
       context: context,
       backgroundColor: AppColors.surface,
@@ -259,7 +314,10 @@ class _HomeScreenState extends State<HomeScreen> {
                         label: const Text('الكل'),
                         selected: _selectedCity == null,
                             onSelected: (_) {
-                          setState(() => _selectedCity = null);
+                              setState(() {
+                                _selectedCity = null;
+                                _selectedModel = null;
+                              });
                           setSheetState(() {});
                         },
                       ),
@@ -267,14 +325,43 @@ class _HomeScreenState extends State<HomeScreen> {
                             label: Text(c),
                             selected: _selectedCity == c,
                             onSelected: (_) {
-                              setState(() => _selectedCity = c);
+                              setState(() {
+                                _selectedCity = c;
+                                _selectedModel = null;
+                              });
                               setSheetState(() {});
                             },
                           )),
                     ],
                   ),
+                  if (_selectedBrand != null) ...[
+                    const SizedBox(height: 20),
+                    const Text('الموديل', style: TextStyle(color: AppColors.textSecondary)),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      children: [
+                        ChoiceChip(
+                          label: const Text('الكل'),
+                          selected: _selectedModel == null,
+                          onSelected: (_) {
+                            setState(() => _selectedModel = null);
+                            setSheetState(() {});
+                          },
+                        ),
+                        ...modelOptions.map((model) => ChoiceChip(
+                              label: Text(model),
+                              selected: _selectedModel == model,
+                              onSelected: (_) {
+                                setState(() => _selectedModel = model);
+                                setSheetState(() {});
+                              },
+                            )),
+                      ],
+                    ),
+                  ],
                   const SizedBox(height: 20),
-                  const Text('النطاق السعري', style: TextStyle(color: AppColors.textSecondary)),
+                  const Text('النطاق السعري من - إلى', style: TextStyle(color: AppColors.textSecondary)),
                   RangeSlider(
                     min: 0,
                     max: 10000000,
@@ -451,6 +538,128 @@ class _EmptyState extends StatelessWidget {
             ],
           ],
         ),
+      ),
+    );
+  }
+}
+
+
+class _ListingListTile extends StatelessWidget {
+  const _ListingListTile({
+    required this.listing,
+    required this.isFavorite,
+    required this.onFavoriteToggle,
+    required this.onTap,
+  });
+
+  final PhoneListing listing;
+  final bool isFavorite;
+  final VoidCallback onFavoriteToggle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final price = listing.priceOnCall ? 'اتصل للسعر' : AppFormatters.priceSDG(listing.price);
+    return Card(
+      margin: const EdgeInsets.only(bottom: 10),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: SizedBox(
+          height: 138,
+          child: Row(
+            children: [
+              SizedBox(
+                width: 132,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    listing.imageUrls.isEmpty
+                        ? const _ListImagePlaceholder()
+                        : CachedNetworkImage(
+                            imageUrl: listing.imageUrls.first,
+                            fit: BoxFit.cover,
+                            errorWidget: (_, __, ___) => const _ListImagePlaceholder(),
+                          ),
+                    if (listing.isFeatured)
+                      const Positioned(
+                        top: 8,
+                        right: 8,
+                        child: _ListBadge(label: 'مميز'),
+                      ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              listing.title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                            ),
+                          ),
+                          IconButton(
+                            onPressed: onFavoriteToggle,
+                            visualDensity: VisualDensity.compact,
+                            icon: Icon(isFavorite ? Icons.favorite : Icons.favorite_border, color: isFavorite ? AppColors.danger : AppColors.textSecondary, size: 20),
+                          ),
+                        ],
+                      ),
+                      Text('${listing.brand} • ${listing.storage} • ${listing.ram}', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                      const Spacer(),
+                      Row(
+                        children: [
+                          const Icon(Icons.location_on_outlined, size: 15, color: AppColors.textSecondary),
+                          const SizedBox(width: 3),
+                          Expanded(child: Text(listing.city, overflow: TextOverflow.ellipsis, style: const TextStyle(color: AppColors.textSecondary, fontSize: 12))),
+                        ],
+                      ),
+                      const SizedBox(height: 5),
+                      Text(price, style: const TextStyle(color: AppColors.gold, fontWeight: FontWeight.bold, fontSize: 15)),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ListImagePlaceholder extends StatelessWidget {
+  const _ListImagePlaceholder();
+
+  @override
+  Widget build(BuildContext context) {
+    return const ColoredBox(
+      color: AppColors.surfaceLight,
+      child: Center(child: Icon(Icons.phone_android_rounded, size: 42, color: AppColors.textSecondary)),
+    );
+  }
+}
+
+class _ListBadge extends StatelessWidget {
+  const _ListBadge({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: const BoxDecoration(color: AppColors.gold, borderRadius: BorderRadius.all(Radius.circular(6))),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+        child: Text(label, style: const TextStyle(color: Colors.black, fontSize: 10, fontWeight: FontWeight.bold)),
       ),
     );
   }
