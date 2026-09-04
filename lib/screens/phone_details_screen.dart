@@ -325,17 +325,95 @@ class PhoneDetailsScreen extends StatelessWidget {
               ],
             ),
           ),
-          if (seller.isVerifiedStore && seller.rating > 0)
-            Row(
+          if (seller.isVerifiedStore)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                const Icon(Icons.star, color: AppColors.gold, size: 16),
-                const SizedBox(width: 2),
-                Text(seller.rating.toStringAsFixed(1)),
+                if (seller.rating > 0)
+                  Row(
+                    children: [
+                      const Icon(Icons.star, color: AppColors.gold, size: 16),
+                      const SizedBox(width: 2),
+                      Text(seller.rating.toStringAsFixed(1)),
+                    ],
+                  )
+                else
+                  const Text('لا يوجد تقييم', style: TextStyle(color: AppColors.textSecondary, fontSize: 11)),
+                Text('${seller.ratingCount} تقييم', style: const TextStyle(color: AppColors.textSecondary, fontSize: 11)),
+                TextButton(
+                  onPressed: () => _showRatingDialog(context, seller),
+                  style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: const Size(0, 28)),
+                  child: const Text('قيّم المحل', style: TextStyle(color: AppColors.gold, fontSize: 12)),
+                ),
               ],
             ),
         ],
       ),
     );
+  }
+
+  Future<void> _showRatingDialog(BuildContext context, SellerInfo seller) async {
+    final appState = context.read<AppState>();
+    if (!appState.isLoggedIn) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('سجّل الدخول أولاً لإضافة تقييم')));
+      return;
+    }
+    if (appState.currentUser?.id == seller.id) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('لا يمكنك تقييم محلك الخاص')));
+      return;
+    }
+
+    var stars = 5;
+    final commentController = TextEditingController();
+    final submitted = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text('قيّم ${seller.name}'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('كيف كانت تجربتك مع هذا المحل؟', textAlign: TextAlign.center),
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(5, (index) {
+                  final value = index + 1;
+                  return IconButton(
+                    tooltip: '$value نجوم',
+                    onPressed: () => setDialogState(() => stars = value),
+                    icon: Icon(value <= stars ? Icons.star : Icons.star_border, color: AppColors.gold, size: 32),
+                  );
+                }),
+              ),
+              TextField(
+                controller: commentController,
+                maxLines: 3,
+                maxLength: 300,
+                decoration: const InputDecoration(labelText: 'تعليق اختياري', hintText: 'اكتب ملاحظتك عن التعامل مع المحل'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('إلغاء')),
+            ElevatedButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('إرسال التقييم')),
+          ],
+        ),
+      ),
+    );
+    final comment = commentController.text;
+    commentController.dispose();
+    if (submitted != true || !context.mounted) return;
+    try {
+      await appState.submitShopRating(shopId: seller.id, stars: stars, comment: comment);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم حفظ تقييمك للمحل')));
+      }
+    } catch (error) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذر حفظ التقييم: $error')));
+      }
+    }
   }
 
   Widget _contactBar(BuildContext context) {

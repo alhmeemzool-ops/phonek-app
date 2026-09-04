@@ -31,6 +31,7 @@ class SellerInfo {
   final bool isVerifiedStore;
   final bool isShop; // تاجر/معرض
   final double rating; // 0-5
+  final int ratingCount;
   final int completedSales;
   final String city;
   final String replySpeedLabel; // "يرد عادة خلال دقائق"
@@ -45,6 +46,7 @@ class SellerInfo {
     this.isVerifiedStore = false,
     this.isShop = false,
     this.rating = 0,
+    this.ratingCount = 0,
     this.completedSales = 0,
     required this.city,
     this.replySpeedLabel = 'يرد عادة خلال ساعات',

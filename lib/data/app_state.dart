@@ -391,6 +391,7 @@ class AppState extends ChangeNotifier {
           isVerifiedStore: sellerRow['is_verified_store'] as bool? ?? false,
           isShop: sellerRow['is_shop'] as bool? ?? false,
           rating: (sellerRow['rating'] as num?)?.toDouble() ?? 0,
+          ratingCount: (sellerRow['rating_count'] as num?)?.toInt() ?? 0,
           completedSales: (sellerRow['completed_sales'] as num?)?.toInt() ?? 0,
           city: sellerRow['city'] as String? ?? row['city'] as String? ?? '',
           replySpeedLabel: sellerRow['reply_speed_label'] as String? ??
@@ -517,6 +518,26 @@ class AppState extends ChangeNotifier {
     } catch (_) {
       // The profile table is optional during the initial demo setup.
     }
+  }
+
+  Future<void> submitShopRating({
+    required String shopId,
+    required int stars,
+    required String comment,
+  }) async {
+    final userId = _session?.user.id;
+    if (userId == null) throw const AuthException('سجّل الدخول لإضافة تقييم');
+    if (stars < 1 || stars > 5) throw const AuthException('اختر عدد النجوم');
+    if (userId == shopId) throw const AuthException('لا يمكنك تقييم حسابك');
+    await Supabase.instance.client.from('shop_ratings').upsert(
+      {
+        'shop_id': shopId,
+        'reviewer_id': userId,
+        'stars': stars,
+        'comment': comment.trim().isEmpty ? null : comment.trim(),
+      },
+      onConflict: 'shop_id,reviewer_id',
+    );
   }
 
   @override
