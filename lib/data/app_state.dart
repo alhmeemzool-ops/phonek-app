@@ -479,9 +479,9 @@ class AppState extends ChangeNotifier {
   }
 
   String _webOAuthRedirectUri() {
-    final basePath = Uri.base.path.isEmpty ? '/' : Uri.base.path;
-    final normalizedPath = basePath.endsWith('/') ? basePath : '$basePath/';
-    return '${Uri.base.origin}$normalizedPath';
+    // Always return to the stable public app URL after OAuth.
+    // Preview and Manus Sandbox URLs can expire while Google redirects back.
+    return 'https://alhmeemzool-ops.github.io/phonek-app/';
   }
 
   Future<void> logout() async {
