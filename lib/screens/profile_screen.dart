@@ -51,6 +51,16 @@ class ProfileScreen extends StatelessWidget {
           Center(
             child: Text(appState.userName ?? '', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
           ),
+          if (appState.currentUser?.email?.trim().isNotEmpty == true) ...[
+            const SizedBox(height: 4),
+            Center(
+              child: Text(
+                appState.currentUser!.email!,
+                style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                textDirection: TextDirection.ltr,
+              ),
+            ),
+          ],
           const SizedBox(height: 20),
           _tile(
             context,
