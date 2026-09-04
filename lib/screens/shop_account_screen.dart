@@ -231,7 +231,7 @@ class _SecurityNote extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
+    return const Card(
       color: AppColors.surfaceLight,
       child: const Padding(
         padding: EdgeInsets.all(12),
