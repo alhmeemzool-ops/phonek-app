@@ -233,7 +233,7 @@ class _SecurityNote extends StatelessWidget {
   Widget build(BuildContext context) {
     return const Card(
       color: AppColors.surfaceLight,
-      child: const Padding(
+      child: Padding(
         padding: EdgeInsets.all(12),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
