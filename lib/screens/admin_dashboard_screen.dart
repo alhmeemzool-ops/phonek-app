@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../data/mock_data.dart';
 import '../theme/app_theme.dart';
+import 'admin_shop_verifications_screen.dart';
 
 class AdminDashboardScreen extends StatelessWidget {
   const AdminDashboardScreen({super.key});
@@ -24,6 +25,19 @@ class AdminDashboardScreen extends StatelessWidget {
               const SizedBox(width: 10),
               Expanded(child: _statCard('المميزة', '$featured', Icons.star)),
             ],
+          ),
+          const SizedBox(height: 20),
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.verified_user_outlined, color: AppColors.gold),
+              title: const Text('طلبات توثيق المحلات'),
+              subtitle: const Text('مراجعة صورة الهوية وفيديو الوجه والموقع قبل التفعيل.'),
+              trailing: const Icon(Icons.chevron_left),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const AdminShopVerificationsScreen()),
+              ),
+            ),
           ),
           const SizedBox(height: 20),
           const Text('إعلانات بانتظار المراجعة', style: TextStyle(fontWeight: FontWeight.bold)),
