@@ -469,9 +469,9 @@ class AppState extends ChangeNotifier {
     final response = await Supabase.instance.client.auth.signInWithOAuth(
       OAuthProvider.google,
       redirectTo: redirectTo,
-      authScreenLaunchMode: kIsWeb
-          ? LaunchMode.platformDefault
-          : LaunchMode.externalApplication,
+      // Open OAuth outside embedded/preview browsers so Manus Sandbox
+      // cannot intercept the callback after Google account selection.
+      authScreenLaunchMode: LaunchMode.externalApplication,
     );
     if (!response) {
       throw const AuthException('تعذر بدء تسجيل الدخول عبر Google');
