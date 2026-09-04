@@ -1,12 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'dart:js' as js;
+import 'package:url_strategy/url_strategy.dart';
 import 'data/app_state.dart';
 import 'screens/home_screen.dart';
 import 'theme/app_theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Enable clean URLs for web
+  setPathUrlStrategy();
 
   await Supabase.initialize(
     url: 'https://hnuzqjotgmdgqjpbrqlb.supabase.co',
