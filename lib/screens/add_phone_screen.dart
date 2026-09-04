@@ -17,15 +17,18 @@ class AddPhoneScreen extends StatefulWidget {
 }
 
 class _AddPhoneScreenState extends State<AddPhoneScreen> {
+  static const _customModelOption = 'موديل آخر / أضف موديل';
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _priceController = TextEditingController();
   final _descController = TextEditingController();
   final _damageController = TextEditingController();
   final _customCityController = TextEditingController();
+  final _customModelController = TextEditingController();
 
   String? _brand;
   String? _phoneModel;
+  bool _addingCustomModel = false;
   String? _city;
   String _storage = '128GB';
   String _ram = '6GB';
@@ -46,6 +49,7 @@ class _AddPhoneScreenState extends State<AddPhoneScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final appState = context.watch<AppState>();
     return Scaffold(
       appBar: AppBar(title: const Text('إضافة هاتف')),
       body: Form(
@@ -77,6 +81,8 @@ class _AddPhoneScreenState extends State<AddPhoneScreen> {
                 setState(() {
                   _brand = value;
                   _phoneModel = null;
+                  _addingCustomModel = false;
+                  _customModelController.clear();
                   _titleController.clear();
                 });
               },
@@ -87,22 +93,41 @@ class _AddPhoneScreenState extends State<AddPhoneScreen> {
             _label('اسم الهاتف'),
             DropdownButtonFormField<String>(
               initialValue: _phoneModel,
-              items: (MockData.phoneModelsByBrand[_brand] ?? const <String>[])
+              items: [
+                ...appState.phoneModelsForBrand(_brand),
+                _customModelOption,
+              ]
                   .map((model) =>
                       DropdownMenuItem(value: model, child: Text(model)))
                   .toList(),
               onChanged: _brand == null
                   ? null
                   : (value) => setState(() {
-                        _phoneModel = value;
-                        _titleController.text = value ?? '';
+                        _addingCustomModel = value == _customModelOption;
+                        _phoneModel = _addingCustomModel ? null : value;
+                        _titleController.text = _addingCustomModel ? '' : value ?? '';
                       }),
               decoration: InputDecoration(
                 hintText:
                     _brand == null ? 'اختر الماركة أولاً' : 'اختر اسم الهاتف',
               ),
-              validator: (v) => v == null ? 'مطلوب' : null,
+              validator: (v) => v == null && !_addingCustomModel ? 'مطلوب' : null,
             ),
+            if (_addingCustomModel)
+              Padding(
+                padding: const EdgeInsets.only(top: 10),
+                child: TextFormField(
+                  controller: _customModelController,
+                  textCapitalization: TextCapitalization.words,
+                  decoration: const InputDecoration(
+                    labelText: 'اكتب اسم الموديل',
+                    hintText: 'مثال: Galaxy A99 Ultra',
+                    prefixIcon: Icon(Icons.edit_outlined),
+                  ),
+                  onChanged: (value) => _titleController.text = value,
+                  validator: (value) => value == null || value.trim().length < 2 ? 'اكتب اسم الموديل' : null,
+                ),
+              ),
             const SizedBox(height: 16),
             _label('السعر (ج.س)'),
             TextFormField(
@@ -386,6 +411,12 @@ class _AddPhoneScreenState extends State<AddPhoneScreen> {
     final appState = context.read<AppState>();
     setState(() => _saving = true);
     try {
+      if (_addingCustomModel) {
+        await appState.addCustomPhoneModel(
+          brand: _brand!,
+          model: _customModelController.text,
+        );
+      }
       final price = _priceOnCall ? 0 : int.parse(_priceController.text.trim());
       final uploadedPaths = <String>[];
       final imageUrls = <String>[];
@@ -485,6 +516,7 @@ class _AddPhoneScreenState extends State<AddPhoneScreen> {
     _priceController.clear();
     _descController.clear();
     _damageController.clear();
+    _customModelController.clear();
     setState(() {
       _brand = null;
       _city = null;
@@ -498,6 +530,7 @@ class _AddPhoneScreenState extends State<AddPhoneScreen> {
       _hasInvoice = false;
       _hasDamage = false;
       _phoneModel = null;
+      _addingCustomModel = false;
       _images.clear();
     });
   }
@@ -532,6 +565,7 @@ class _AddPhoneScreenState extends State<AddPhoneScreen> {
     _descController.dispose();
     _damageController.dispose();
     _customCityController.dispose();
+    _customModelController.dispose();
     super.dispose();
   }
 }

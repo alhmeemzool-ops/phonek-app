@@ -15,13 +15,16 @@ class PhoneRequestsScreen extends StatefulWidget {
 }
 
 class _PhoneRequestsScreenState extends State<PhoneRequestsScreen> {
+  static const _customModelOption = 'موديل آخر / أضف موديل';
   String? _brand;
   String? _model;
+  bool _addingCustomModel = false;
   String? _storage;
   String? _ram;
   String? _condition;
   String? _city;
   final _customCityController = TextEditingController();
+  final _customModelController = TextEditingController();
   final _maxPriceController = TextEditingController();
   final _notesController = TextEditingController();
 
@@ -92,22 +95,49 @@ class _PhoneRequestsScreenState extends State<PhoneRequestsScreen> {
               onChanged: (value) => setState(() {
                 _brand = value;
                 _model = null;
+                _addingCustomModel = false;
+                _customModelController.clear();
               }),
               decoration: const InputDecoration(labelText: 'الماركة (اختياري)', prefixIcon: Icon(Icons.branding_watermark_outlined)),
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
               initialValue: _model,
-              items: (MockData.phoneModelsByBrand[_brand] ?? const <String>[])
+              items: [
+                ...appState.phoneModelsForBrand(_brand),
+                _customModelOption,
+              ]
                   .map((model) => DropdownMenuItem(value: model, child: Text(model)))
                   .toList(),
-              onChanged: _brand == null ? null : (value) => setState(() => _model = value),
+              onChanged: _brand == null
+                  ? null
+                  : (value) => setState(() {
+                        _addingCustomModel = value == _customModelOption;
+                        _model = _addingCustomModel ? null : value;
+                        if (!_addingCustomModel) _customModelController.clear();
+                      }),
               decoration: InputDecoration(
                 labelText: 'الموديل (اختياري)',
                 hintText: _brand == null ? 'اختر الماركة أولاً' : 'اختر الموديل',
                 prefixIcon: const Icon(Icons.phone_android_outlined),
               ),
             ),
+            if (_addingCustomModel) ...[
+              const SizedBox(height: 10),
+              TextField(
+                controller: _customModelController,
+                textCapitalization: TextCapitalization.words,
+                decoration: const InputDecoration(
+                  labelText: 'اكتب اسم الموديل',
+                  hintText: 'مثال: Galaxy A99 Ultra',
+                  prefixIcon: Icon(Icons.edit_outlined),
+                ),
+              ),
+              const Padding(
+                padding: EdgeInsets.only(top: 5),
+                child: Text('سيتم حفظ الموديل وإتاحته لجميع المستخدمين بعد نشر الطلب.', style: TextStyle(color: AppColors.textSecondary, fontSize: 11)),
+              ),
+            ],
             const SizedBox(height: 12),
             Row(
               children: [
@@ -222,26 +252,39 @@ class _PhoneRequestsScreenState extends State<PhoneRequestsScreen> {
     );
   }
 
-  void _submitRequest() {
-    if (!context.read<AppState>().isLoggedIn) {
+  Future<void> _submitRequest() async {
+    final appState = context.read<AppState>();
+    if (!appState.isLoggedIn) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('سجّل الدخول أولاً حتى يتمكن البائعون من التواصل معك')),
       );
       return;
     }
     final city = _city == 'مدينة أخرى' ? _customCityController.text.trim() : _city;
-    if (city == null || city.isEmpty || (_brand == null && _model == null)) {
+    final customModel = _customModelController.text.trim();
+    if (city == null || city.isEmpty || _brand == null || (!_addingCustomModel && _model == null) || (_addingCustomModel && customModel.length < 2)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('اختر الماركة أو الموديل وحدد المدينة أولاً')),
       );
       return;
     }
 
+    final selectedModel = _addingCustomModel ? customModel : _model;
+    if (_addingCustomModel) {
+      try {
+        await appState.addCustomPhoneModel(brand: _brand!, model: customModel);
+      } catch (error) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذر حفظ الموديل: $error')));
+        }
+        return;
+      }
+    }
     final maxPriceText = _maxPriceController.text.replaceAll(',', '').trim();
     final request = PhoneRequest(
       id: 'request-${DateTime.now().microsecondsSinceEpoch}',
       brand: _brand,
-      model: _model,
+      model: selectedModel,
       storage: _storage,
       ram: _ram,
       condition: _condition,
@@ -250,13 +293,15 @@ class _PhoneRequestsScreenState extends State<PhoneRequestsScreen> {
       notes: _notesController.text.trim(),
       createdAt: DateTime.now(),
     );
-    context.read<AppState>().addPhoneRequest(request);
+    appState.addPhoneRequest(request);
     _customCityController.clear();
     _maxPriceController.clear();
     _notesController.clear();
+    _customModelController.clear();
     setState(() {
       _brand = null;
       _model = null;
+      _addingCustomModel = false;
       _storage = null;
       _ram = null;
       _condition = null;
@@ -268,6 +313,7 @@ class _PhoneRequestsScreenState extends State<PhoneRequestsScreen> {
   @override
   void dispose() {
     _customCityController.dispose();
+    _customModelController.dispose();
     _maxPriceController.dispose();
     _notesController.dispose();
     super.dispose();

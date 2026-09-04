@@ -41,6 +41,7 @@ class AppState extends ChangeNotifier {
     }
 
     unawaited(loadListings());
+    unawaited(loadCustomPhoneModels());
   }
 
   final Set<String> _favoriteIds = {};
@@ -48,6 +49,10 @@ class AppState extends ChangeNotifier {
   final List<PhoneRequest> _phoneRequests = [...MockData.phoneRequests];
   final List<ChatThread> _chatThreads = [];
   final List<RealtimeChannel> _chatChannels = [];
+  final Map<String, List<String>> _phoneModelsByBrand = {
+    for (final entry in MockData.phoneModelsByBrand.entries)
+      entry.key: [...entry.value],
+  };
   StreamSubscription<AuthState>? _authSubscription;
   Session? _session;
   bool _isShopOwner = false;
@@ -135,6 +140,62 @@ class AppState extends ChangeNotifier {
   bool get isShopOwner => _isShopOwner;
   String? get shopName => _shopName;
   User? get currentUser => _session?.user;
+
+  List<String> phoneModelsForBrand(String? brand) {
+    if (brand == null) return const [];
+    return List.unmodifiable(_phoneModelsByBrand[brand] ?? const []);
+  }
+
+  Future<void> loadCustomPhoneModels() async {
+    try {
+      final rows = await Supabase.instance.client
+          .from('phone_models')
+          .select('brand, model')
+          .eq('is_active', true)
+          .order('model');
+      for (final row in (rows as List).whereType<Map<String, dynamic>>()) {
+        final brand = row['brand'] as String?;
+        final model = row['model'] as String?;
+        if (brand == null || model == null || model.trim().isEmpty) continue;
+        final models = _phoneModelsByBrand.putIfAbsent(brand, () => []);
+        if (!models.contains(model)) models.add(model);
+      }
+      notifyListeners();
+    } catch (_) {
+      // The migration is optional during local/demo previews.
+    }
+  }
+
+  Future<String> addCustomPhoneModel({
+    required String brand,
+    required String model,
+  }) async {
+    final userId = _session?.user.id;
+    final normalizedBrand = brand.trim();
+    final normalizedModel = model.trim().replaceAll(RegExp(r'\s+'), ' ');
+    if (userId == null) throw const AuthException('سجّل الدخول لإضافة موديل');
+    if (normalizedBrand.isEmpty || normalizedModel.length < 2) {
+      throw const AuthException('اكتب اسم موديل صحيح');
+    }
+    final client = Supabase.instance.client;
+    final existing = await client
+        .from('phone_models')
+        .select('model')
+        .eq('brand', normalizedBrand)
+        .eq('model_key', normalizedModel.toLowerCase())
+        .maybeSingle();
+    final result = existing ?? await client.from('phone_models').insert({
+      'brand': normalizedBrand,
+      'model': normalizedModel,
+      'model_key': normalizedModel.toLowerCase(),
+      'created_by': userId,
+    }).select('model').single();
+    final savedModel = result['model'] as String? ?? normalizedModel;
+    final models = _phoneModelsByBrand.putIfAbsent(normalizedBrand, () => []);
+    if (!models.contains(savedModel)) models.add(savedModel);
+    notifyListeners();
+    return savedModel;
+  }
 
   /// Keeps the demo login API available for local previews and tests.
   void login(String name) {
