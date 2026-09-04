@@ -469,9 +469,10 @@ class AppState extends ChangeNotifier {
     final response = await Supabase.instance.client.auth.signInWithOAuth(
       OAuthProvider.google,
       redirectTo: redirectTo,
-      // Use inAppWebView to show Google Account Picker natively on mobile
-      // instead of redirecting to external browser which shows web pages
       authScreenLaunchMode: LaunchMode.inAppWebView,
+      queryParameters: {
+        'prompt': 'select_account',
+      },
     );
     if (!response) {
       throw const AuthException('تعذر بدء تسجيل الدخول عبر Google');
