@@ -470,7 +470,7 @@ class AppState extends ChangeNotifier {
       OAuthProvider.google,
       redirectTo: redirectTo,
       authScreenLaunchMode: LaunchMode.inAppWebView,
-      queryParameters: {
+      queryParams: {
         'prompt': 'select_account',
       },
     );
