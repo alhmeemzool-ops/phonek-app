@@ -37,6 +37,7 @@ class _AddPhoneScreenState extends State<AddPhoneScreen> {
   bool _hasInvoice = false;
   bool _hasDamage = false;
   bool _saving = false;
+  String? _imagesError;
   final ImagePicker _imagePicker = ImagePicker();
   final List<XFile> _images = [];
 
@@ -54,6 +55,17 @@ class _AddPhoneScreenState extends State<AddPhoneScreen> {
           children: [
             _label('صور الهاتف'),
             _imagePickerRow(),
+            if (_imagesError != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text(
+                  _imagesError!,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.error,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
             const SizedBox(height: 16),
             _label('الماركة'),
             DropdownButtonFormField<String>(
@@ -350,11 +362,18 @@ class _AddPhoneScreenState extends State<AddPhoneScreen> {
     final selected =
         await _imagePicker.pickMultiImage(imageQuality: 80, maxWidth: 1600);
     if (!mounted || selected.isEmpty) return;
-    setState(() => _images.addAll(selected.take(remaining)));
+    setState(() {
+      _images.addAll(selected.take(remaining));
+      if (_images.isNotEmpty) _imagesError = null;
+    });
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
+    final formValid = _formKey.currentState!.validate();
+    setState(() {
+      _imagesError = _images.isEmpty ? 'أضف صورة واحدة على الأقل' : null;
+    });
+    if (!formValid || _images.isEmpty) return;
     final user = context.read<AppState>().currentUser;
     if (user == null) {
       ScaffoldMessenger.of(context).showSnackBar(
