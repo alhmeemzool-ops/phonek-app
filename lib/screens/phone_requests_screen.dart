@@ -19,9 +19,9 @@ class _PhoneRequestsScreenState extends State<PhoneRequestsScreen> {
   String? _brand;
   String? _model;
   bool _addingCustomModel = false;
-  String? _storage;
-  String? _ram;
-  String? _condition;
+  String? _storage = '';
+  String? _ram = '';
+  String? _condition = '';
   String? _city;
   final _customCityController = TextEditingController();
   final _customModelController = TextEditingController();
@@ -144,8 +144,8 @@ class _PhoneRequestsScreenState extends State<PhoneRequestsScreen> {
                 Expanded(
                   child: DropdownButtonFormField<String>(
                     initialValue: _storage,
-                    items: const ['64GB', '128GB', '256GB', '512GB', '1TB']
-                        .map((value) => DropdownMenuItem(value: value, child: Text(value)))
+                    items: const ['', '64GB', '128GB', '256GB', '512GB', '1TB']
+                        .map((value) => DropdownMenuItem(value: value, child: Text(value.isEmpty ? 'لا شيء' : value)))
                         .toList(),
                     onChanged: (value) => setState(() => _storage = value),
                     decoration: const InputDecoration(labelText: 'التخزين', prefixIcon: Icon(Icons.sd_storage_outlined)),
@@ -155,8 +155,8 @@ class _PhoneRequestsScreenState extends State<PhoneRequestsScreen> {
                 Expanded(
                   child: DropdownButtonFormField<String>(
                     initialValue: _ram,
-                    items: const ['4GB', '6GB', '8GB', '12GB', '16GB']
-                        .map((value) => DropdownMenuItem(value: value, child: Text(value)))
+                    items: const ['', '4GB', '6GB', '8GB', '12GB', '16GB']
+                        .map((value) => DropdownMenuItem(value: value, child: Text(value.isEmpty ? 'لا شيء' : value)))
                         .toList(),
                     onChanged: (value) => setState(() => _ram = value),
                     decoration: const InputDecoration(labelText: 'الرام', prefixIcon: Icon(Icons.memory_outlined)),
@@ -167,8 +167,8 @@ class _PhoneRequestsScreenState extends State<PhoneRequestsScreen> {
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
               initialValue: _condition,
-              items: const ['جديد', 'مستعمل بحالة ممتازة', 'خدوش بسيطة', 'لا يهم']
-                  .map((value) => DropdownMenuItem(value: value, child: Text(value)))
+              items: const ['', 'جديد', 'مستعمل بحالة ممتازة', 'خدوش بسيطة']
+                  .map((value) => DropdownMenuItem(value: value, child: Text(value.isEmpty ? 'لا شيء' : value)))
                   .toList(),
               onChanged: (value) => setState(() => _condition = value),
               decoration: const InputDecoration(labelText: 'الحالة المطلوبة', prefixIcon: Icon(Icons.verified_outlined)),
@@ -302,9 +302,9 @@ class _PhoneRequestsScreenState extends State<PhoneRequestsScreen> {
       _brand = null;
       _model = null;
       _addingCustomModel = false;
-      _storage = null;
-      _ram = null;
-      _condition = null;
+      _storage = '';
+      _ram = '';
+      _condition = '';
       _city = null;
     });
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم نشر طلب الهاتف بنجاح')));

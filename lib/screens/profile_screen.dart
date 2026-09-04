@@ -5,6 +5,8 @@ import '../theme/app_theme.dart';
 import '../utils/formatters.dart';
 import 'login_screen.dart';
 import 'admin_dashboard_screen.dart';
+import 'notifications_screen.dart';
+import 'saved_searches_screen.dart';
 import 'shop_account_screen.dart';
 import 'my_listings_screen.dart';
 import 'phone_requests_screen.dart';
@@ -80,8 +82,24 @@ class ProfileScreen extends StatelessWidget {
             appState.isShopOwner ? 'لوحة المحل: ${appState.shopName ?? ''}' : 'إنشاء حساب صاحب محل',
             () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ShopAccountScreen())),
           ),
-          _tile(context, Icons.bookmark, 'عمليات البحث المحفوظة', () {}),
-          _tile(context, Icons.notifications, 'إعدادات الإشعارات', () {}),
+          _tile(
+            context,
+            Icons.bookmark,
+            'عمليات البحث المحفوظة',
+            () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const SavedSearchesScreen()),
+            ),
+          ),
+          _tile(
+            context,
+            Icons.notifications,
+            'الإشعارات وإعداداتها',
+            () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+            ),
+          ),
           _tile(context, Icons.admin_panel_settings, 'لوحة تحكم الأدمن', () {
             Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminDashboardScreen()));
           }),

@@ -30,9 +30,9 @@ class _AddPhoneScreenState extends State<AddPhoneScreen> {
   String? _phoneModel;
   bool _addingCustomModel = false;
   String? _city;
-  String _storage = '128GB';
-  String _ram = '6GB';
-  DeviceCondition _condition = DeviceCondition.excellent;
+  String _storage = '';
+  String _ram = '';
+  DeviceCondition _condition = DeviceCondition.none;
   bool _priceNegotiable = true;
   bool _priceOnCall = false;
   bool _hasBox = true;
@@ -44,8 +44,8 @@ class _AddPhoneScreenState extends State<AddPhoneScreen> {
   final ImagePicker _imagePicker = ImagePicker();
   final List<XFile> _images = [];
 
-  final _storageOptions = ['32GB', '64GB', '128GB', '256GB', '512GB', '1TB'];
-  final _ramOptions = ['3GB', '4GB', '6GB', '8GB', '12GB', '16GB'];
+  final _storageOptions = ['', '32GB', '64GB', '128GB', '256GB', '512GB', '1TB'];
+  final _ramOptions = ['', '3GB', '4GB', '6GB', '8GB', '12GB', '16GB'];
 
   @override
   Widget build(BuildContext context) {
@@ -175,7 +175,7 @@ class _AddPhoneScreenState extends State<AddPhoneScreen> {
               spacing: 8,
               children: _storageOptions
                   .map((s) => ChoiceChip(
-                        label: Text(s),
+                        label: Text(s.isEmpty ? 'لا شيء' : s),
                         selected: _storage == s,
                         onSelected: (_) => setState(() => _storage = s),
                       ))
@@ -187,7 +187,7 @@ class _AddPhoneScreenState extends State<AddPhoneScreen> {
               spacing: 8,
               children: _ramOptions
                   .map((r) => ChoiceChip(
-                        label: Text(r),
+                        label: Text(r.isEmpty ? 'لا شيء' : r),
                         selected: _ram == r,
                         onSelected: (_) => setState(() => _ram = r),
                       ))
@@ -520,9 +520,9 @@ class _AddPhoneScreenState extends State<AddPhoneScreen> {
     setState(() {
       _brand = null;
       _city = null;
-      _storage = '128GB';
-      _ram = '6GB';
-      _condition = DeviceCondition.excellent;
+      _storage = '';
+      _ram = '';
+      _condition = DeviceCondition.none;
       _priceNegotiable = true;
       _priceOnCall = false;
       _hasBox = true;

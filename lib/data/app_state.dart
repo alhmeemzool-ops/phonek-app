@@ -441,7 +441,7 @@ class AppState extends ChangeNotifier {
         hasEarphones: row['has_earphones'] as bool? ?? false,
         warranty: _warrantyFromValue(row['warranty'] as String?),
         city: row['city'] as String? ?? '',
-        imageUrls: _imageUrlsFromValue(row['image_urls']),
+        imageUrls: _imageUrlsFromValue(row['image_urls'] ?? row['imageUrls']),
         seller: SellerInfo(
           id: row['seller_id'] as String? ?? '',
           name: sellerRow['name'] as String? ?? 'بائع PhoneK',
@@ -471,18 +471,34 @@ class AppState extends ChangeNotifier {
   }
 
   List<String> _imageUrlsFromValue(dynamic value) {
-    if (value is List) {
+    if (value is Iterable) {
       return value
-          .map((item) => item.toString().trim())
-          .where((item) =>
-              item.startsWith('http://') || item.startsWith('https://'))
-          .toList();
+          .expand<String>((item) {
+            if (item is Map) {
+              final nested = item['url'] ?? item['publicUrl'] ?? item['public_url'];
+              return nested == null ? const <String>[] : _imageUrlsFromValue(nested);
+            }
+            final normalized = item.toString().trim().replaceAll(RegExp(r'''^['"]|['"]$'''), '');
+            return normalized.startsWith('http://') || normalized.startsWith('https://')
+                ? <String>[normalized]
+                : const <String>[];
+          })
+          .toSet()
+          .toList(growable: false);
+    }
+    if (value is Map) {
+      final nested = value['url'] ?? value['publicUrl'] ?? value['public_url'];
+      return nested == null ? const [] : _imageUrlsFromValue(nested);
     }
     if (value is String && value.trim().isNotEmpty) {
+      final raw = value.trim();
       try {
-        return _imageUrlsFromValue(jsonDecode(value));
+        return _imageUrlsFromValue(jsonDecode(raw));
       } catch (_) {
-        return const [];
+        final normalized = raw.replaceAll(RegExp(r'''^['"]|['"]$'''), '');
+        return normalized.startsWith('http://') || normalized.startsWith('https://')
+            ? <String>[normalized]
+            : const [];
       }
     }
     return const [];
@@ -490,6 +506,8 @@ class AppState extends ChangeNotifier {
 
   DeviceCondition _conditionFromValue(String? value) {
     switch (value) {
+      case 'none':
+        return DeviceCondition.none;
       case 'new':
       case 'newDevice':
         return DeviceCondition.newDevice;
@@ -499,10 +517,9 @@ class AppState extends ChangeNotifier {
       case 'cracked':
         return DeviceCondition.cracked;
       default:
-        return DeviceCondition.excellent;
+        return DeviceCondition.none;
     }
   }
-
   WarrantyType _warrantyFromValue(String? value) {
     switch (value) {
       case 'store_warranty':
