@@ -150,6 +150,9 @@ class PhoneRequest {
   final String id;
   final String? brand;
   final String? model;
+  final String? storage;
+  final String? ram;
+  final String? condition;
   final String city;
   final int? maxPrice;
   final String notes;
@@ -159,6 +162,9 @@ class PhoneRequest {
     required this.id,
     this.brand,
     this.model,
+    this.storage,
+    this.ram,
+    this.condition,
     required this.city,
     this.maxPrice,
     this.notes = '',
@@ -168,5 +174,13 @@ class PhoneRequest {
   String get title {
     final parts = [brand, model].whereType<String>().where((item) => item.trim().isNotEmpty).toList();
     return parts.isEmpty ? 'هاتف غير محدد' : parts.join(' ');
+  }
+
+  String get details {
+    return [
+      if (storage != null && storage!.isNotEmpty) storage!,
+      if (ram != null && ram!.isNotEmpty) 'رام $ram',
+      if (condition != null && condition!.isNotEmpty) condition!,
+    ].join(' • ');
   }
 }

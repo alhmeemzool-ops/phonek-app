@@ -17,6 +17,9 @@ class PhoneRequestsScreen extends StatefulWidget {
 class _PhoneRequestsScreenState extends State<PhoneRequestsScreen> {
   String? _brand;
   String? _model;
+  String? _storage;
+  String? _ram;
+  String? _condition;
   String? _city;
   final _customCityController = TextEditingController();
   final _maxPriceController = TextEditingController();
@@ -25,35 +28,6 @@ class _PhoneRequestsScreenState extends State<PhoneRequestsScreen> {
   @override
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
-    if (!appState.isLoggedIn || !appState.isShopOwner) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('طلبات الهواتف')),
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.storefront_outlined, color: AppColors.gold, size: 56),
-                const SizedBox(height: 14),
-                Text(
-                  appState.isLoggedIn ? 'طلبات الشراء مخصصة للمحلات' : 'سجّل الدخول بحساب محل للوصول إلى طلبات الشراء',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'يمكن للمحلات نشر طلبات العملاء ومتابعتها من داخل PhoneK.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: AppColors.textSecondary, height: 1.4),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
-
     final requests = appState.phoneRequests;
     return Scaffold(
       appBar: AppBar(title: const Text('طلبات الهواتف')),
@@ -93,7 +67,7 @@ class _PhoneRequestsScreenState extends State<PhoneRequestsScreen> {
               children: [
                 Text('اكتب الهاتف الذي تبحث عنه', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                 SizedBox(height: 4),
-                Text('سينشر طلبك ليتمكن البائعون من التواصل معك عند توفر الجهاز.',
+                Text('انشر طلبك مجاناً ليشاهده البائعون والمحلات ويتواصلوا معك عند توفر الجهاز.',
                     style: TextStyle(color: AppColors.textSecondary, height: 1.4)),
               ],
             ),
@@ -133,6 +107,41 @@ class _PhoneRequestsScreenState extends State<PhoneRequestsScreen> {
                 hintText: _brand == null ? 'اختر الماركة أولاً' : 'اختر الموديل',
                 prefixIcon: const Icon(Icons.phone_android_outlined),
               ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: DropdownButtonFormField<String>(
+                    initialValue: _storage,
+                    items: const ['64GB', '128GB', '256GB', '512GB', '1TB']
+                        .map((value) => DropdownMenuItem(value: value, child: Text(value)))
+                        .toList(),
+                    onChanged: (value) => setState(() => _storage = value),
+                    decoration: const InputDecoration(labelText: 'التخزين', prefixIcon: Icon(Icons.sd_storage_outlined)),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: DropdownButtonFormField<String>(
+                    initialValue: _ram,
+                    items: const ['4GB', '6GB', '8GB', '12GB', '16GB']
+                        .map((value) => DropdownMenuItem(value: value, child: Text(value)))
+                        .toList(),
+                    onChanged: (value) => setState(() => _ram = value),
+                    decoration: const InputDecoration(labelText: 'الرام', prefixIcon: Icon(Icons.memory_outlined)),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              initialValue: _condition,
+              items: const ['جديد', 'مستعمل بحالة ممتازة', 'خدوش بسيطة', 'لا يهم']
+                  .map((value) => DropdownMenuItem(value: value, child: Text(value)))
+                  .toList(),
+              onChanged: (value) => setState(() => _condition = value),
+              decoration: const InputDecoration(labelText: 'الحالة المطلوبة', prefixIcon: Icon(Icons.verified_outlined)),
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
@@ -199,6 +208,7 @@ class _PhoneRequestsScreenState extends State<PhoneRequestsScreen> {
           child: Text(
             [
               request.city,
+              if (request.details.isNotEmpty) request.details,
               if (request.maxPrice != null) 'حتى ${AppFormatters.priceSDG(request.maxPrice!)}',
               if (request.notes.isNotEmpty) request.notes,
             ].join(' • '),
@@ -213,6 +223,12 @@ class _PhoneRequestsScreenState extends State<PhoneRequestsScreen> {
   }
 
   void _submitRequest() {
+    if (!context.read<AppState>().isLoggedIn) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('سجّل الدخول أولاً حتى يتمكن البائعون من التواصل معك')),
+      );
+      return;
+    }
     final city = _city == 'مدينة أخرى' ? _customCityController.text.trim() : _city;
     if (city == null || city.isEmpty || (_brand == null && _model == null)) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -226,6 +242,9 @@ class _PhoneRequestsScreenState extends State<PhoneRequestsScreen> {
       id: 'request-${DateTime.now().microsecondsSinceEpoch}',
       brand: _brand,
       model: _model,
+      storage: _storage,
+      ram: _ram,
+      condition: _condition,
       city: city,
       maxPrice: maxPriceText.isEmpty ? null : int.tryParse(maxPriceText),
       notes: _notesController.text.trim(),
@@ -238,6 +257,9 @@ class _PhoneRequestsScreenState extends State<PhoneRequestsScreen> {
     setState(() {
       _brand = null;
       _model = null;
+      _storage = null;
+      _ram = null;
+      _condition = null;
       _city = null;
     });
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم نشر طلب الهاتف بنجاح')));
