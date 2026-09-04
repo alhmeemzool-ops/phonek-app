@@ -16,6 +16,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   bool _loading = true;
   bool _promotionsMuted = false;
   String? _error;
+  bool _notificationsTableMissing = false;
 
   @override
   void initState() {
@@ -45,9 +46,19 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       });
     } on PostgrestException catch (error) {
       if (!mounted) return;
+      final message = error.message.toLowerCase();
+      final tableMissing =
+          error.code == 'PGRST205' ||
+          message.contains("could not find the table") ||
+          message.contains('schema cache') ||
+          message.contains('notifications');
+      if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = error.message;
+        _notificationsTableMissing = tableMissing;
+        _error = tableMissing
+            ? 'خدمة الإشعارات غير مفعلة على قاعدة البيانات بعد.'
+            : 'تعذر تحميل الإشعارات الآن.';
       });
     } catch (_) {
       if (!mounted) return;
@@ -128,7 +139,13 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 child: Center(child: CircularProgressIndicator()),
               )
             else if (_error != null)
-              _MessageState(message: _error!, onRetry: _loadNotifications)
+              _MessageState(
+                message: _error!,
+                details: _notificationsTableMissing
+                    ? 'سيتم عرض الإشعارات بعد تطبيق ترحيل قاعدة البيانات من مجلد supabase/migrations.'
+                    : null,
+                onRetry: _loadNotifications,
+              )
             else if (_notifications.isEmpty)
               const _MessageState(message: 'لا توجد إشعارات حاليًا')
             else
@@ -163,9 +180,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 }
 
 class _MessageState extends StatelessWidget {
-  const _MessageState({required this.message, this.onRetry});
+  const _MessageState({required this.message, this.details, this.onRetry});
 
   final String message;
+  final String? details;
   final Future<void> Function()? onRetry;
 
   @override
@@ -176,6 +194,10 @@ class _MessageState extends StatelessWidget {
         child: Column(
           children: [
             Text(message, textAlign: TextAlign.center, style: const TextStyle(color: AppColors.textSecondary)),
+            if (details != null) ...[
+              const SizedBox(height: 8),
+              Text(details!, textAlign: TextAlign.center, style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+            ],
             if (onRetry != null) ...[
               const SizedBox(height: 12),
               OutlinedButton(onPressed: onRetry, child: const Text('إعادة المحاولة')),

@@ -149,49 +149,53 @@ class _AddPhoneScreenState extends State<AddPhoneScreen> {
             Row(
               children: [
                 Expanded(
-                  child: CheckboxListTile(
-                    contentPadding: EdgeInsets.zero,
+                  child: _priceOption(
+                    label: 'قابل للتفاوض',
                     value: _priceNegotiable,
-                    onChanged: (v) =>
-                        setState(() => _priceNegotiable = v ?? true),
-                    title: const Text('قابل للتفاوض',
-                        style: TextStyle(fontSize: 13)),
+                    onChanged: (value) =>
+                        setState(() => _priceNegotiable = value),
                   ),
                 ),
                 Expanded(
-                  child: CheckboxListTile(
-                    contentPadding: EdgeInsets.zero,
+                  child: _priceOption(
+                    label: 'اتصل للسعر',
                     value: _priceOnCall,
-                    onChanged: (v) => setState(() => _priceOnCall = v ?? false),
-                    title: const Text('اتصل للسعر',
-                        style: TextStyle(fontSize: 13)),
+                    onChanged: (value) => setState(() => _priceOnCall = value),
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 8),
             _label('التخزين'),
-            Wrap(
-              spacing: 8,
-              children: _storageOptions
-                  .map((s) => ChoiceChip(
-                        label: Text(s.isEmpty ? 'لا شيء' : s),
-                        selected: _storage == s,
-                        onSelected: (_) => setState(() => _storage = s),
+            DropdownButtonFormField<String>(
+              initialValue: _storage,
+              items: _storageOptions
+                  .map((value) => DropdownMenuItem(
+                        value: value,
+                        child: Text(value.isEmpty ? 'لا شيء' : value),
                       ))
                   .toList(),
+              onChanged: (value) => setState(() => _storage = value ?? ''),
+              decoration: const InputDecoration(
+                hintText: 'اختر سعة التخزين',
+                prefixIcon: Icon(Icons.sd_storage_outlined),
+              ),
             ),
             const SizedBox(height: 12),
             _label('الرام'),
-            Wrap(
-              spacing: 8,
-              children: _ramOptions
-                  .map((r) => ChoiceChip(
-                        label: Text(r.isEmpty ? 'لا شيء' : r),
-                        selected: _ram == r,
-                        onSelected: (_) => setState(() => _ram = r),
+            DropdownButtonFormField<String>(
+              initialValue: _ram,
+              items: _ramOptions
+                  .map((value) => DropdownMenuItem(
+                        value: value,
+                        child: Text(value.isEmpty ? 'لا شيء' : value),
                       ))
                   .toList(),
+              onChanged: (value) => setState(() => _ram = value ?? ''),
+              decoration: const InputDecoration(
+                hintText: 'اختر حجم الرام',
+                prefixIcon: Icon(Icons.memory_outlined),
+              ),
             ),
             const SizedBox(height: 16),
             _label('حالة الجهاز'),
@@ -297,6 +301,29 @@ class _AddPhoneScreenState extends State<AddPhoneScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _priceOption({
+    required String label,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+  }) {
+    return InkWell(
+      onTap: () => onChanged(!value),
+      borderRadius: BorderRadius.circular(8),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Checkbox(
+            value: value,
+            onChanged: (next) => onChanged(next ?? false),
+            visualDensity: VisualDensity.compact,
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+          Flexible(child: Text(label, style: const TextStyle(fontSize: 13))),
+        ],
       ),
     );
   }
