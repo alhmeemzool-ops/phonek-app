@@ -172,7 +172,7 @@ class _AddPhoneScreenState extends State<AddPhoneScreen> {
               items: _storageOptions
                   .map((value) => DropdownMenuItem(
                         value: value,
-                        child: Text(value.isEmpty ? 'لا شيء' : value),
+                        child: Text(value.isEmpty ? 'غير محدد' : value),
                       ))
                   .toList(),
               onChanged: (value) => setState(() => _storage = value ?? ''),
@@ -188,7 +188,7 @@ class _AddPhoneScreenState extends State<AddPhoneScreen> {
               items: _ramOptions
                   .map((value) => DropdownMenuItem(
                         value: value,
-                        child: Text(value.isEmpty ? 'لا شيء' : value),
+                        child: Text(value.isEmpty ? 'غير محدد' : value),
                       ))
                   .toList(),
               onChanged: (value) => setState(() => _ram = value ?? ''),
@@ -475,7 +475,7 @@ class _AddPhoneScreenState extends State<AddPhoneScreen> {
           'price_on_call': _priceOnCall,
           'storage': _storage,
           'ram': _ram,
-          'condition': _condition.name,
+          'condition': _condition == DeviceCondition.none ? null : _condition.name,
           'damage_notes': _hasDamage ? _damageController.text.trim() : null,
           'has_box': _hasBox,
           'has_charger': _hasCharger,

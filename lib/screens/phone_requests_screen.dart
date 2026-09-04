@@ -145,7 +145,7 @@ class _PhoneRequestsScreenState extends State<PhoneRequestsScreen> {
                   child: DropdownButtonFormField<String>(
                     initialValue: _storage,
                     items: const ['', '64GB', '128GB', '256GB', '512GB', '1TB']
-                        .map((value) => DropdownMenuItem(value: value, child: Text(value.isEmpty ? 'لا شيء' : value)))
+                        .map((value) => DropdownMenuItem(value: value, child: Text(value.isEmpty ? 'غير محدد' : value)))
                         .toList(),
                     onChanged: (value) => setState(() => _storage = value),
                     decoration: const InputDecoration(labelText: 'التخزين', prefixIcon: Icon(Icons.sd_storage_outlined)),
@@ -156,7 +156,7 @@ class _PhoneRequestsScreenState extends State<PhoneRequestsScreen> {
                   child: DropdownButtonFormField<String>(
                     initialValue: _ram,
                     items: const ['', '4GB', '6GB', '8GB', '12GB', '16GB']
-                        .map((value) => DropdownMenuItem(value: value, child: Text(value.isEmpty ? 'لا شيء' : value)))
+                        .map((value) => DropdownMenuItem(value: value, child: Text(value.isEmpty ? 'غير محدد' : value)))
                         .toList(),
                     onChanged: (value) => setState(() => _ram = value),
                     decoration: const InputDecoration(labelText: 'الرام', prefixIcon: Icon(Icons.memory_outlined)),
@@ -168,7 +168,7 @@ class _PhoneRequestsScreenState extends State<PhoneRequestsScreen> {
             DropdownButtonFormField<String>(
               initialValue: _condition,
               items: const ['', 'جديد', 'مستعمل بحالة ممتازة', 'خدوش بسيطة']
-                  .map((value) => DropdownMenuItem(value: value, child: Text(value.isEmpty ? 'لا شيء' : value)))
+                  .map((value) => DropdownMenuItem(value: value, child: Text(value.isEmpty ? 'غير محدد' : value)))
                   .toList(),
               onChanged: (value) => setState(() => _condition = value),
               decoration: const InputDecoration(labelText: 'الحالة المطلوبة', prefixIcon: Icon(Icons.verified_outlined)),

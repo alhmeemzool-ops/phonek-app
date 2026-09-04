@@ -1,25 +1,11 @@
 -- Allow sellers and buyers to leave the device condition unspecified.
-alter table public.listings
-drop constraint if exists listings_condition_check;
+-- The database may use a device_condition enum that does not contain a `none` value.
+-- Therefore the UI label is "غير محدد" and the persisted value is NULL.
 
 alter table public.listings
-add constraint listings_condition_check check (
-  condition in (
-    'none',
-    'newDevice',
-    'new',
-    'excellent',
-    'minorScratches',
-    'minor_scratches',
-    'cracked'
-  )
-);
+  alter column storage set default '',
+  alter column ram set default '';
 
-alter table public.listings
-alter column storage set default '',
-alter column ram set default '';
-
--- Keep existing rows valid while making the new state available to new listings.
 update public.listings
 set storage = ''
 where storage is null;
@@ -28,16 +14,10 @@ update public.listings
 set ram = ''
 where ram is null;
 
-update public.listings
-set condition = 'none'
-where condition is null or trim(condition) = '';
-
 alter table public.listings
-alter column storage set not null,
-alter column ram set not null,
-alter column condition set not null;
+  alter column storage set not null,
+  alter column ram set not null,
+  alter column condition drop not null;
 
--- The old insert/update policies already permit the owner to write these values.
--- Run this migration in the linked Supabase project before publishing listings with none.
-
--- End of migration.
+-- Existing valid condition enum/text values remain unchanged.
+-- An unspecified condition is stored as NULL, never as the string `none`.

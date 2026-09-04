@@ -4,7 +4,7 @@ extension DeviceConditionLabel on DeviceCondition {
   String get labelAr {
     switch (this) {
       case DeviceCondition.none:
-        return 'لا شيء';
+        return 'غير محدد';
       case DeviceCondition.newDevice:
         return 'جديد';
       case DeviceCondition.excellent:
