@@ -124,6 +124,14 @@ class AppState extends ChangeNotifier {
   List<ChatThread> get chatThreads => List.unmodifiable(_chatThreads);
   bool get isLoggedIn => _session != null;
   String? get userName => _userName;
+  String? get userEmail {
+    final email = _session?.user.email?.trim();
+    if (email?.isNotEmpty == true) return email;
+    final metadataEmail = _session?.user.userMetadata?['email'];
+    return metadataEmail is String && metadataEmail.trim().isNotEmpty
+        ? metadataEmail.trim()
+        : null;
+  }
   bool get isShopOwner => _isShopOwner;
   String? get shopName => _shopName;
   User? get currentUser => _session?.user;

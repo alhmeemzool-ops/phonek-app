@@ -51,11 +51,11 @@ class ProfileScreen extends StatelessWidget {
           Center(
             child: Text(appState.userName ?? '', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
           ),
-          if (appState.currentUser?.email?.trim().isNotEmpty == true) ...[
+          if (appState.userEmail != null) ...[
             const SizedBox(height: 4),
             Center(
               child: Text(
-                appState.currentUser!.email!,
+                'البريد الإلكتروني: ${appState.userEmail}',
                 style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
                 textDirection: TextDirection.ltr,
               ),
