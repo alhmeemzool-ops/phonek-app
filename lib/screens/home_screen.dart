@@ -258,12 +258,18 @@ class _HomeScreenState extends State<HomeScreen> {
                       ChoiceChip(
                         label: const Text('الكل'),
                         selected: _selectedCity == null,
-                            onSelected: (_) => setState(() => _selectedCity = null),
+                            onSelected: (_) {
+                          setState(() => _selectedCity = null);
+                          setSheetState(() {});
+                        },
                       ),
                       ...MockData.cities.map((c) => ChoiceChip(
                             label: Text(c),
                             selected: _selectedCity == c,
-                            onSelected: (_) => setState(() => _selectedCity = c),
+                            onSelected: (_) {
+                              setState(() => _selectedCity = c);
+                              setSheetState(() {});
+                            },
                           )),
                     ],
                   ),
@@ -278,10 +284,13 @@ class _HomeScreenState extends State<HomeScreen> {
                       AppFormatters.priceSDG((_minPrice ?? 0).round()),
                       AppFormatters.priceSDG((_maxPrice ?? 10000000).round()),
                     ),
-                    onChanged: (values) => setState(() {
-                      _minPrice = values.start == 0 ? null : values.start;
-                      _maxPrice = values.end >= 10000000 ? null : values.end;
-                    }),
+                    onChanged: (values) {
+                      setState(() {
+                        _minPrice = values.start == 0 ? null : values.start;
+                        _maxPrice = values.end >= 10000000 ? null : values.end;
+                      });
+                      setSheetState(() {});
+                    },
                   ),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -302,17 +311,26 @@ class _HomeScreenState extends State<HomeScreen> {
                       ChoiceChip(
                         label: const Text('الأحدث'),
                         selected: _sortOption == SortOption.newest,
-                        onSelected: (_) => setState(() => _sortOption = SortOption.newest),
+                        onSelected: (_) {
+                          setState(() => _sortOption = SortOption.newest);
+                          setSheetState(() {});
+                        },
                       ),
                       ChoiceChip(
                         label: const Text('الأقل سعراً'),
                         selected: _sortOption == SortOption.priceLowHigh,
-                        onSelected: (_) => setState(() => _sortOption = SortOption.priceLowHigh),
+                        onSelected: (_) {
+                          setState(() => _sortOption = SortOption.priceLowHigh);
+                          setSheetState(() {});
+                        },
                       ),
                       ChoiceChip(
                         label: const Text('الأكثر سعراً'),
                         selected: _sortOption == SortOption.priceHighLow,
-                        onSelected: (_) => setState(() => _sortOption = SortOption.priceHighLow),
+                        onSelected: (_) {
+                          setState(() => _sortOption = SortOption.priceHighLow);
+                          setSheetState(() {});
+                        },
                       ),
                     ],
                   ),
