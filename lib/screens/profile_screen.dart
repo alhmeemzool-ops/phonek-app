@@ -18,7 +18,20 @@ class ProfileScreen extends StatelessWidget {
     final appState = context.watch<AppState>();
 
     if (!appState.isLoggedIn) {
-      return const LoginScreen();
+      return Scaffold(
+        appBar: AppBar(title: const Text('حسابي')),
+        body: Center(
+          child: ElevatedButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const LoginScreen()),
+              );
+            },
+            child: const Text('تسجيل الدخول'),
+          ),
+        ),
+      );
     }
 
     return Scaffold(

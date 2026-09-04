@@ -1,0 +1,26 @@
+[1mdiff --git a/lib/screens/profile_screen.dart b/lib/screens/profile_screen.dart[m
+[1mindex 10f0c10..ea07c3e 100644[m
+[1m--- a/lib/screens/profile_screen.dart[m
+[1m+++ b/lib/screens/profile_screen.dart[m
+[36m@@ -18,7 +18,20 @@[m [mclass ProfileScreen extends StatelessWidget {[m
+     final appState = context.watch<AppState>();[m
+ [m
+     if (!appState.isLoggedIn) {[m
+[31m-      return const LoginScreen();[m
+[32m+[m[32m      return Scaffold([m
+[32m+[m[32m        appBar: AppBar(title: const Text('حسابي')),[m
+[32m+[m[32m        body: Center([m
+[32m+[m[32m          child: ElevatedButton([m
+[32m+[m[32m            onPressed: () {[m
+[32m+[m[32m              Navigator.push([m
+[32m+[m[32m                context,[m
+[32m+[m[32m                MaterialPageRoute(builder: (_) => const LoginScreen()),[m
+[32m+[m[32m              );[m
+[32m+[m[32m            },[m
+[32m+[m[32m            child: const Text('تسجيل الدخول'),[m
+[32m+[m[32m          ),[m
+[32m+[m[32m        ),[m
+[32m+[m[32m      );[m
+     }[m
+ [m
+     return Scaffold([m
