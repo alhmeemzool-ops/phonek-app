@@ -8,7 +8,7 @@ import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 
 import '../theme/app_theme.dart';
 
-/// Records identity video only after ML Kit detects the required face poses.
+/// In-app active liveness capture using the front camera and ML Kit.
 class GuidedIdentityCameraScreen extends StatefulWidget {
   const GuidedIdentityCameraScreen({super.key});
 
@@ -27,13 +27,14 @@ class _GuidedIdentityCameraScreenState extends State<GuidedIdentityCameraScreen>
   bool _recording = false;
   bool _processingFrame = false;
   bool _validPose = false;
+  String _status = 'ضع وجهك داخل الإطار البيضاوي';
   String? _error;
 
   String get _instruction => switch (_phase) {
-        _CapturePhase.center => 'ضع وجهك داخل الإطار البيضاوي',
-        _CapturePhase.right => 'اتجه بوجهك إلى اليمين',
-        _CapturePhase.left => 'اتجه بوجهك إلى اليسار',
-        _CapturePhase.complete => 'اكتمل فيديو إثبات الوجه',
+        _CapturePhase.center => 'انظر للأمام',
+        _CapturePhase.right => 'ممتاز، اتجه بوجهك إلى اليمين',
+        _CapturePhase.left => 'ممتاز، اتجه بوجهك إلى اليسار',
+        _CapturePhase.complete => 'اكتمل التحقق',
       };
 
   @override
@@ -49,18 +50,18 @@ class _GuidedIdentityCameraScreenState extends State<GuidedIdentityCameraScreen>
       setState(() {
         _starting = false;
         _error = kIsWeb
-            ? 'يمكن تسجيل فيديو إثبات الوجه من المتصفح عبر الزر أدناه.'
+            ? 'التحقق الحي متاح داخل تطبيق الهاتف فقط.'
             : 'كشف الوجه الحقيقي متاح على Android وiOS فقط.';
       });
       return;
     }
     try {
       final cameras = await availableCameras();
-      final front = cameras.where((camera) => camera.lensDirection == CameraLensDirection.front).toList();
+      final front = cameras.where((c) => c.lensDirection == CameraLensDirection.front).toList();
       if (front.isEmpty) throw CameraException('no_front_camera', 'لا توجد كاميرا أمامية على هذا الجهاز');
-      final selected = front.first;
+
       final controller = CameraController(
-        selected,
+        front.first,
         ResolutionPreset.medium,
         enableAudio: true,
         imageFormatGroup: defaultTargetPlatform == TargetPlatform.android
@@ -68,6 +69,7 @@ class _GuidedIdentityCameraScreenState extends State<GuidedIdentityCameraScreen>
             : ImageFormatGroup.bgra8888,
       );
       await controller.initialize();
+
       final detector = FaceDetector(
         options: FaceDetectorOptions(
           enableTracking: true,
@@ -76,6 +78,7 @@ class _GuidedIdentityCameraScreenState extends State<GuidedIdentityCameraScreen>
           minFaceSize: 0.15,
         ),
       );
+
       if (!mounted) {
         await controller.dispose();
         detector.close();
@@ -86,24 +89,19 @@ class _GuidedIdentityCameraScreenState extends State<GuidedIdentityCameraScreen>
         _faceDetector = detector;
         _starting = false;
       });
-    } on CameraException catch (error) {
-      if (mounted) setState(() { _starting = false; _error = error.description ?? 'تعذر تشغيل الكاميرا'; });
-    } catch (error) {
-      if (mounted) setState(() { _starting = false; _error = 'تعذر تهيئة كشف الوجه: $error'; });
+    } on CameraException catch (e) {
+      if (mounted) setState(() { _starting = false; _error = e.description ?? 'تعذر تشغيل الكاميرا'; });
+    } catch (e) {
+      if (mounted) setState(() { _starting = false; _error = 'تعذر تهيئة كشف الوجه: $e'; });
     }
   }
 
   Future<void> _pickVideoFromBrowser() async {
     try {
-      final file = await ImagePicker().pickVideo(
-        source: ImageSource.camera,
-        maxDuration: const Duration(seconds: 20),
-      );
+      final file = await ImagePicker().pickVideo(source: ImageSource.camera, maxDuration: const Duration(seconds: 20));
       if (file != null && mounted) Navigator.pop(context, file);
-    } catch (error) {
-      if (mounted) {
-        setState(() => _error = 'تعذر فتح كاميرا المتصفح: $error');
-      }
+    } catch (e) {
+      if (mounted) setState(() => _error = 'تعذر فتح كاميرا المتصفح: $e');
     }
   }
 
@@ -116,12 +114,16 @@ class _GuidedIdentityCameraScreenState extends State<GuidedIdentityCameraScreen>
         _phase = _CapturePhase.center;
         _progress = 0;
         _validPose = false;
+        _status = 'ضع وجهك داخل الإطار البيضاوي';
       });
-      await controller.startVideoRecording(onAvailable: (image) {
-        _processCameraImage(image);
-      });
+      await controller.startVideoRecording(onAvailable: _processCameraImage);
     } catch (_) {
-      if (mounted) setState(() => _error = 'تعذر بدء تسجيل فيديو إثبات الوجه');
+      if (mounted) {
+        setState(() {
+          _recording = false;
+          _error = 'تعذر بدء تسجيل فيديو إثبات الوجه';
+        });
+      }
     }
   }
 
@@ -129,33 +131,114 @@ class _GuidedIdentityCameraScreenState extends State<GuidedIdentityCameraScreen>
     if (_processingFrame || !_recording || _faceDetector == null || _controller == null) return;
     _processingFrame = true;
     try {
+      final quality = _checkImageQuality(image);
       final input = _toInputImage(image, _controller!.description);
       if (input == null) return;
+
       final faces = await _faceDetector!.processImage(input);
-      final face = faces.length == 1 ? faces.first : null;
-      final valid = face != null && _isValidPose(face);
+      String status;
+      Face? face;
+      if (quality != null) {
+        face = faces.length == 1 ? faces.first : null;
+        status = quality;
+      } else if (faces.isEmpty) {
+        status = 'لم يتم العثور على وجه';
+      } else if (faces.length > 1) {
+        status = 'يجب أن يكون هناك وجه واحد فقط';
+      } else if (!_faceFitsGuide(faces.first, image.width, image.height)) {
+        status = 'ضع وجهك داخل الإطار وبالحجم المناسب';
+      } else if (!_isValidPose(faces.first)) {
+        status = _phase == _CapturePhase.center
+            ? 'انظر للأمام بثبات'
+            : _phase == _CapturePhase.right
+                ? 'اتجه بوجهك إلى اليمين'
+                : 'اتجه بوجهك إلى اليسار';
+      } else {
+        face = faces.first;
+        status = 'ممتاز، ثبّت وجهك';
+      }
+
+      final valid = face != null && _faceFitsGuide(face, image.width, image.height) && _isValidPose(face);
       if (!mounted) return;
       setState(() {
         _validPose = valid;
+        _status = status;
         if (valid) {
-          _progress = (_progress + 0.045).clamp(0, 1);
+          _progress = (_progress + 0.055).clamp(0.0, 1.0);
         } else {
-          _progress = (_progress - 0.01).clamp(0, 1);
+          _progress = (_progress - 0.02).clamp(0.0, 1.0);
         }
       });
       if (_progress >= 1) await _advancePhase();
     } catch (_) {
-      // A dropped frame must not advance the verification step.
+      // A bad/dropped frame never advances the verification.
     } finally {
       _processingFrame = false;
     }
+  }
+
+  String? _checkImageQuality(CameraImage image) {
+    if (image.planes.isEmpty) return 'تعذر قراءة جودة الصورة';
+    final plane = image.planes.first;
+    final bytes = plane.bytes;
+    if (bytes.isEmpty) return 'تعذر قراءة جودة الصورة';
+
+    // Android NV21: plane 0 is luminance. iOS BGRA: sample B,G,R bytes.
+    final isBgra = image.format.group == ImageFormatGroup.bgra8888;
+    const samples = 420;
+    final step = bytes.length ~/ samples < 1 ? 1 : bytes.length ~/ samples;
+    double sum = 0;
+    double sumSq = 0;
+    double edge = 0;
+    int count = 0;
+    int previous = -1;
+
+    for (int i = 0; i < bytes.length && count < samples; i += step) {
+      final luminance = isBgra
+          ? (0.114 * bytes[i] +
+                  0.587 * bytes[(i + 1).clamp(0, bytes.length - 1)] +
+                  0.299 * bytes[(i + 2).clamp(0, bytes.length - 1)])
+              .round()
+          : bytes[i];
+      sum += luminance;
+      sumSq += luminance * luminance;
+      if (previous >= 0) edge += (luminance - previous).abs();
+      previous = luminance;
+      count++;
+    }
+
+    if (count == 0) return 'تعذر قراءة جودة الصورة';
+    final mean = sum / count;
+    final variance = (sumSq / count) - (mean * mean);
+    final contrast = variance < 0 ? 0 : variance;
+    final edgeAverage = edge / count;
+
+    if (mean < 42) return 'الإضاءة ضعيفة';
+    if (mean > 245) return 'الإضاءة قوية جداً';
+    if (contrast < 90 || edgeAverage < 3.0) return 'الصورة غير واضحة، ثبّت الهاتف';
+    return null;
+  }
+
+  bool _faceFitsGuide(Face face, int imageWidth, int imageHeight) {
+    final box = face.boundingBox;
+    final cx = (box.left + box.width / 2) / imageWidth;
+    final cy = (box.top + box.height / 2) / imageHeight;
+    final w = box.width / imageWidth;
+    final h = box.height / imageHeight;
+
+    // Ellipse approximating the on-screen face guide.
+    final dx = (cx - 0.5) / 0.33;
+    final dy = (cy - 0.5) / 0.45;
+    final insideEllipse = dx * dx + dy * dy <= 1.0;
+    final correctSize = w >= 0.22 && w <= 0.72 && h >= 0.25 && h <= 0.86;
+    return insideEllipse && correctSize;
   }
 
   bool _isValidPose(Face face) {
     final yaw = face.headEulerAngleY ?? 0;
     final pitch = face.headEulerAngleX ?? 0;
     final roll = face.headEulerAngleZ ?? 0;
-    if (pitch.abs() > 25 || roll.abs() > 25) return false;
+    if (pitch.abs() > 22 || roll.abs() > 22) return false;
     return switch (_phase) {
       _CapturePhase.center => yaw.abs() <= 10,
       _CapturePhase.right => yaw >= 18,
@@ -166,15 +249,31 @@ class _GuidedIdentityCameraScreenState extends State<GuidedIdentityCameraScreen>
 
   Future<void> _advancePhase() async {
     if (_phase == _CapturePhase.center) {
-      setState(() { _phase = _CapturePhase.right; _progress = 0; _validPose = false; });
+      setState(() {
+        _phase = _CapturePhase.right;
+        _progress = 0;
+        _validPose = false;
+        _status = 'ممتاز، اتجه بوجهك إلى اليمين';
+      });
     } else if (_phase == _CapturePhase.right) {
-      setState(() { _phase = _CapturePhase.left; _progress = 0; _validPose = false; });
+      setState(() {
+        _phase = _CapturePhase.left;
+        _progress = 0;
+        _validPose = false;
+        _status = 'ممتاز، اتجه بوجهك إلى اليسار';
+      });
     } else if (_phase == _CapturePhase.left) {
       final controller = _controller;
       if (controller == null) return;
       final file = await controller.stopVideoRecording();
       if (!mounted) return;
-      setState(() { _recording = false; _phase = _CapturePhase.complete; _progress = 1; _validPose = true; });
+      setState(() {
+        _recording = false;
+        _phase = _CapturePhase.complete;
+        _progress = 1;
+        _validPose = true;
+        _status = 'اكتمل التحقق بنجاح';
+      });
       Navigator.pop(context, file);
     }
   }
@@ -210,7 +309,7 @@ class _GuidedIdentityCameraScreenState extends State<GuidedIdentityCameraScreen>
     final controller = _controller;
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: AppBar(title: const Text('فيديو إثبات الشخصية'), backgroundColor: Colors.black, foregroundColor: Colors.white),
+      appBar: AppBar(title: const Text('إثبات الشخصية'), backgroundColor: Colors.black, foregroundColor: Colors.white),
       body: _starting
           ? const Center(child: CircularProgressIndicator(color: AppColors.gold))
           : _error != null
@@ -223,18 +322,20 @@ class _GuidedIdentityCameraScreenState extends State<GuidedIdentityCameraScreen>
                     SafeArea(
                       child: Column(
                         children: [
-                          const SizedBox(height: 20),
+                          const SizedBox(height: 18),
                           Container(
-                            margin: const EdgeInsets.symmetric(horizontal: 20),
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                            decoration: BoxDecoration(color: Colors.black.withValues(alpha: .68), borderRadius: BorderRadius.circular(14)),
+                            margin: const EdgeInsets.symmetric(horizontal: 18),
+                            padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+                            decoration: BoxDecoration(color: Colors.black.withValues(alpha: .72), borderRadius: BorderRadius.circular(16)),
                             child: Column(
                               children: [
-                                Text(_instruction, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.bold)),
-                                const SizedBox(height: 10),
-                                LinearProgressIndicator(value: _recording ? _progress : 0, minHeight: 7, backgroundColor: Colors.white24, color: _validPose ? Colors.greenAccent : Colors.orangeAccent),
-                                const SizedBox(height: 6),
-                                Text(_recording ? (_validPose ? 'تم التعرف على الوضع الصحيح' : 'يجب إبقاء الوجه في الوضع المطلوب') : 'لن يتقدم الشريط إلا بعد التعرف على الوجه والوضع الصحيح', textAlign: TextAlign.center, style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                                Text(_instruction, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                                const SizedBox(height: 5),
+                                Text(_status, textAlign: TextAlign.center, style: TextStyle(color: _validPose ? Colors.greenAccent : Colors.white70, fontSize: 14)),
+                                const SizedBox(height: 12),
+                                LinearProgressIndicator(value: _recording ? _progress : 0, minHeight: 8, backgroundColor: Colors.white24, color: _validPose ? Colors.greenAccent : Colors.white38),
+                                const SizedBox(height: 7),
+                                Text(_recording ? 'لن يتحرك الخط إلا عند تحقق الوجه + الإطار + الإضاءة + الوضوح + الحركة المطلوبة' : 'تحقق حي بالكاميرا الأمامية داخل التطبيق', textAlign: TextAlign.center, style: const TextStyle(color: Colors.white54, fontSize: 11)),
                               ],
                             ),
                           ),
@@ -242,7 +343,12 @@ class _GuidedIdentityCameraScreenState extends State<GuidedIdentityCameraScreen>
                           if (!_recording && _phase != _CapturePhase.complete)
                             Padding(
                               padding: const EdgeInsets.only(bottom: 28),
-                              child: FilledButton.icon(onPressed: _startCapture, icon: const Icon(Icons.videocam), label: const Text('ابدأ التحقق بالكاميرا'), style: FilledButton.styleFrom(backgroundColor: AppColors.gold, foregroundColor: Colors.black, padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14))),
+                              child: FilledButton.icon(
+                                onPressed: _startCapture,
+                                icon: const Icon(Icons.face_retouching_natural),
+                                label: const Text('ابدأ التحقق'),
+                                style: FilledButton.styleFrom(backgroundColor: AppColors.gold, foregroundColor: Colors.black, padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 15)),
+                              ),
                             ),
                         ],
                       ),
@@ -256,8 +362,36 @@ class _GuidedIdentityCameraScreenState extends State<GuidedIdentityCameraScreen>
 class _FaceGuide extends StatelessWidget {
   const _FaceGuide({required this.active});
   final bool active;
+
   @override
-  Widget build(BuildContext context) => Container(width: 230, height: 315, decoration: BoxDecoration(border: Border.all(color: active ? Colors.greenAccent : Colors.white70, width: 4), borderRadius: BorderRadius.circular(120), boxShadow: [BoxShadow(color: (active ? Colors.greenAccent : Colors.white).withValues(alpha: .22), blurRadius: 18, spreadRadius: 4)]));
+  Widget build(BuildContext context) => SizedBox(
+        width: 230,
+        height: 315,
+        child: CustomPaint(painter: _FaceGuidePainter(active: active)),
+      );
+}
+
+class _FaceGuidePainter extends CustomPainter {
+  const _FaceGuidePainter({required this.active});
+  final bool active;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 4
+      ..color = active ? Colors.greenAccent : Colors.white70;
+    final rect = Rect.fromLTWH(2, 2, size.width - 4, size.height - 4);
+    canvas.drawOval(rect, paint);
+    paint
+      ..color = (active ? Colors.greenAccent : Colors.white).withValues(alpha: .22)
+      ..strokeWidth = 12
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10);
+    canvas.drawOval(rect, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _FaceGuidePainter oldDelegate) => oldDelegate.active != active;
 }
 
 class _ErrorBody extends StatelessWidget {
@@ -273,6 +407,8 @@ class _ErrorBody extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              const Icon(Icons.error_outline, color: Colors.white70, size: 48),
+              const SizedBox(height: 12),
               Text(message, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 16)),
               if (onAction != null && actionLabel != null) ...[
                 const SizedBox(height: 18),
