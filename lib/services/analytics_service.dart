@@ -7,8 +7,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 /// Central live analytics collector for PhoneK.
 ///
 /// Events are queued locally and flushed in batches so analytics never blocks
-/// the UI. No passwords, tokens, message text, or other sensitive payloads are
-/// recorded here.
+/// the UI. Sensitive payloads such as passwords, tokens and message text are
+/// never recorded.
 class AnalyticsService with WidgetsBindingObserver {
   AnalyticsService._();
 
@@ -16,6 +16,7 @@ class AnalyticsService with WidgetsBindingObserver {
 
   final List<Map<String, dynamic>> _queue = [];
   final Random _random = Random();
+  final List<RealtimeChannel> _channels = [];
   Timer? _flushTimer;
   Timer? _heartbeatTimer;
   String? _sessionId;
@@ -27,7 +28,7 @@ class AnalyticsService with WidgetsBindingObserver {
     if (_initialized) return;
     _initialized = true;
     WidgetsBinding.instance.addObserver(this);
-    _sessionId = _newId();
+    _sessionId = _newUuid();
 
     _flushTimer = Timer.periodic(const Duration(seconds: 5), (_) {
       unawaited(flush());
@@ -36,13 +37,22 @@ class AnalyticsService with WidgetsBindingObserver {
       unawaited(track('heartbeat', screenName: _currentScreen));
     });
 
+    _subscribeToLiveSources();
     await track('app_open');
     await flush();
   }
 
-  String _newId() {
-    final now = DateTime.now().microsecondsSinceEpoch;
-    return '$now-${_random.nextInt(1 << 32)}';
+  String _newUuid() {
+    final bytes = List<int>.generate(16, (_) => _random.nextInt(256));
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    final hex = bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+    return '${hex.substring(0, 8)}-${hex.substring(8, 12)}-${hex.substring(12, 16)}-${hex.substring(16, 20)}-${hex.substring(20)}';
+  }
+
+  bool _isUuid(String? value) {
+    if (value == null) return false;
+    return RegExp(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$').hasMatch(value);
   }
 
   Future<void> track(
@@ -56,12 +66,12 @@ class AnalyticsService with WidgetsBindingObserver {
 
     final userId = Supabase.instance.client.auth.currentUser?.id;
     _queue.add({
-      'user_id': userId,
+      'user_id': _isUuid(userId) ? userId : null,
       'session_id': _sessionId,
       'event_name': eventName,
       'screen_name': screenName ?? _currentScreen,
       'entity_type': entityType,
-      'entity_id': entityId,
+      'entity_id': _isUuid(entityId) ? entityId : null,
       'metadata': metadata ?? const <String, dynamic>{},
     });
 
@@ -71,6 +81,45 @@ class AnalyticsService with WidgetsBindingObserver {
   Future<void> screenView(String screenName) async {
     _currentScreen = screenName;
     await track('screen_view', screenName: screenName);
+  }
+
+  void _subscribeToLiveSources() {
+    const sources = <String, String>{
+      'listings': 'listing',
+      'favorites': 'favorite',
+      'chat_threads': 'chat_thread',
+      'chat_messages': 'chat_message',
+      'profiles': 'profile',
+      'shop_verification_requests': 'shop_verification_request',
+      'shop_verification_audit': 'shop_verification_audit',
+    };
+
+    for (final entry in sources.entries) {
+      final channel = Supabase.instance.client.channel('phonek-analytics-${entry.key}');
+      channel
+          .onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: entry.key,
+            callback: (payload) {
+              final record = payload.newRecord.isNotEmpty
+                  ? payload.newRecord
+                  : payload.oldRecord;
+              final entityId = record['id']?.toString();
+              unawaited(track(
+                'db_${payload.eventType.name.toLowerCase()}',
+                entityType: entry.value,
+                entityId: entityId,
+                metadata: {
+                  'source': 'realtime',
+                  'operation': payload.eventType.name,
+                },
+              ));
+            },
+          )
+          .subscribe();
+      _channels.add(channel);
+    }
   }
 
   Future<void> flush() async {
@@ -114,6 +163,10 @@ class AnalyticsService with WidgetsBindingObserver {
     WidgetsBinding.instance.removeObserver(this);
     _flushTimer?.cancel();
     _heartbeatTimer?.cancel();
+    for (final channel in _channels) {
+      Supabase.instance.client.removeChannel(channel);
+    }
+    _channels.clear();
   }
 }
 
