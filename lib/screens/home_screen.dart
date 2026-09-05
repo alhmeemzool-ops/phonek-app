@@ -28,6 +28,7 @@ class _HomeScreenState extends State<HomeScreen> {
   String _searchQuery = '';
   String? _selectedCity;
   String? _selectedBrand;
+  // ignore: prefer_final_fields
   SortOption _sortOption = SortOption.newest;
   double? _minPrice;
   double? _maxPrice;
