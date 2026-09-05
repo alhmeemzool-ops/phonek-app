@@ -1,7 +1,8 @@
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:camera/camera.dart';
+import 'package:flutter/foundation.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 
@@ -42,10 +43,14 @@ class _GuidedIdentityCameraScreenState extends State<GuidedIdentityCameraScreen>
   }
 
   Future<void> _initCamera() async {
-    if (!Platform.isAndroid && !Platform.isIOS) {
+    if (kIsWeb ||
+        (defaultTargetPlatform != TargetPlatform.android &&
+            defaultTargetPlatform != TargetPlatform.iOS)) {
       setState(() {
         _starting = false;
-        _error = 'كشف الوجه الحقيقي متاح على Android وiOS فقط.';
+        _error = kIsWeb
+            ? 'يمكن تسجيل فيديو إثبات الوجه من المتصفح عبر الزر أدناه.'
+            : 'كشف الوجه الحقيقي متاح على Android وiOS فقط.';
       });
       return;
     }
@@ -83,6 +88,20 @@ class _GuidedIdentityCameraScreenState extends State<GuidedIdentityCameraScreen>
       if (mounted) setState(() { _starting = false; _error = error.description ?? 'تعذر تشغيل الكاميرا'; });
     } catch (error) {
       if (mounted) setState(() { _starting = false; _error = 'تعذر تهيئة كشف الوجه: $error'; });
+    }
+  }
+
+  Future<void> _pickVideoFromBrowser() async {
+    try {
+      final file = await ImagePicker().pickVideo(
+        source: ImageSource.camera,
+        maxDuration: const Duration(seconds: 20),
+      );
+      if (file != null && mounted) Navigator.pop(context, file);
+    } catch (error) {
+      if (mounted) {
+        setState(() => _error = 'تعذر فتح كاميرا المتصفح: $error');
+      }
     }
   }
 
@@ -193,7 +212,7 @@ class _GuidedIdentityCameraScreenState extends State<GuidedIdentityCameraScreen>
       body: _starting
           ? const Center(child: CircularProgressIndicator(color: AppColors.gold))
           : _error != null
-              ? _ErrorBody(message: _error!)
+              ? _ErrorBody(message: _error!, onAction: kIsWeb ? _pickVideoFromBrowser : null, actionLabel: kIsWeb ? 'تسجيل فيديو من الجهاز' : null)
               : Stack(
                   fit: StackFit.expand,
                   children: [
@@ -240,8 +259,25 @@ class _FaceGuide extends StatelessWidget {
 }
 
 class _ErrorBody extends StatelessWidget {
-  const _ErrorBody({required this.message});
+  const _ErrorBody({required this.message, this.onAction, this.actionLabel});
   final String message;
+  final VoidCallback? onAction;
+  final String? actionLabel;
+
   @override
-  Widget build(BuildContext context) => Center(child: Padding(padding: const EdgeInsets.all(24), child: Text(message, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 16))));
+  Widget build(BuildContext context) => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(message, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 16)),
+              if (onAction != null && actionLabel != null) ...[
+                const SizedBox(height: 18),
+                FilledButton.icon(onPressed: onAction, icon: const Icon(Icons.videocam), label: Text(actionLabel!)),
+              ],
+            ],
+          ),
+        ),
+      );
 }
