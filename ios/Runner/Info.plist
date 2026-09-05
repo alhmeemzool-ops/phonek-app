@@ -28,6 +28,8 @@
 	<string>يحتاج PhoneK إلى الكاميرا لتسجيل فيديو إثبات الشخصية داخل التطبيق.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>يحتاج PhoneK إلى الميكروفون لتسجيل فيديو إثبات الشخصية.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>يحتاج PhoneK إلى موقعك الدقيق لتثبيت موقع المحل من داخل المكان.</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UIApplicationSceneManifest</key>

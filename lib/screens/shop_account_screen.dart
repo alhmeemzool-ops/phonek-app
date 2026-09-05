@@ -1,10 +1,10 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:url_launcher/url_launcher.dart';
-import 'package:flutter/services.dart';
 
 import '../data/app_state.dart';
 import '../theme/app_theme.dart';
@@ -31,48 +31,14 @@ class _ShopAccountScreenState extends State<ShopAccountScreen> {
   bool _saving = false;
   bool _loading = true;
   String _status = 'none';
-  String? _sharedLocationText;
-
-  static const _locationChannel = MethodChannel('phonek/location_share');
+  double? _locationAccuracy;
+  DateTime? _locationCapturedAt;
+  bool _capturingLocation = false;
 
   @override
   void initState() {
     super.initState();
-    _locationChannel.setMethodCallHandler((call) async {
-      if (call.method == 'sharedLocation' && call.arguments is String) {
-        await _applySharedLocation(call.arguments as String);
-      }
-    });
-    _locationChannel.invokeMethod<String>('getInitialSharedLocation').then((value) {
-      if (value != null) _applySharedLocation(value);
-    });
     _loadExistingRequest();
-  }
-
-  Future<void> _applySharedLocation(String value) async {
-    final text = value.trim();
-    if (!mounted || text.isEmpty) return;
-    var resolved = text;
-    if (!text.contains('@') && (text.contains('maps.app.goo.gl') || text.contains('goo.gl/maps'))) {
-      try {
-        final response = await http.get(Uri.parse(text));
-        resolved = response.request?.url.toString() ?? text;
-      } catch (_) {
-        // Keep the original link visible; do not invent coordinates.
-      }
-    }
-    final match = RegExp(r'@(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)|[?&](?:query|q)=(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)').firstMatch(resolved);
-    final latitude = double.tryParse(match?.group(1) ?? match?.group(3) ?? '');
-    final longitude = double.tryParse(match?.group(2) ?? match?.group(4) ?? '');
-    if (!mounted) return;
-    setState(() {
-      _sharedLocationText = resolved;
-      _addressController.text = text;
-      if (latitude != null && longitude != null) {
-        _latitude = latitude;
-        _longitude = longitude;
-      }
-    });
   }
 
   Future<void> _loadExistingRequest() async {
@@ -85,7 +51,7 @@ class _ShopAccountScreenState extends State<ShopAccountScreen> {
     try {
       final row = await Supabase.instance.client
           .from('profiles')
-          .select('shop_city, shop_address, shop_latitude, shop_longitude, shop_verification_status, phone, name')
+          .select('shop_city, shop_address, shop_latitude, shop_longitude, shop_location_accuracy_m, shop_location_captured_at, shop_verification_status, phone, name')
           .eq('id', user.id)
           .maybeSingle();
       if (!mounted) return;
@@ -96,6 +62,8 @@ class _ShopAccountScreenState extends State<ShopAccountScreen> {
         _addressController.text = row['shop_address'] as String? ?? '';
         _latitude = (row['shop_latitude'] as num?)?.toDouble();
         _longitude = (row['shop_longitude'] as num?)?.toDouble();
+        _locationAccuracy = (row['shop_location_accuracy_m'] as num?)?.toDouble();
+        _locationCapturedAt = DateTime.tryParse(row['shop_location_captured_at'] as String? ?? '');
         _status = row['shop_verification_status'] as String? ?? 'none';
       }
     } catch (_) {
@@ -142,13 +110,42 @@ class _ShopAccountScreenState extends State<ShopAccountScreen> {
     if (file != null && mounted) setState(() => _identityVideo = file);
   }
 
-  Future<void> _requestLocationFromGoogleMaps() async {
-    final opened = await launchUrl(Uri.parse('geo:0,0?q=الموقع الحالي'), mode: LaunchMode.externalApplication);
-    if (!opened && mounted) {
-      await launchUrl(Uri.parse('https://www.google.com/maps'), mode: LaunchMode.externalApplication);
-    }
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('في خرائط Google فعّل الموقع، اختر موقع المحل ثم اضغط مشاركة واختر PhoneK. سيعود الرابط ويُوضع تلقائيًا في عنوان المحل.')));
+  Future<void> _captureShopLocation() async {
+    if (_capturingLocation) return;
+    setState(() => _capturingLocation = true);
+    try {
+      if (!await Geolocator.isLocationServiceEnabled()) {
+        throw StateError('فعّل خدمة الموقع GPS من إعدادات الهاتف ثم حاول مرة أخرى.');
+      }
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+        throw StateError('يجب السماح لـ PhoneK باستخدام الموقع حتى يتم تثبيت موقع المحل.');
+      }
+      final accuracyStatus = await Geolocator.getLocationAccuracy();
+      if (accuracyStatus == LocationAccuracyStatus.reduced) {
+        throw StateError('فعّل الموقع الدقيق Precise Location، فالموقع التقريبي غير مقبول.');
+      }
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(accuracy: LocationAccuracy.best, timeLimit: Duration(seconds: 25)),
+      );
+      final inSudan = position.latitude >= 8.5 && position.latitude <= 22.2 && position.longitude >= 21.8 && position.longitude <= 38.6;
+      if (!inSudan) throw StateError('يجب تثبيت موقع المحل من داخل السودان.');
+      if (position.accuracy <= 0 || position.accuracy > 50) throw StateError('دقة GPS الحالية ${position.accuracy.toStringAsFixed(0)}م غير كافية. تحرك إلى مكان مفتوح وحاول مرة أخرى.');
+      if (Platform.isAndroid && position.isMocked) throw StateError('تم اكتشاف موقع محاكى أو وهمي. عطّل Mock Location وحاول مرة أخرى.');
+      final capturedAt = DateTime.now().toUtc();
+      if (!mounted) return;
+      setState(() {
+        _latitude = position.latitude;
+        _longitude = position.longitude;
+        _locationAccuracy = position.accuracy;
+        _locationCapturedAt = capturedAt;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم تثبيت موقع المحل من GPS الحقيقي بنجاح.')));
+    } catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.toString().replaceFirst('Bad state: ', ''))));
+    } finally {
+      if (mounted) setState(() => _capturingLocation = false);
     }
   }
 
@@ -183,10 +180,14 @@ class _ShopAccountScreenState extends State<ShopAccountScreen> {
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_latitude == null || _longitude == null) {
+    if (_latitude == null || _longitude == null || _locationAccuracy == null || _locationCapturedAt == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('حدد موقع المحل من الخريطة قبل الإرسال')),
+        const SnackBar(content: Text('ثبّت موقع المحل من GPS داخل التطبيق قبل الإرسال')),
       );
+      return;
+    }
+    if (_locationAccuracy! > 50 || DateTime.now().toUtc().difference(_locationCapturedAt!).inMinutes > 10) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('قراءة الموقع قديمة أو دقتها غير كافية. ثبّت الموقع مرة أخرى.')));
       return;
     }
     if (_identityImage == null || _identityVideo == null) {
@@ -226,6 +227,8 @@ class _ShopAccountScreenState extends State<ShopAccountScreen> {
         'address': _addressController.text.trim(),
         'latitude': _latitude,
         'longitude': _longitude,
+        'location_accuracy_m': _locationAccuracy,
+        'location_captured_at': _locationCapturedAt!.toIso8601String(),
         'identity_image_path': imagePath,
         'identity_video_path': videoPath,
         'status': 'pending',
@@ -238,6 +241,8 @@ class _ShopAccountScreenState extends State<ShopAccountScreen> {
         'shop_address': _addressController.text.trim(),
         'shop_latitude': _latitude,
         'shop_longitude': _longitude,
+        'shop_location_accuracy_m': _locationAccuracy,
+        'shop_location_captured_at': _locationCapturedAt!.toIso8601String(),
         'shop_verification_status': 'pending',
         'is_shop': false,
       });
@@ -315,14 +320,16 @@ class _ShopAccountScreenState extends State<ShopAccountScreen> {
             TextFormField(controller: _addressController, enabled: !isPending && !isApproved, maxLines: 2, decoration: const InputDecoration(labelText: 'عنوان المحل بالتفصيل', hintText: 'الحي، الشارع، أقرب معلم', prefixIcon: Icon(Icons.location_on)), validator: (value) => value == null || value.trim().length < 5 ? 'عنوان المحل التفصيلي مطلوب' : null),
             const SizedBox(height: 8),
             OutlinedButton.icon(
-              onPressed: isPending || isApproved ? null : _requestLocationFromGoogleMaps,
-              icon: const Icon(Icons.location_searching),
-              label: Text(_sharedLocationText == null ? 'اختيار موقع المحل من خرائط Google' : 'تم استقبال موقع المحل من خرائط Google'),
+              onPressed: isPending || isApproved || _capturingLocation ? null : _captureShopLocation,
+              icon: _capturingLocation ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.my_location),
+              label: Text(_capturingLocation ? 'جاري التحقق من GPS...' : _locationCapturedAt == null ? 'تثبيت موقع المحل من GPS' : 'تم تثبيت موقع المحل من GPS'),
             ),
+            if (_locationAccuracy != null && _locationCapturedAt != null)
+              Padding(padding: const EdgeInsets.only(top: 6), child: Text('دقة الموقع: ${_locationAccuracy!.toStringAsFixed(0)}م — ${_locationCapturedAt!.toLocal()}', style: const TextStyle(color: AppColors.textSecondary, fontSize: 12))),
             if (_latitude == null && !isPending && !isApproved)
               const Padding(
                 padding: EdgeInsets.only(top: 4),
-                child: Text('بعد المشاركة يجب أن يحتوي الرابط على إحداثيات حتى يمكن حفظ الموقع الحقيقي.', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                child: Text('يجب أن يكون التاجر داخل المحل ويفعّل GPS بدقة قبل إرسال الطلب.', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
               ),
             const SizedBox(height: 18),
             const Text('إثبات الهوية إلزامي', style: TextStyle(fontWeight: FontWeight.bold)),
