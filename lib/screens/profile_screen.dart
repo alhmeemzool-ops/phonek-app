@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 import '../data/app_state.dart';
 import '../theme/app_theme.dart';
@@ -124,6 +125,9 @@ class ProfileScreen extends StatelessWidget {
             () => _confirmDelete(context),
             color: AppColors.danger,
           ),
+          const SizedBox(height: 4),
+          const _AppVersionLabel(),
+          const SizedBox(height: 12),
         ],
       ),
     );
@@ -157,6 +161,29 @@ class ProfileScreen extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _AppVersionLabel extends StatelessWidget {
+  const _AppVersionLabel();
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<PackageInfo>(
+      future: PackageInfo.fromPlatform(),
+      builder: (context, snapshot) {
+        final info = snapshot.data;
+        if (info == null) return const SizedBox.shrink();
+        final build = info.buildNumber.trim().isEmpty ? '' : '+${info.buildNumber}';
+        return Center(
+          child: Text(
+            'الإصدار ${info.version}$build',
+            style: const TextStyle(color: AppColors.textSecondary, fontSize: 10),
+            textDirection: TextDirection.ltr,
+          ),
+        );
+      },
     );
   }
 }
