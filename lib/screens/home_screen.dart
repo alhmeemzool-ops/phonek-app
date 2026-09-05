@@ -27,7 +27,6 @@ class _HomeScreenState extends State<HomeScreen> {
   String _searchQuery = '';
   String? _selectedCity;
   String? _selectedBrand;
-  String? _selectedModel;
   SortOption _sortOption = SortOption.newest;
   double? _minPrice;
   double? _maxPrice;
@@ -40,11 +39,10 @@ class _HomeScreenState extends State<HomeScreen> {
           p.brand.toLowerCase().contains(_searchQuery.toLowerCase());
       final matchesCity = _selectedCity == null || p.city == _selectedCity;
       final matchesBrand = _selectedBrand == null || p.brand == _selectedBrand;
-      final matchesModel = _selectedModel == null || p.title.toLowerCase().contains(_selectedModel!.toLowerCase());
       final matchesPrice = p.priceOnCall ||
           (_minPrice == null || p.price >= _minPrice!) &&
               (_maxPrice == null || p.price <= _maxPrice!);
-      return matchesQuery && matchesCity && matchesBrand && matchesModel && matchesPrice && p.status != ListingStatus.sold;
+      return matchesQuery && matchesCity && matchesBrand && matchesPrice && p.status != ListingStatus.sold;
     }).toList();
 
     switch (_sortOption) {
@@ -220,19 +218,17 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: [
                   _filterChip('المدينة', _selectedCity ?? 'الكل', () => _openFilterSheet()),
                   _filterChip('الماركة', _selectedBrand ?? 'الكل', () => _openFilterSheet()),
-                  _filterChip('الموديل', _selectedModel ?? 'الكل', () => _openFilterSheet()),
                   _filterChip('السعر', _priceLabel(), () => _openFilterSheet()),
                 ],
               ),
             ),
-            if (_selectedCity != null || _selectedBrand != null || _selectedModel != null || _minPrice != null || _maxPrice != null)
+            if (_selectedCity != null || _selectedBrand != null || _minPrice != null || _maxPrice != null)
               Align(
                 alignment: AlignmentDirectional.centerEnd,
                 child: TextButton.icon(
                   onPressed: () => setState(() {
                     _selectedCity = null;
                     _selectedBrand = null;
-                    _selectedModel = null;
                     _minPrice = null;
                     _maxPrice = null;
                   }),
@@ -263,7 +259,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _openFilterSheet() {
-    final modelOptions = context.read<AppState>().phoneModelsForBrand(_selectedBrand);
     showModalBottomSheet(
       context: context,
       backgroundColor: AppColors.surface,
@@ -290,7 +285,6 @@ class _HomeScreenState extends State<HomeScreen> {
                             onSelected: (_) {
                               setState(() {
                                 _selectedCity = null;
-                                _selectedModel = null;
                               });
                           setSheetState(() {});
                         },
@@ -301,7 +295,6 @@ class _HomeScreenState extends State<HomeScreen> {
                             onSelected: (_) {
                               setState(() {
                                 _selectedCity = c;
-                                _selectedModel = null;
                               });
                               setSheetState(() {});
                             },
@@ -320,7 +313,6 @@ class _HomeScreenState extends State<HomeScreen> {
                         onSelected: (_) {
                           setState(() {
                             _selectedBrand = null;
-                            _selectedModel = null;
                           });
                           setSheetState(() {});
                         },
@@ -331,39 +323,12 @@ class _HomeScreenState extends State<HomeScreen> {
                             onSelected: (_) {
                               setState(() {
                                 _selectedBrand = brand;
-                                _selectedModel = null;
                               });
                               setSheetState(() {});
                             },
                           )),
                     ],
                   ),
-                  if (_selectedBrand != null) ...[
-                    const SizedBox(height: 20),
-                    const Text('الموديل', style: TextStyle(color: AppColors.textSecondary)),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      children: [
-                        ChoiceChip(
-                          label: const Text('الكل'),
-                          selected: _selectedModel == null,
-                          onSelected: (_) {
-                            setState(() => _selectedModel = null);
-                            setSheetState(() {});
-                          },
-                        ),
-                        ...modelOptions.map((model) => ChoiceChip(
-                              label: Text(model),
-                              selected: _selectedModel == model,
-                              onSelected: (_) {
-                                setState(() => _selectedModel = model);
-                                setSheetState(() {});
-                              },
-                            )),
-                      ],
-                    ),
-                  ],
                   const SizedBox(height: 20),
                   const Text('النطاق السعري من - إلى', style: TextStyle(color: AppColors.textSecondary)),
                   RangeSlider(

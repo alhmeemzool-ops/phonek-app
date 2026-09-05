@@ -3,10 +3,13 @@ import 'package:image_picker/image_picker.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../data/app_state.dart';
 import '../theme/app_theme.dart';
+import 'guided_identity_camera_screen.dart';
 
 class ShopAccountScreen extends StatefulWidget {
   const ShopAccountScreen({super.key});
@@ -96,10 +99,27 @@ class _ShopAccountScreenState extends State<ShopAccountScreen> {
   }
 
   Future<void> _pickIdentityVideo() async {
-    final source = await _chooseSource();
-    if (source == null) return;
-    final file = await _imagePicker.pickVideo(source: source, maxDuration: const Duration(seconds: 15));
+    final file = await Navigator.push<XFile>(
+      context,
+      MaterialPageRoute(builder: (_) => const GuidedIdentityCameraScreen()),
+    );
     if (file != null && mounted) setState(() => _identityVideo = file);
+  }
+
+  String? get _googleMapsUrl => _latitude == null || _longitude == null
+      ? null
+      : 'https://www.google.com/maps/search/?api=1&query=$_latitude,$_longitude';
+
+  Future<void> _shareGoogleMapsLocation() async {
+    final url = _googleMapsUrl;
+    if (url == null) return;
+    await Share.share('موقع المحل على خرائط Google:\n$url');
+  }
+
+  Future<void> _openGoogleMapsLocation() async {
+    final url = _googleMapsUrl;
+    if (url == null) return;
+    await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
   }
 
   Future<void> _pickShopLocation() async {
@@ -281,8 +301,18 @@ class _ShopAccountScreenState extends State<ShopAccountScreen> {
             OutlinedButton.icon(
               onPressed: isPending || isApproved ? null : _pickShopLocation,
               icon: const Icon(Icons.map_outlined),
-              label: Text(_latitude == null ? 'مشاركة موقع المحل من الخريطة' : 'تم تحديد موقع المحل من الخريطة'),
+              label: Text(_latitude == null ? 'حدد موقع المحل من الخريطة' : 'تم تحديد موقع المحل من الخريطة'),
             ),
+            if (_latitude != null && !isPending && !isApproved) ...[
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(child: OutlinedButton.icon(onPressed: _openGoogleMapsLocation, icon: const Icon(Icons.open_in_new), label: const Text('فتح في خرائط Google'))),
+                  const SizedBox(width: 8),
+                  Expanded(child: OutlinedButton.icon(onPressed: _shareGoogleMapsLocation, icon: const Icon(Icons.share_outlined), label: const Text('مشاركة الموقع'))),
+                ],
+              ),
+            ],
             if (_latitude == null && !isPending && !isApproved)
               const Padding(
                 padding: EdgeInsets.only(top: 4),
@@ -291,11 +321,11 @@ class _ShopAccountScreenState extends State<ShopAccountScreen> {
             const SizedBox(height: 18),
             const Text('إثبات الهوية إلزامي', style: TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 6),
-            const Text('يمكن اختيار إثبات الهوية وفيديو الوجه من معرض الهاتف أو الكاميرا. يُحفظ الإثبات في مساحة خاصة ولا يراه إلا الأدمن المصرّح له بالمراجعة.', style: TextStyle(color: AppColors.textSecondary, height: 1.4)),
+            const Text('صوّر مستند الهوية من المعرض أو الكاميرا، أما فيديو الوجه فيُسجّل داخل التطبيق فقط مع تعليمات وضع الوجه وتحريكه. يُحفظ الإثبات في مساحة خاصة ولا يراه إلا الأدمن المصرّح له بالمراجعة.', style: TextStyle(color: AppColors.textSecondary, height: 1.4)),
             const SizedBox(height: 12),
             OutlinedButton.icon(onPressed: isPending || isApproved ? null : _pickIdentityImage, icon: const Icon(Icons.badge_outlined), label: Text(_identityImage == null ? 'اختيار صورة إثبات الهوية' : 'تم اختيار صورة الإثبات')),
             const SizedBox(height: 10),
-            OutlinedButton.icon(onPressed: isPending || isApproved ? null : _pickIdentityVideo, icon: const Icon(Icons.videocam_outlined), label: Text(_identityVideo == null ? 'اختيار فيديو إثبات الوجه' : 'تم اختيار فيديو الإثبات')),
+            OutlinedButton.icon(onPressed: isPending || isApproved ? null : _pickIdentityVideo, icon: const Icon(Icons.videocam_outlined), label: Text(_identityVideo == null ? 'تصوير فيديو إثبات الوجه بالكاميرا' : 'تم تصوير فيديو الإثبات')),
             const SizedBox(height: 14),
             const _SecurityNote(),
             const SizedBox(height: 22),

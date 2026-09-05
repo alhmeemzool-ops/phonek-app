@@ -24,6 +24,10 @@
 	<string>????</string>
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<key>NSCameraUsageDescription</key>
+	<string>يحتاج PhoneK إلى الكاميرا لتسجيل فيديو إثبات الشخصية داخل التطبيق.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>يحتاج PhoneK إلى الميكروفون لتسجيل فيديو إثبات الشخصية.</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UIApplicationSceneManifest</key>
