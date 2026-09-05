@@ -40,7 +40,7 @@ class _HomeScreenState extends State<HomeScreen> {
           p.brand.toLowerCase().contains(_searchQuery.toLowerCase());
       final matchesCity = _selectedCity == null || p.city == _selectedCity;
       final matchesBrand = _selectedBrand == null || p.brand == _selectedBrand;
-      final matchesModel = _selectedModel == null || p.model == _selectedModel;
+      final matchesModel = _selectedModel == null || p.title.toLowerCase().contains(_selectedModel!.toLowerCase());
       final matchesPrice = p.priceOnCall ||
           (_minPrice == null || p.price >= _minPrice!) &&
               (_maxPrice == null || p.price <= _maxPrice!);
@@ -260,32 +260,6 @@ class _HomeScreenState extends State<HomeScreen> {
   String _priceLabel() {
     if (_minPrice == null && _maxPrice == null) return 'الكل';
     return '${_minPrice == null ? '0' : AppFormatters.priceSDG(_minPrice!.round())} - ${_maxPrice == null ? 'مفتوح' : AppFormatters.priceSDG(_maxPrice!.round())}';
-  }
-
-  Widget _buildBrandChips() {
-    return SizedBox(
-      height: 44,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        children: [
-          _brandChip(null, 'الكل'),
-          ...MockData.brands.map((b) => _brandChip(b, b)),
-        ],
-      ),
-    );
-  }
-
-  Widget _brandChip(String? brand, String label) {
-    final selected = _selectedBrand == brand;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4),
-      child: ChoiceChip(
-        label: Text(label),
-        selected: selected,
-        onSelected: (_) => setState(() => _selectedBrand = selected ? null : brand),
-      ),
-    );
   }
 
   void _openFilterSheet() {
