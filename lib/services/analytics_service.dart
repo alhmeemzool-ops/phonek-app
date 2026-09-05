@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/widgets.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Central live analytics collector for PhoneK.
@@ -28,14 +27,7 @@ class AnalyticsService with WidgetsBindingObserver {
     if (_initialized) return;
     _initialized = true;
     WidgetsBinding.instance.addObserver(this);
-
-    final prefs = await SharedPreferences.getInstance();
-    var sessionId = prefs.getString('phonek_analytics_session_id');
-    if (sessionId == null || sessionId.isEmpty) {
-      sessionId = _newId();
-      await prefs.setString('phonek_analytics_session_id', sessionId);
-    }
-    _sessionId = sessionId;
+    _sessionId = _newId();
 
     _flushTimer = Timer.periodic(const Duration(seconds: 5), (_) {
       unawaited(flush());
@@ -133,22 +125,14 @@ class AnalyticsNavigatorObserver extends NavigatorObserver {
   }
 
   @override
-  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
-    _track(route);
-  }
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) => _track(route);
 
   @override
-  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
-    _track(previousRoute);
-  }
+  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) => _track(previousRoute);
 
   @override
-  void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) {
-    _track(newRoute);
-  }
+  void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) => _track(newRoute);
 
   @override
-  void didRemove(Route<dynamic> route, Route<dynamic>? previousRoute) {
-    _track(previousRoute);
-  }
+  void didRemove(Route<dynamic> route, Route<dynamic>? previousRoute) => _track(previousRoute);
 }
