@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -151,20 +149,6 @@ class _ShopAccountScreenState extends State<ShopAccountScreen> {
     }
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('في خرائط Google فعّل الموقع، اختر موقع المحل ثم اضغط مشاركة واختر PhoneK. سيعود الرابط ويُوضع تلقائيًا في عنوان المحل.')));
-    }
-  }
-
-  Future<void> _pickShopLocation() async {
-    final selected = await showModalBottomSheet<LatLng>(
-      context: context,
-      isScrollControlled: true,
-      builder: (_) => _LocationPicker(initial: _latitude == null || _longitude == null ? const LatLng(15.5007, 32.5599) : LatLng(_latitude!, _longitude!)),
-    );
-    if (selected != null && mounted) {
-      setState(() {
-        _latitude = selected.latitude;
-        _longitude = selected.longitude;
-      });
     }
   }
 
@@ -386,81 +370,6 @@ class _SecurityNote extends StatelessWidget {
             Expanded(child: Text('لا يتم تفعيل حساب المحل أو إظهار شارة التوثيق قبل موافقة الأدمن. لا ترفع مستندات غير مطلوبة، ويمكن حذف الطلب أو رفضه وفق سياسة الخصوصية.', style: TextStyle(color: AppColors.textSecondary, height: 1.4))),
           ],
         ),
-      ),
-    );
-  }
-}
-
-
-class _LocationPicker extends StatefulWidget {
-  const _LocationPicker({required this.initial});
-
-  final LatLng initial;
-
-  @override
-  State<_LocationPicker> createState() => _LocationPickerState();
-}
-
-class _LocationPickerState extends State<_LocationPicker> {
-  late LatLng _selected = widget.initial;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: MediaQuery.sizeOf(context).height * 0.78,
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 8, 8),
-            child: Row(
-              children: [
-                const Expanded(child: Text('حدد موقع المحل من الخريطة', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold))),
-                IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close)),
-              ],
-            ),
-          ),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16),
-            child: Text('اضغط على موقع المحل، ثم اضغط حفظ الموقع.', style: TextStyle(color: AppColors.textSecondary)),
-          ),
-          const SizedBox(height: 10),
-          Expanded(
-            child: FlutterMap(
-              options: MapOptions(
-                initialCenter: _selected,
-                initialZoom: 13,
-                onTap: (_, point) => setState(() => _selected = point),
-              ),
-              children: [
-                TileLayer(
-                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                  userAgentPackageName: 'com.phonek.phonek_app',
-                ),
-                MarkerLayer(
-                  markers: [
-                    Marker(
-                      point: _selected,
-                      width: 50,
-                      height: 50,
-                      child: const Icon(Icons.location_pin, color: Colors.red, size: 46),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () => Navigator.pop(context, _selected),
-                icon: const Icon(Icons.check),
-                label: const Text('حفظ موقع المحل'),
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }

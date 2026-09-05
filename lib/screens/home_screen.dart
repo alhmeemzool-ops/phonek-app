@@ -104,7 +104,7 @@ class _HomeScreenState extends State<HomeScreen> {
             actions: [
               IconButton(
                 icon: const Icon(Icons.tune),
-                onPressed: _openFilterSheet,
+                onPressed: () => _openFilterSheet(_FilterType.city),
                 tooltip: 'الفلاتر',
               ),
             ],
