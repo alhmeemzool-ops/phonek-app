@@ -14,6 +14,7 @@ import 'chat_list_screen.dart';
 import 'phone_requests_screen.dart';
 
 enum SortOption { newest, priceLowHigh, priceHighLow }
+enum _FilterType { city, brand, price }
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -216,9 +217,9 @@ class _HomeScreenState extends State<HomeScreen> {
               scrollDirection: Axis.horizontal,
               child: Row(
                 children: [
-                  _filterChip('المدينة', _selectedCity ?? 'الكل', () => _openFilterSheet()),
-                  _filterChip('الماركة', _selectedBrand ?? 'الكل', () => _openFilterSheet()),
-                  _filterChip('السعر', _priceLabel(), () => _openFilterSheet()),
+                  _filterChip('المدينة', _selectedCity ?? 'الكل', () => _openFilterSheet(_FilterType.city)),
+                  _filterChip('الماركة', _selectedBrand ?? 'الكل', () => _openFilterSheet(_FilterType.brand)),
+                  _filterChip('السعر', _priceLabel(), () => _openFilterSheet(_FilterType.price)),
                 ],
               ),
             ),
@@ -258,150 +259,90 @@ class _HomeScreenState extends State<HomeScreen> {
     return '${_minPrice == null ? '0' : AppFormatters.priceSDG(_minPrice!.round())} - ${_maxPrice == null ? 'مفتوح' : AppFormatters.priceSDG(_maxPrice!.round())}';
   }
 
-  void _openFilterSheet() {
-    showModalBottomSheet(
+  void _openFilterSheet(_FilterType type) {
+    final title = switch (type) {
+      _FilterType.city => 'اختر المدينة',
+      _FilterType.brand => 'اختر الماركة',
+      _FilterType.price => 'حدد نطاق السعر',
+    };
+    showModalBottomSheet<void>(
       context: context,
       backgroundColor: AppColors.surface,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
-      builder: (ctx) {
-        return StatefulBuilder(
-          builder: (ctx, setSheetState) {
-            return Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('الفلاتر', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                  const SizedBox(height: 16),
-                  const Text('المدينة', style: TextStyle(color: AppColors.textSecondary)),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    children: [
-                      ChoiceChip(
-                        label: const Text('الكل'),
-                        selected: _selectedCity == null,
-                            onSelected: (_) {
-                              setState(() {
-                                _selectedCity = null;
-                              });
-                          setSheetState(() {});
-                        },
-                      ),
-                      ...MockData.cities.map((c) => ChoiceChip(
-                            label: Text(c),
-                            selected: _selectedCity == c,
-                            onSelected: (_) {
-                              setState(() {
-                                _selectedCity = c;
-                              });
-                              setSheetState(() {});
-                            },
-                          )),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  const Text('الماركة', style: TextStyle(color: AppColors.textSecondary)),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    children: [
-                      ChoiceChip(
-                        label: const Text('الكل'),
-                        selected: _selectedBrand == null,
-                        onSelected: (_) {
-                          setState(() {
-                            _selectedBrand = null;
-                          });
-                          setSheetState(() {});
-                        },
-                      ),
-                      ...MockData.brands.map((brand) => ChoiceChip(
-                            label: Text(brand),
-                            selected: _selectedBrand == brand,
-                            onSelected: (_) {
-                              setState(() {
-                                _selectedBrand = brand;
-                              });
-                              setSheetState(() {});
-                            },
-                          )),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  const Text('النطاق السعري من - إلى', style: TextStyle(color: AppColors.textSecondary)),
-                  RangeSlider(
-                    min: 0,
-                    max: 10000000,
-                    divisions: 100,
-                    values: RangeValues(_minPrice ?? 0, _maxPrice ?? 10000000),
-                    labels: RangeLabels(
-                      AppFormatters.priceSDG((_minPrice ?? 0).round()),
-                      AppFormatters.priceSDG((_maxPrice ?? 10000000).round()),
-                    ),
-                    onChanged: (values) {
-                      setState(() {
-                        _minPrice = values.start == 0 ? null : values.start;
-                        _maxPrice = values.end >= 10000000 ? null : values.end;
-                      });
-                      setSheetState(() {});
-                    },
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(AppFormatters.priceSDG((_minPrice ?? 0).round()), style: const TextStyle(color: AppColors.textSecondary)),
-                        Text(AppFormatters.priceSDG((_maxPrice ?? 10000000).round()), style: const TextStyle(color: AppColors.textSecondary)),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  const Text('الترتيب', style: TextStyle(color: AppColors.textSecondary)),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    children: [
-                      ChoiceChip(
-                        label: const Text('الأحدث'),
-                        selected: _sortOption == SortOption.newest,
-                        onSelected: (_) {
-                          setState(() => _sortOption = SortOption.newest);
-                          setSheetState(() {});
-                        },
-                      ),
-                      ChoiceChip(
-                        label: const Text('الأقل سعراً'),
-                        selected: _sortOption == SortOption.priceLowHigh,
-                        onSelected: (_) {
-                          setState(() => _sortOption = SortOption.priceLowHigh);
-                          setSheetState(() {});
-                        },
-                      ),
-                      ChoiceChip(
-                        label: const Text('الأكثر سعراً'),
-                        selected: _sortOption == SortOption.priceHighLow,
-                        onSelected: (_) {
-                          setState(() => _sortOption = SortOption.priceHighLow);
-                          setSheetState(() {});
-                        },
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.pop(ctx),
-                      child: const Text('إغلاق'),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
+        child: switch (type) {
+          _FilterType.city => _choiceList(ctx, title, 'المدينة', MockData.cities, _selectedCity, (value) {
+              setState(() => _selectedCity = value);
+              Navigator.pop(ctx);
+            }),
+          _FilterType.brand => _choiceList(ctx, title, 'الماركة', MockData.brands, _selectedBrand, (value) {
+              setState(() => _selectedBrand = value);
+              Navigator.pop(ctx);
+            }),
+          _FilterType.price => _priceFilter(ctx, title),
+        },
+      ),
+    );
+  }
+
+  Widget _choiceList(BuildContext ctx, String title, String label, List<String> values, String? selected, ValueChanged<String?> onSelected) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
+        const SizedBox(height: 8),
+        Text('قائمة $label مستقلة عن بقية الفلاتر', style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+        const SizedBox(height: 14),
+        Flexible(
+          child: SingleChildScrollView(
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                ChoiceChip(label: const Text('الكل'), selected: selected == null, onSelected: (_) => onSelected(null)),
+                ...values.map((value) => ChoiceChip(label: Text(value), selected: selected == value, onSelected: (_) => onSelected(value))),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _priceFilter(BuildContext ctx, String title) {
+    return StatefulBuilder(
+      builder: (ctx, setSheetState) {
+        final values = RangeValues(_minPrice ?? 0, _maxPrice ?? 10000000);
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
+            const SizedBox(height: 20),
+            RangeSlider(
+              min: 0,
+              max: 10000000,
+              divisions: 100,
+              values: values,
+              labels: RangeLabels(AppFormatters.priceSDG(values.start.round()), AppFormatters.priceSDG(values.end.round())),
+              onChanged: (next) {
+                setState(() {
+                  _minPrice = next.start == 0 ? null : next.start;
+                  _maxPrice = next.end >= 10000000 ? null : next.end;
+                });
+                setSheetState(() {});
+              },
+            ),
+            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+              Text(AppFormatters.priceSDG(values.start.round()), style: const TextStyle(color: AppColors.textSecondary)),
+              Text(AppFormatters.priceSDG(values.end.round()), style: const TextStyle(color: AppColors.textSecondary)),
+            ]),
+            const SizedBox(height: 18),
+            SizedBox(width: double.infinity, child: ElevatedButton(onPressed: () => Navigator.pop(ctx), child: const Text('تطبيق السعر'))),
+          ],
         );
       },
     );

@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter/services.dart';
 
 import '../data/app_state.dart';
 import '../theme/app_theme.dart';
@@ -32,11 +33,48 @@ class _ShopAccountScreenState extends State<ShopAccountScreen> {
   bool _saving = false;
   bool _loading = true;
   String _status = 'none';
+  String? _sharedLocationText;
+
+  static const _locationChannel = MethodChannel('phonek/location_share');
 
   @override
   void initState() {
     super.initState();
+    _locationChannel.setMethodCallHandler((call) async {
+      if (call.method == 'sharedLocation' && call.arguments is String) {
+        await _applySharedLocation(call.arguments as String);
+      }
+    });
+    _locationChannel.invokeMethod<String>('getInitialSharedLocation').then((value) {
+      if (value != null) _applySharedLocation(value);
+    });
     _loadExistingRequest();
+  }
+
+  Future<void> _applySharedLocation(String value) async {
+    final text = value.trim();
+    if (!mounted || text.isEmpty) return;
+    var resolved = text;
+    if (!text.contains('@') && (text.contains('maps.app.goo.gl') || text.contains('goo.gl/maps'))) {
+      try {
+        final response = await http.get(Uri.parse(text));
+        resolved = response.request?.url.toString() ?? text;
+      } catch (_) {
+        // Keep the original link visible; do not invent coordinates.
+      }
+    }
+    final match = RegExp(r'@(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)|[?&](?:query|q)=(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)').firstMatch(resolved);
+    final latitude = double.tryParse(match?.group(1) ?? match?.group(3) ?? '');
+    final longitude = double.tryParse(match?.group(2) ?? match?.group(4) ?? '');
+    if (!mounted) return;
+    setState(() {
+      _sharedLocationText = resolved;
+      _addressController.text = text;
+      if (latitude != null && longitude != null) {
+        _latitude = latitude;
+        _longitude = longitude;
+      }
+    });
   }
 
   Future<void> _loadExistingRequest() async {
@@ -106,20 +144,14 @@ class _ShopAccountScreenState extends State<ShopAccountScreen> {
     if (file != null && mounted) setState(() => _identityVideo = file);
   }
 
-  String? get _googleMapsUrl => _latitude == null || _longitude == null
-      ? null
-      : 'https://www.google.com/maps/search/?api=1&query=$_latitude,$_longitude';
-
-  Future<void> _shareGoogleMapsLocation() async {
-    final url = _googleMapsUrl;
-    if (url == null) return;
-    await Share.share('موقع المحل على خرائط Google:\n$url');
-  }
-
-  Future<void> _openGoogleMapsLocation() async {
-    final url = _googleMapsUrl;
-    if (url == null) return;
-    await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+  Future<void> _requestLocationFromGoogleMaps() async {
+    final opened = await launchUrl(Uri.parse('geo:0,0?q=الموقع الحالي'), mode: LaunchMode.externalApplication);
+    if (!opened && mounted) {
+      await launchUrl(Uri.parse('https://www.google.com/maps'), mode: LaunchMode.externalApplication);
+    }
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('في خرائط Google فعّل الموقع، اختر موقع المحل ثم اضغط مشاركة واختر PhoneK. سيعود الرابط ويُوضع تلقائيًا في عنوان المحل.')));
+    }
   }
 
   Future<void> _pickShopLocation() async {
@@ -299,24 +331,14 @@ class _ShopAccountScreenState extends State<ShopAccountScreen> {
             TextFormField(controller: _addressController, enabled: !isPending && !isApproved, maxLines: 2, decoration: const InputDecoration(labelText: 'عنوان المحل بالتفصيل', hintText: 'الحي، الشارع، أقرب معلم', prefixIcon: Icon(Icons.location_on)), validator: (value) => value == null || value.trim().length < 5 ? 'عنوان المحل التفصيلي مطلوب' : null),
             const SizedBox(height: 8),
             OutlinedButton.icon(
-              onPressed: isPending || isApproved ? null : _pickShopLocation,
-              icon: const Icon(Icons.map_outlined),
-              label: Text(_latitude == null ? 'حدد موقع المحل من الخريطة' : 'تم تحديد موقع المحل من الخريطة'),
+              onPressed: isPending || isApproved ? null : _requestLocationFromGoogleMaps,
+              icon: const Icon(Icons.location_searching),
+              label: Text(_sharedLocationText == null ? 'اختيار موقع المحل من خرائط Google' : 'تم استقبال موقع المحل من خرائط Google'),
             ),
-            if (_latitude != null && !isPending && !isApproved) ...[
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(child: OutlinedButton.icon(onPressed: _openGoogleMapsLocation, icon: const Icon(Icons.open_in_new), label: const Text('فتح في خرائط Google'))),
-                  const SizedBox(width: 8),
-                  Expanded(child: OutlinedButton.icon(onPressed: _shareGoogleMapsLocation, icon: const Icon(Icons.share_outlined), label: const Text('مشاركة الموقع'))),
-                ],
-              ),
-            ],
             if (_latitude == null && !isPending && !isApproved)
               const Padding(
                 padding: EdgeInsets.only(top: 4),
-                child: Text('حدد نقطة المحل على الخريطة قبل إرسال الطلب', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                child: Text('بعد المشاركة يجب أن يحتوي الرابط على إحداثيات حتى يمكن حفظ الموقع الحقيقي.', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
               ),
             const SizedBox(height: 18),
             const Text('إثبات الهوية إلزامي', style: TextStyle(fontWeight: FontWeight.bold)),
