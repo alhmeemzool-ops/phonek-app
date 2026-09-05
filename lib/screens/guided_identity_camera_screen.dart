@@ -63,7 +63,9 @@ class _GuidedIdentityCameraScreenState extends State<GuidedIdentityCameraScreen>
         selected,
         ResolutionPreset.medium,
         enableAudio: true,
-        imageFormatGroup: Platform.isAndroid ? ImageFormatGroup.nv21 : ImageFormatGroup.bgra8888,
+        imageFormatGroup: defaultTargetPlatform == TargetPlatform.android
+            ? ImageFormatGroup.nv21
+            : ImageFormatGroup.bgra8888,
       );
       await controller.initialize();
       final detector = FaceDetector(
