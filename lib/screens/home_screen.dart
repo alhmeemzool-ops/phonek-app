@@ -308,6 +308,36 @@ class _HomeScreenState extends State<HomeScreen> {
                           )),
                     ],
                   ),
+                  const SizedBox(height: 20),
+                  const Text('الماركة', style: TextStyle(color: AppColors.textSecondary)),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    children: [
+                      ChoiceChip(
+                        label: const Text('الكل'),
+                        selected: _selectedBrand == null,
+                        onSelected: (_) {
+                          setState(() {
+                            _selectedBrand = null;
+                            _selectedModel = null;
+                          });
+                          setSheetState(() {});
+                        },
+                      ),
+                      ...MockData.brands.map((brand) => ChoiceChip(
+                            label: Text(brand),
+                            selected: _selectedBrand == brand,
+                            onSelected: (_) {
+                              setState(() {
+                                _selectedBrand = brand;
+                                _selectedModel = null;
+                              });
+                              setSheetState(() {});
+                            },
+                          )),
+                    ],
+                  ),
                   if (_selectedBrand != null) ...[
                     const SizedBox(height: 20),
                     const Text('الموديل', style: TextStyle(color: AppColors.textSecondary)),

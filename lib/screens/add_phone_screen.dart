@@ -412,7 +412,11 @@ class _AddPhoneScreenState extends State<AddPhoneScreen> {
       return;
     }
     final selected =
-        await _imagePicker.pickMultiImage(imageQuality: 80, maxWidth: 1600);
+        await _imagePicker.pickMultiImage(
+      imageQuality: 68,
+      maxWidth: 1280,
+      maxHeight: 1280,
+    );
     if (!mounted || selected.isEmpty) return;
     setState(() {
       _images.addAll(selected.take(remaining));
@@ -445,26 +449,33 @@ class _AddPhoneScreenState extends State<AddPhoneScreen> {
         );
       }
       final price = _priceOnCall ? 0 : int.parse(_priceController.text.trim());
-      final uploadedPaths = <String>[];
-      final imageUrls = <String>[];
-      for (var index = 0; index < _images.length; index++) {
-        final image = _images[index];
-        final path =
-            '${user.id}/${DateTime.now().microsecondsSinceEpoch}_$index.${_extensionFor(image.name)}';
-        final bytes = await image.readAsBytes();
-        await Supabase.instance.client.storage
-            .from('listing-images')
-            .uploadBinary(
-              path,
-              bytes,
-              fileOptions: FileOptions(
-                  contentType: _contentTypeFor(image.name), upsert: false),
-            );
-        uploadedPaths.add(path);
-        imageUrls.add(Supabase.instance.client.storage
-            .from('listing-images')
-            .getPublicUrl(path));
-      }
+      final uploadResults = await Future.wait(
+        _images.asMap().entries.map((entry) async {
+          final index = entry.key;
+          final image = entry.value;
+          final path =
+              '${user.id}/${DateTime.now().microsecondsSinceEpoch}_$index.${_extensionFor(image.name)}';
+          final bytes = await image.readAsBytes();
+          await Supabase.instance.client.storage
+              .from('listing-images')
+              .uploadBinary(
+                path,
+                bytes,
+                fileOptions: FileOptions(
+                  contentType: _contentTypeFor(image.name),
+                  upsert: false,
+                ),
+              );
+          return <String, String>{
+            'path': path,
+            'url': Supabase.instance.client.storage
+                .from('listing-images')
+                .getPublicUrl(path),
+          };
+        }),
+      );
+      final uploadedPaths = uploadResults.map((item) => item['path']!).toList();
+      final imageUrls = uploadResults.map((item) => item['url']!).toList();
       try {
         await Supabase.instance.client.from('listings').insert({
           'seller_id': user.id,
