@@ -1,5 +1,4 @@
-import 'dart:io';
-
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
@@ -122,9 +121,13 @@ class _ShopAccountScreenState extends State<ShopAccountScreen> {
       if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
         throw StateError('يجب السماح لـ PhoneK باستخدام الموقع حتى يتم تثبيت موقع المحل.');
       }
-      final accuracyStatus = await Geolocator.getLocationAccuracy();
-      if (accuracyStatus == LocationAccuracyStatus.reduced) {
-        throw StateError('فعّل الموقع الدقيق Precise Location، فالموقع التقريبي غير مقبول.');
+      // geolocator_web لا ينفذ getLocationAccuracy؛ دقة Position.accuracy
+      // هي المصدر المتاح في المتصفح، ونفحصها بعد قراءة الموقع أدناه.
+      if (!kIsWeb) {
+        final accuracyStatus = await Geolocator.getLocationAccuracy();
+        if (accuracyStatus == LocationAccuracyStatus.reduced) {
+          throw StateError('فعّل الموقع الدقيق Precise Location، فالموقع التقريبي غير مقبول.');
+        }
       }
       final position = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(accuracy: LocationAccuracy.best, timeLimit: Duration(seconds: 25)),
@@ -132,7 +135,7 @@ class _ShopAccountScreenState extends State<ShopAccountScreen> {
       final inSudan = position.latitude >= 8.5 && position.latitude <= 22.2 && position.longitude >= 21.8 && position.longitude <= 38.6;
       if (!inSudan) throw StateError('يجب تثبيت موقع المحل من داخل السودان.');
       if (position.accuracy <= 0 || position.accuracy > 50) throw StateError('دقة GPS الحالية ${position.accuracy.toStringAsFixed(0)}م غير كافية. تحرك إلى مكان مفتوح وحاول مرة أخرى.');
-      if (Platform.isAndroid && position.isMocked) throw StateError('تم اكتشاف موقع محاكى أو وهمي. عطّل Mock Location وحاول مرة أخرى.');
+      if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android && position.isMocked) throw StateError('تم اكتشاف موقع محاكى أو وهمي. عطّل Mock Location وحاول مرة أخرى.');
       final capturedAt = DateTime.now().toUtc();
       if (!mounted) return;
       setState(() {
