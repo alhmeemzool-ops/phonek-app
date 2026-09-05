@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/chat_model.dart';
 import '../models/phone_model.dart';
+import '../services/analytics_service.dart';
 import 'mock_data.dart';
 
 /// Global application state for authentication, listings, favorites, and account role.
@@ -19,10 +20,15 @@ class AppState extends ChangeNotifier {
         _isShopOwner = false;
         _shopName = null;
         _favoriteIds.clear();
+        unawaited(AnalyticsService.instance.track('logout'));
       } else {
         _userName = data.session?.user.userMetadata?['full_name'] as String? ??
             data.session?.user.email ??
             'مستخدم PhoneK';
+        unawaited(AnalyticsService.instance.track(
+          'login',
+          metadata: {'provider': data.event.name},
+        ));
         unawaited(_loadProfile());
         unawaited(_loadFavorites());
         unawaited(loadChatThreads());
@@ -71,6 +77,11 @@ class AppState extends ChangeNotifier {
       _favoriteIds.add(id);
     }
     notifyListeners();
+    unawaited(AnalyticsService.instance.track(
+      wasFavorite ? 'favorite_removed' : 'favorite_added',
+      entityType: 'listing',
+      entityId: id,
+    ));
 
     final userId = _session?.user.id;
     if (userId == null) return;
@@ -93,9 +104,7 @@ class AppState extends ChangeNotifier {
             .map((row) => row['listing_id'])
             .whereType<String>());
       notifyListeners();
-    } catch (_) {
-      // Keep optimistic/local behavior if the optional migration is not applied yet.
-    }
+    } catch (_) {}
   }
 
   Future<void> _persistFavorite({
@@ -116,9 +125,7 @@ class AppState extends ChangeNotifier {
             .eq('user_id', userId)
             .eq('listing_id', listingId);
       }
-    } catch (_) {
-      // The UI remains usable while a missing migration or network failure is reported later.
-    }
+    } catch (_) {}
   }
 
   Set<String> get favoriteIds => Set.unmodifiable(_favoriteIds);
@@ -161,9 +168,7 @@ class AppState extends ChangeNotifier {
         if (!models.contains(model)) models.add(model);
       }
       notifyListeners();
-    } catch (_) {
-      // The migration is optional during local/demo previews.
-    }
+    } catch (_) {}
   }
 
   Future<String> addCustomPhoneModel({
@@ -194,17 +199,27 @@ class AppState extends ChangeNotifier {
     final models = _phoneModelsByBrand.putIfAbsent(normalizedBrand, () => []);
     if (!models.contains(savedModel)) models.add(savedModel);
     notifyListeners();
+    unawaited(AnalyticsService.instance.track(
+      'phone_model_added',
+      entityType: 'phone_model',
+      metadata: {'brand': normalizedBrand, 'model': savedModel},
+    ));
     return savedModel;
   }
 
-  /// Keeps the demo login API available for local previews and tests.
   void login(String name) {
     _userName = name;
+    unawaited(AnalyticsService.instance.track('demo_login'));
     notifyListeners();
   }
 
   void addPhoneRequest(PhoneRequest request) {
     _phoneRequests.insert(0, request);
+    unawaited(AnalyticsService.instance.track(
+      'phone_request_added',
+      entityType: 'phone_request',
+      entityId: request.id,
+    ));
     notifyListeners();
   }
 
@@ -228,6 +243,12 @@ class AppState extends ChangeNotifier {
       price: newPrice,
       oldPrice: current.oldPrice ?? current.price,
     );
+    unawaited(AnalyticsService.instance.track(
+      'listing_price_updated',
+      entityType: 'listing',
+      entityId: listingId,
+      metadata: {'new_price': newPrice},
+    ));
     notifyListeners();
   }
 
@@ -239,6 +260,11 @@ class AppState extends ChangeNotifier {
           .eq('id', listingId);
     }
     _listings.removeWhere((listing) => listing.id == listingId);
+    unawaited(AnalyticsService.instance.track(
+      'listing_deleted',
+      entityType: 'listing',
+      entityId: listingId,
+    ));
     notifyListeners();
   }
 
@@ -266,9 +292,7 @@ class AppState extends ChangeNotifier {
           );
         }));
       notifyListeners();
-    } catch (_) {
-      // Chat is optional until a user opens a conversation.
-    }
+    } catch (_) {}
   }
 
   Future<String> ensureChatThread(PhoneListing listing) async {
@@ -280,7 +304,12 @@ class AppState extends ChangeNotifier {
         .eq('listing_id', listing.id)
         .or('buyer_id.eq.$userId,seller_id.eq.$userId')
         .limit(1);
-    if ((existing as List).isNotEmpty) return existing.first['id'] as String;
+    if ((existing as List).isNotEmpty) {
+      final id = existing.first['id'] as String;
+      unawaited(AnalyticsService.instance.track(
+        'chat_opened', entityType: 'listing', entityId: listing.id));
+      return id;
+    }
     final inserted = await Supabase.instance.client
         .from('chat_threads')
         .insert({
@@ -290,7 +319,10 @@ class AppState extends ChangeNotifier {
         })
         .select('id')
         .single();
-    return inserted['id'] as String;
+    final id = inserted['id'] as String;
+    unawaited(AnalyticsService.instance.track(
+      'chat_started', entityType: 'listing', entityId: listing.id));
+    return id;
   }
 
   Future<List<ChatMessage>> loadMessages(String threadId) async {
@@ -299,6 +331,8 @@ class AppState extends ChangeNotifier {
         .select('id, sender_id, text, type, status, offer_amount, created_at')
         .eq('thread_id', threadId)
         .order('created_at', ascending: true);
+    unawaited(AnalyticsService.instance.track(
+      'chat_messages_loaded', entityType: 'chat_thread', entityId: threadId));
     return (rows as List)
         .whereType<Map<String, dynamic>>()
         .map(_messageFromRow)
@@ -316,6 +350,8 @@ class AppState extends ChangeNotifier {
       'type': MessageType.text.name,
       'status': MessageStatus.sent.name,
     });
+    unawaited(AnalyticsService.instance.track(
+      'message_sent', entityType: 'chat_thread', entityId: threadId));
   }
 
   RealtimeChannel subscribeToMessages(
@@ -331,7 +367,14 @@ class AppState extends ChangeNotifier {
             column: 'thread_id',
             value: threadId,
           ),
-          callback: (payload) => onMessage(_messageFromRow(payload.newRecord)),
+          callback: (payload) {
+            unawaited(AnalyticsService.instance.track(
+              'message_received',
+              entityType: 'chat_thread',
+              entityId: threadId,
+            ));
+            onMessage(_messageFromRow(payload.newRecord));
+          },
         )
         .subscribe();
     _chatChannels.add(channel);
@@ -361,6 +404,7 @@ class AppState extends ChangeNotifier {
     if (_isLoadingListings) return;
     _isLoadingListings = true;
     _listingsError = null;
+    unawaited(AnalyticsService.instance.track('listings_load_started'));
     notifyListeners();
 
     try {
@@ -402,16 +446,22 @@ class AppState extends ChangeNotifier {
         ..clear()
         ..addAll(loaded.isEmpty ? MockData.listings : loaded);
       if (_session != null) unawaited(loadChatThreads());
+      unawaited(AnalyticsService.instance.track(
+        'listings_load_completed',
+        metadata: {'count': loaded.length},
+      ));
     } on PostgrestException catch (_) {
       _listings
         ..clear()
         ..addAll(MockData.listings);
       _listingsError = null;
+      unawaited(AnalyticsService.instance.track('listings_load_fallback'));
     } catch (_) {
       _listings
         ..clear()
         ..addAll(MockData.listings);
       _listingsError = null;
+      unawaited(AnalyticsService.instance.track('listings_load_fallback'));
     } finally {
       _isLoadingListings = false;
       notifyListeners();
@@ -471,7 +521,7 @@ class AppState extends ChangeNotifier {
   }
 
   String _listingImageUrl(String value) {
-    final normalized = value.trim().replaceAll(RegExp(r'''^['"]|['"]$'''), '');
+    final normalized = value.trim().replaceAll(RegExp(r'''^['\"]|['\"]$'''), '');
     if (normalized.startsWith('http://') || normalized.startsWith('https://')) {
       return normalized;
     }
@@ -486,7 +536,7 @@ class AppState extends ChangeNotifier {
               final nested = item['url'] ?? item['publicUrl'] ?? item['public_url'] ?? item['path'];
               return nested == null ? const <String>[] : _imageUrlsFromValue(nested);
             }
-            final normalized = item.toString().trim().replaceAll(RegExp(r'''^['"]|['"]$'''), '');
+            final normalized = item.toString().trim().replaceAll(RegExp(r'''^['\"]|['\"]$'''), '');
             return normalized.isNotEmpty ? <String>[_listingImageUrl(normalized)] : const <String>[];
           })
           .toSet()
@@ -501,7 +551,7 @@ class AppState extends ChangeNotifier {
       try {
         return _imageUrlsFromValue(jsonDecode(raw));
       } catch (_) {
-        final normalized = raw.replaceAll(RegExp(r'''^['"]|['"]$'''), '');
+        final normalized = raw.replaceAll(RegExp(r'''^['\"]|['\"]$'''), '');
         return normalized.isNotEmpty ? <String>[_listingImageUrl(normalized)] : const [];
       }
     }
@@ -510,46 +560,34 @@ class AppState extends ChangeNotifier {
 
   DeviceCondition _conditionFromValue(String? value) {
     switch (value) {
-      case 'none':
-        return DeviceCondition.none;
+      case 'none': return DeviceCondition.none;
       case 'new':
-      case 'newDevice':
-        return DeviceCondition.newDevice;
+      case 'newDevice': return DeviceCondition.newDevice;
       case 'minor_scratches':
-      case 'minorScratches':
-        return DeviceCondition.minorScratches;
-      case 'cracked':
-        return DeviceCondition.cracked;
-      default:
-        return DeviceCondition.none;
+      case 'minorScratches': return DeviceCondition.minorScratches;
+      case 'cracked': return DeviceCondition.cracked;
+      default: return DeviceCondition.none;
     }
   }
+
   WarrantyType _warrantyFromValue(String? value) {
     switch (value) {
       case 'store_warranty':
-      case 'storeWarranty':
-        return WarrantyType.storeWarranty;
+      case 'storeWarranty': return WarrantyType.storeWarranty;
       case 'agent_warranty':
-      case 'agentWarranty':
-        return WarrantyType.agentWarranty;
-      default:
-        return WarrantyType.none;
+      case 'agentWarranty': return WarrantyType.agentWarranty;
+      default: return WarrantyType.none;
     }
   }
 
   ListingStatus _statusFromValue(String? value) {
     switch (value) {
-      case 'sold':
-        return ListingStatus.sold;
-      case 'frozen':
-        return ListingStatus.frozen;
-      case 'expired':
-        return ListingStatus.expired;
+      case 'sold': return ListingStatus.sold;
+      case 'frozen': return ListingStatus.frozen;
+      case 'expired': return ListingStatus.expired;
       case 'pending_review':
-      case 'pendingReview':
-        return ListingStatus.pendingReview;
-      default:
-        return ListingStatus.active;
+      case 'pendingReview': return ListingStatus.pendingReview;
+      default: return ListingStatus.active;
     }
   }
 
@@ -561,22 +599,17 @@ class AppState extends ChangeNotifier {
       OAuthProvider.google,
       redirectTo: redirectTo,
       authScreenLaunchMode: LaunchMode.inAppWebView,
-      queryParams: {
-        'prompt': 'select_account',
-      },
+      queryParams: {'prompt': 'select_account'},
     );
-    if (!response) {
-      throw const AuthException('تعذر بدء تسجيل الدخول عبر Google');
-    }
+    if (!response) throw const AuthException('تعذر بدء تسجيل الدخول عبر Google');
+    unawaited(AnalyticsService.instance.track('google_login_started'));
   }
 
-  String _webOAuthRedirectUri() {
-    // Always return to the stable public app URL after OAuth.
-    // Preview and Manus Sandbox URLs can expire while Google redirects back.
-    return 'https://alhmeemzool-ops.github.io/phonek-app/';
-  }
+  String _webOAuthRedirectUri() =>
+      'https://alhmeemzool-ops.github.io/phonek-app/';
 
   Future<void> logout() async {
+    unawaited(AnalyticsService.instance.track('logout_requested'));
     await Supabase.instance.client.auth.signOut();
   }
 
@@ -597,9 +630,7 @@ class AppState extends ChangeNotifier {
         _shopName = _isShopOwner ? row['name'] as String? : null;
         notifyListeners();
       }
-    } catch (_) {
-      // The profile table is optional during the initial demo setup.
-    }
+    } catch (_) {}
   }
 
   Future<void> submitShopRating({
@@ -611,15 +642,18 @@ class AppState extends ChangeNotifier {
     if (userId == null) throw const AuthException('سجّل الدخول لإضافة تقييم');
     if (stars < 1 || stars > 5) throw const AuthException('اختر عدد النجوم');
     if (userId == shopId) throw const AuthException('لا يمكنك تقييم حسابك');
-    await Supabase.instance.client.from('shop_ratings').upsert(
-      {
-        'shop_id': shopId,
-        'reviewer_id': userId,
-        'stars': stars,
-        'comment': comment.trim().isEmpty ? null : comment.trim(),
-      },
-      onConflict: 'shop_id,reviewer_id',
-    );
+    await Supabase.instance.client.from('shop_ratings').upsert({
+      'shop_id': shopId,
+      'reviewer_id': userId,
+      'stars': stars,
+      'comment': comment.trim().isEmpty ? null : comment.trim(),
+    });
+    unawaited(AnalyticsService.instance.track(
+      'shop_rated',
+      entityType: 'shop',
+      entityId: shopId,
+      metadata: {'stars': stars},
+    ));
   }
 
   @override
