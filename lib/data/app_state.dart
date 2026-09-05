@@ -470,18 +470,24 @@ class AppState extends ChangeNotifier {
     }
   }
 
+  String _listingImageUrl(String value) {
+    final normalized = value.trim().replaceAll(RegExp(r'''^['"]|['"]$'''), '');
+    if (normalized.startsWith('http://') || normalized.startsWith('https://')) {
+      return normalized;
+    }
+    return Supabase.instance.client.storage.from('listing-images').getPublicUrl(normalized);
+  }
+
   List<String> _imageUrlsFromValue(dynamic value) {
     if (value is Iterable) {
       return value
           .expand<String>((item) {
             if (item is Map) {
-              final nested = item['url'] ?? item['publicUrl'] ?? item['public_url'];
+              final nested = item['url'] ?? item['publicUrl'] ?? item['public_url'] ?? item['path'];
               return nested == null ? const <String>[] : _imageUrlsFromValue(nested);
             }
             final normalized = item.toString().trim().replaceAll(RegExp(r'''^['"]|['"]$'''), '');
-            return normalized.startsWith('http://') || normalized.startsWith('https://')
-                ? <String>[normalized]
-                : const <String>[];
+            return normalized.isNotEmpty ? <String>[_listingImageUrl(normalized)] : const <String>[];
           })
           .toSet()
           .toList(growable: false);
@@ -496,9 +502,7 @@ class AppState extends ChangeNotifier {
         return _imageUrlsFromValue(jsonDecode(raw));
       } catch (_) {
         final normalized = raw.replaceAll(RegExp(r'''^['"]|['"]$'''), '');
-        return normalized.startsWith('http://') || normalized.startsWith('https://')
-            ? <String>[normalized]
-            : const [];
+        return normalized.isNotEmpty ? <String>[_listingImageUrl(normalized)] : const [];
       }
     }
     return const [];
