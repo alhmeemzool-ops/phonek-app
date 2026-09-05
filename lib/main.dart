@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'data/app_state.dart';
 import 'screens/home_screen.dart';
+import 'services/analytics_service.dart';
 import 'theme/app_theme.dart';
 
 Future<void> main() async {
@@ -12,6 +15,9 @@ Future<void> main() async {
     url: 'https://hnuzqjotgmdgqjpbrqlb.supabase.co',
     publishableKey: 'sb_publishable_3XRVtwMyK5nNOvNpNDT7Mg_4nyH7FC1',
   );
+
+  await AnalyticsService.instance.initialize();
+  unawaited(AnalyticsService.instance.screenView('HomeScreen'));
 
   runApp(const PhoneKApp());
 }
@@ -29,8 +35,12 @@ class PhoneKApp extends StatelessWidget {
         theme: AppTheme.dark,
         darkTheme: AppTheme.dark,
         themeMode: ThemeMode.dark,
+        navigatorObservers: [AnalyticsNavigatorObserver()],
         builder: (context, child) {
-          return Directionality(textDirection: TextDirection.rtl, child: child!);
+          return Directionality(
+            textDirection: TextDirection.rtl,
+            child: child!,
+          );
         },
         home: const HomeScreen(),
       ),
