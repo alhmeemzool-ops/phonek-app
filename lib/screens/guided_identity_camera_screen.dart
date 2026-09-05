@@ -90,14 +90,15 @@ class _GuidedIdentityCameraScreenState extends State<GuidedIdentityCameraScreen>
     final controller = _controller;
     if (controller == null || !controller.value.isInitialized || _recording) return;
     try {
-      await controller.startVideoRecording();
       setState(() {
         _recording = true;
         _phase = _CapturePhase.center;
         _progress = 0;
         _validPose = false;
       });
-      await controller.startImageStream(_processCameraImage);
+      await controller.startVideoRecording(onAvailable: (image) {
+        _processCameraImage(image);
+      });
     } catch (_) {
       if (mounted) setState(() => _error = 'تعذر بدء تسجيل فيديو إثبات الوجه');
     }
@@ -150,7 +151,6 @@ class _GuidedIdentityCameraScreenState extends State<GuidedIdentityCameraScreen>
     } else if (_phase == _CapturePhase.left) {
       final controller = _controller;
       if (controller == null) return;
-      await controller.stopImageStream();
       final file = await controller.stopVideoRecording();
       if (!mounted) return;
       setState(() { _recording = false; _phase = _CapturePhase.complete; _progress = 1; _validPose = true; });
