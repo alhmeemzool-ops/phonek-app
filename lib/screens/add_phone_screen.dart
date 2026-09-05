@@ -43,6 +43,7 @@ class _AddPhoneScreenState extends State<AddPhoneScreen> {
   String? _imagesError;
   final ImagePicker _imagePicker = ImagePicker();
   final List<XFile> _images = [];
+  final List<Uint8List?> _imageBytes = [];
 
   final _storageOptions = ['', '32GB', '64GB', '128GB', '256GB', '512GB', '1TB'];
   final _ramOptions = ['', '3GB', '4GB', '6GB', '8GB', '12GB', '16GB'];
@@ -365,41 +366,37 @@ class _AddPhoneScreenState extends State<AddPhoneScreen> {
   }
 
   Widget _imagePreview(int index) {
-    final image = _images[index];
-    return FutureBuilder<Uint8List>(
-      future: image.readAsBytes(),
-      builder: (context, snapshot) {
-        return Stack(
-          children: [
-            Container(
-              width: 90,
-              height: 90,
-              clipBehavior: Clip.antiAlias,
-              decoration:
-                  BoxDecoration(borderRadius: BorderRadius.circular(10)),
-              child: snapshot.hasData
-                  ? Image.memory(snapshot.data!, fit: BoxFit.cover)
-                  : const ColoredBox(
-                      color: AppColors.surfaceLight,
-                      child: Center(
-                          child: CircularProgressIndicator(strokeWidth: 2)),
-                    ),
-            ),
-            Positioned(
-              top: 3,
-              right: 3,
-              child: GestureDetector(
-                onTap: () => setState(() => _images.removeAt(index)),
-                child: const CircleAvatar(
-                  radius: 11,
-                  backgroundColor: Colors.black87,
-                  child: Icon(Icons.close, size: 14, color: Colors.white),
+    final bytes = _imageBytes[index];
+    return Stack(
+      children: [
+        Container(
+          width: 90,
+          height: 90,
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(borderRadius: BorderRadius.circular(10)),
+          child: bytes != null
+              ? Image.memory(bytes, fit: BoxFit.cover)
+              : const ColoredBox(
+                  color: AppColors.surfaceLight,
+                  child: Center(child: Icon(Icons.broken_image_outlined, color: Colors.white54)),
                 ),
-              ),
+        ),
+        Positioned(
+          top: 3,
+          right: 3,
+          child: GestureDetector(
+            onTap: () => setState(() {
+              _images.removeAt(index);
+              _imageBytes.removeAt(index);
+            }),
+            child: const CircleAvatar(
+              radius: 11,
+              backgroundColor: Colors.black87,
+              child: Icon(Icons.close, size: 14, color: Colors.white),
             ),
-          ],
-        );
-      },
+          ),
+        ),
+      ],
     );
   }
 
@@ -411,17 +408,27 @@ class _AddPhoneScreenState extends State<AddPhoneScreen> {
           const SnackBar(content: Text('يمكنك إضافة 5 صور كحد أقصى')));
       return;
     }
-    final selected =
-        await _imagePicker.pickMultiImage(
+    final selected = await _imagePicker.pickMultiImage(
       imageQuality: 68,
       maxWidth: 1280,
       maxHeight: 1280,
     );
     if (!mounted || selected.isEmpty) return;
-    setState(() {
-      _images.addAll(selected.take(remaining));
-      if (_images.isNotEmpty) _imagesError = null;
-    });
+    final chosen = selected.take(remaining).toList(growable: false);
+    try {
+      // اقرأ البيانات مرة واحدة عند الاختيار بدل إنشاء Future جديد في كل build.
+      final previews = await Future.wait(chosen.map((image) => image.readAsBytes()));
+      if (!mounted) return;
+      setState(() {
+        _images.addAll(chosen);
+        _imageBytes.addAll(previews);
+        _imagesError = null;
+      });
+    } catch (_) {
+      if (mounted) {
+        setState(() => _imagesError = 'تعذر قراءة إحدى الصور المختارة. اختر الصور مرة أخرى.');
+      }
+    }
   }
 
   Future<void> _submit() async {
@@ -570,6 +577,7 @@ class _AddPhoneScreenState extends State<AddPhoneScreen> {
       _phoneModel = null;
       _addingCustomModel = false;
       _images.clear();
+      _imageBytes.clear();
     });
   }
 
