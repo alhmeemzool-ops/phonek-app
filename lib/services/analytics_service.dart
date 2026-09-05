@@ -1,8 +1,6 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:math';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -23,7 +21,6 @@ class AnalyticsService with WidgetsBindingObserver {
   Timer? _heartbeatTimer;
   String? _sessionId;
   String? _currentScreen;
-  DateTime? _sessionStartedAt;
   bool _initialized = false;
   bool _flushInProgress = false;
 
@@ -39,7 +36,6 @@ class AnalyticsService with WidgetsBindingObserver {
       await prefs.setString('phonek_analytics_session_id', sessionId);
     }
     _sessionId = sessionId;
-    _sessionStartedAt = DateTime.now();
 
     _flushTimer = Timer.periodic(const Duration(seconds: 5), (_) {
       unawaited(flush());
@@ -77,9 +73,7 @@ class AnalyticsService with WidgetsBindingObserver {
       'metadata': metadata ?? const <String, dynamic>{},
     });
 
-    if (_queue.length >= 10) {
-      unawaited(flush());
-    }
+    if (_queue.length >= 10) unawaited(flush());
   }
 
   Future<void> screenView(String screenName) async {
@@ -96,8 +90,6 @@ class AnalyticsService with WidgetsBindingObserver {
     try {
       await Supabase.instance.client.from('analytics_events').insert(batch);
     } catch (_) {
-      // Put failed events back at the front for a later retry, capped to avoid
-      // unbounded memory growth while offline.
       _queue.insertAll(0, batch.take(100).toList());
     } finally {
       _flushInProgress = false;
