@@ -6,6 +6,7 @@ import '../utils/formatters.dart';
 import 'login_screen.dart';
 import 'admin_dashboard_screen.dart';
 import 'shop_account_screen.dart';
+import 'merchant_badges_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -50,6 +51,12 @@ class ProfileScreen extends StatelessWidget {
             Icons.storefront,
             appState.isShopOwner ? 'لوحة المحل: ${appState.shopName ?? ''}' : 'إنشاء حساب صاحب محل',
             () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ShopAccountScreen())),
+          ),
+          _tile(
+            context,
+            Icons.military_tech,
+            'شارات التميز للمتاجر (10 مستويات)',
+            () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MerchantBadgesScreen())),
           ),
           _tile(context, Icons.bookmark, 'عمليات البحث المحفوظة', () {}),
           _tile(context, Icons.notifications, 'إعدادات الإشعارات', () {}),

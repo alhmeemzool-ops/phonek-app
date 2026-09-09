@@ -1,0 +1,15 @@
+{
+  "name": "نظام شارات التميز للمتاجر",
+  "short_name": "ش由於 المتاجر",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "icons": [
+    {
+      "src": "src/assets/images/badge_level4_platinum_1788887621286.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg"
+    }
+  ]
+}

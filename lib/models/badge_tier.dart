@@ -1,0 +1,148 @@
+class BadgeTier {
+  final int level;
+  final String name;
+  final String category;
+  final String description;
+  final int requiredPhones;
+  final int requiredMonths;
+  final String requirementLabel;
+  final List<String> perks;
+  final String material;
+  final String finish;
+
+  const BadgeTier({
+    required this.level,
+    required this.name,
+    required this.category,
+    required this.description,
+    required this.requiredPhones,
+    required this.requiredMonths,
+    required this.requirementLabel,
+    required this.perks,
+    required this.material,
+    required this.finish,
+  });
+}
+
+const List<BadgeTier> kMerchantBadgeTiers = [
+  BadgeTier(
+    level: 1,
+    name: 'Copper Minimal Coin',
+    category: 'Level 1 • Emerging Merchant',
+    description: 'عملة النحاس البسيطة. تفتح بعد بيع 10 هواتف.',
+    requiredPhones: 10,
+    requiredMonths: 0,
+    requirementLabel: '10 هواتف مباعة',
+    perks: ['قائمة متجر عادية', 'لوحة تحليلات أساسية', 'دعم مجتمعي', 'عمولة قياسية 2.9%'],
+    material: 'سبيكة نحاس نقي',
+    finish: 'مات هندسي مسطح',
+  ),
+  BadgeTier(
+    level: 2,
+    name: 'Silver Star Coin',
+    category: 'Level 2 • Verified Merchant',
+    description: 'عملة الفضة بالنجمة البارزة. تفتح بعد 25 هاتف وشهر واحد.',
+    requiredPhones: 25,
+    requiredMonths: 1,
+    requirementLabel: '25 هاتف وشهر نشاط',
+    perks: ['درع التوثيق المعتمد', 'تحليلات المبيعات المتقدمة', 'دعم بريدي فوري', 'عمولة مخفضة 2.6%'],
+    material: 'فضة مسفوعة',
+    finish: 'نقش معدني بارز',
+  ),
+  BadgeTier(
+    level: 3,
+    name: 'Polished Gold Coin',
+    category: 'Level 3 • Gold Merchant',
+    description: 'عملة الذهب المصقول الشعاعي. تفتح بعد 45 هاتف وشهري نشاط.',
+    requiredPhones: 45,
+    requiredMonths: 2,
+    requirementLabel: '45 هاتف وشهرين نشاط',
+    perks: ['درع الذهب المعتمد', 'تحليلات متقدمة', 'أولوية الدعم الفني', 'عمولة 2.3%'],
+    material: 'مطلي ذهب 24 قيراط',
+    finish: 'لمعان شمسي عالٍ',
+  ),
+  BadgeTier(
+    level: 4,
+    name: 'Winged Gold Shield',
+    category: 'Level 4 • Elite Shield Merchant',
+    description: 'درع الذهب المجنح مع شعار النجمة. تفتح بعد 75 هاتف و3 أشهر.',
+    requiredPhones: 75,
+    requiredMonths: 3,
+    requirementLabel: '75 هاتف و3 أشهر نشاط',
+    perks: ['تمييز الدرع المجنح', 'ظهور مميز في السوق', 'بدون رسوم على أول 5 آلاف/شهرياً', 'دعم دردشة 24/7'],
+    material: 'سبيكة ذهب وأجنحة معدنية',
+    finish: 'معدني ثلاثي الأبعاد أنيق',
+  ),
+  BadgeTier(
+    level: 5,
+    name: 'Emerald Green Gemstone Shield',
+    category: 'Level 5 • Emerald Master',
+    description: 'درع الزمرد الأخضر الفاخر مع زخرفة الذهب. تفتح بعد 120 هاتف و6 أشهر.',
+    requiredPhones: 120,
+    requiredMonths: 6,
+    requirementLabel: '120 هاتف و6 أشهر نشاط',
+    perks: ['شارة الزمرد الخبير', 'مدير حساب مخصص', 'تحويلات بدون رسوم حتى 10 آلاف', 'وضع حصري في السوق'],
+    material: 'ذهب خالص وحجر الزمرد',
+    finish: 'تقطيع هندسي كريستالي براق',
+  ),
+  BadgeTier(
+    level: 6,
+    name: 'Ruby Red Gemstone Shield',
+    category: 'Level 6 • Ruby Sovereign',
+    description: 'درع الياقوت الأحمر الملكي مع إطار ذهبي مزخرف. تفتح بعد 180 هاتف و9 أشهر.',
+    requiredPhones: 180,
+    requiredMonths: 9,
+    requirementLabel: '180 هاتف و9 أشهر نشاط',
+    perks: ['شعار الياقوت السيادي', 'حالة البائع المميز VIP', 'تسوية مالية فورية', 'لافتة واجهة متجر مخصصة'],
+    material: 'ذهب مزخرف وياقوت أحمر',
+    finish: 'صقل قرمزي عميق',
+  ),
+  BadgeTier(
+    level: 7,
+    name: 'Sapphire Crystal Shield',
+    category: 'Level 7 • Sapphire Legend',
+    description: 'درع كريستال الياقوت الأزرق مع هالة مضيئة. تفتح بعد 250 هاتف وسنة نشاط.',
+    requiredPhones: 250,
+    requiredMonths: 12,
+    requirementLabel: '250 هاتف وسنة كاملة',
+    perks: ['شارة أسطورة الياقوت', 'دعم الشركاء المباشر', 'رسوم معالجة 0% للأبد', 'تكامل API متقدم'],
+    material: 'فضة مسفوعة وكريستال الياقوت',
+    finish: 'هالة ضوئية سينمائية',
+  ),
+  BadgeTier(
+    level: 8,
+    name: 'Royal Gold Crown Chalice',
+    category: 'Level 8 • Royal Monarch',
+    description: 'تاج الكأس الذهبي الملكي مرصع بالجواهر. تفتح بعد 350 هاتف و1.5 سنة.',
+    requiredPhones: 350,
+    requiredMonths: 18,
+    requirementLabel: '350 هاتف و1.5 سنة نشاط',
+    perks: ['مكانة الملك السيادي', 'مدير كونسيرج خاص', 'مدفوعات عالمية متعددة العملات', 'دعوة لفعاليات VIP'],
+    material: 'ذهب 24 قيراط وجواهر ومخمل',
+    finish: 'صقل ملكي فاخر',
+  ),
+  BadgeTier(
+    level: 9,
+    name: 'Cosmic Galaxy Astral Orb',
+    category: 'Level 9 • Cosmic Vanguard',
+    description: 'كرة المجرة الفضائية الكونية مع حلقات طاقة مضيئة. تفتح بعد 500 هاتف وسنتين.',
+    requiredPhones: 500,
+    requiredMonths: 24,
+    requirementLabel: '500 هاتف وسنتان',
+    perks: ['مكانة الطليعة الكونية', 'عقد تطبيق جوال مخصص للمتجر', 'وصول مبكر لواجهات برمجة التطبيقات', 'صفر رسوم معاملات'],
+    material: 'زجاج نجمي وحلقات بلازما',
+    finish: 'توهج كوني هولوجرافي',
+  ),
+  BadgeTier(
+    level: 10,
+    name: 'Divine Crystalline Golden Crown',
+    category: 'Level 10 • Supreme Sovereign',
+    description: 'التاج الذهبي السيادي المطلق مع الكريستالات العائمة. تفتح بعد 1000 هاتف و3 سنوات.',
+    requiredPhones: 1000,
+    requiredMonths: 36,
+    requirementLabel: '1000 هاتف و3 سنوات نشاط',
+    perks: ['المرتبة السيادية المطلقة', 'رسوم منصة 0% مدى الحياة', 'دعم هندسي خاص وكونسيرج تنفيذي 24/7', 'خزينة عالمية وحالة امتياز'],
+    material: 'ذهب خالص، سبج عائم وبلازما دوامية',
+    finish: 'السيادة المطلقة الفائقة',
+  ),
+];
