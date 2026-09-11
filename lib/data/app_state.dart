@@ -15,6 +15,8 @@ class AppState extends ChangeNotifier {
         _userName = null;
         _isShopOwner = false;
         _shopName = null;
+        _favoriteIds.clear();
+        _chatThreads.clear();
       } else {
         _userName = data.session?.user.userMetadata?['full_name'] as String? ??
             data.session?.user.email ??
@@ -109,6 +111,9 @@ class AppState extends ChangeNotifier {
   Future<String> ensureChatThread(PhoneListing listing) async {
     final userId = _session?.user.id;
     if (userId == null) throw const AuthException('سجّل الدخول لبدء محادثة');
+    if (userId == listing.seller.id) {
+      throw const AuthException('لا يمكنك بدء محادثة مع نفسك');
+    }
     final existing = await Supabase.instance.client
         .from('chat_threads')
         .select('id')
@@ -140,11 +145,33 @@ class AppState extends ChangeNotifier {
   Future<void> sendMessage({required String threadId, required String text}) async {
     final userId = _session?.user.id;
     if (userId == null) throw const AuthException('سجّل الدخول لإرسال رسالة');
+    final cleanText = text.trim();
+    if (cleanText.isEmpty) return;
     await Supabase.instance.client.from('chat_messages').insert({
       'thread_id': threadId,
       'sender_id': userId,
-      'text': text,
+      'text': cleanText,
       'type': MessageType.text.name,
+      'status': MessageStatus.sent.name,
+    });
+  }
+
+  Future<void> sendOffer({required PhoneListing listing, required int amount}) async {
+    final userId = _session?.user.id;
+    if (userId == null) throw const AuthException('سجّل الدخول لإرسال عرض');
+    if (userId == listing.seller.id) {
+      throw const AuthException('لا يمكنك تقديم عرض على إعلانك');
+    }
+    if (amount <= 0) throw const AuthException('أدخل سعراً صحيحاً');
+    if (listing.priceOnCall) throw const AuthException('هذا الإعلان سعره عند الاتصال');
+
+    final threadId = await ensureChatThread(listing);
+    await Supabase.instance.client.from('chat_messages').insert({
+      'thread_id': threadId,
+      'sender_id': userId,
+      'text': 'عرض سعر: $amount ج.س',
+      'type': MessageType.offer.name,
+      'offer_amount': amount,
       'status': MessageStatus.sent.name,
     });
   }
