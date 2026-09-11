@@ -19,14 +19,11 @@ create table if not exists public.phone_otp_challenges (
   created_at timestamptz not null default now()
 );
 
-create index if not exists phone_otp_phone_created_idx
-  on public.phone_otp_challenges(phone_e164, created_at desc);
+create index if not exists phone_otp_phone_created_idx on public.phone_otp_challenges(phone_e164, created_at desc);
 
 alter table public.phone_otp_challenges enable row level security;
 drop policy if exists "No direct OTP access" on public.phone_otp_challenges;
-create policy "No direct OTP access"
-  on public.phone_otp_challenges for all to authenticated, anon
-  using (false) with check (false);
+create policy "No direct OTP access" on public.phone_otp_challenges for all to authenticated, anon using (false) with check (false);
 
 create table if not exists public.phone_otp_rate_limits (
   key_hash text primary key,
@@ -36,9 +33,7 @@ create table if not exists public.phone_otp_rate_limits (
 
 alter table public.phone_otp_rate_limits enable row level security;
 drop policy if exists "No direct OTP rate limit access" on public.phone_otp_rate_limits;
-create policy "No direct OTP rate limit access"
-  on public.phone_otp_rate_limits for all to authenticated, anon
-  using (false) with check (false);
+create policy "No direct OTP rate limit access" on public.phone_otp_rate_limits for all to authenticated, anon using (false) with check (false);
 
 create or replace function public.find_auth_user_by_phone(p_phone text)
 returns uuid
@@ -60,31 +55,17 @@ declare
   current_row public.phone_otp_rate_limits%rowtype;
   current_time timestamptz := now();
 begin
-  select * into current_row
-  from public.phone_otp_rate_limits
-  where key_hash = p_key_hash
-  for update;
-
+  select * into current_row from public.phone_otp_rate_limits where key_hash = p_key_hash for update;
   if not found then
-    insert into public.phone_otp_rate_limits(key_hash, window_started_at, request_count)
-    values (p_key_hash, current_time, 1);
+    insert into public.phone_otp_rate_limits(key_hash, window_started_at, request_count) values (p_key_hash, current_time, 1);
     return true;
   end if;
-
   if current_time - current_row.window_started_at >= make_interval(secs => p_window_seconds) then
-    update public.phone_otp_rate_limits
-      set window_started_at = current_time, request_count = 1
-      where key_hash = p_key_hash;
+    update public.phone_otp_rate_limits set window_started_at = current_time, request_count = 1 where key_hash = p_key_hash;
     return true;
   end if;
-
-  if current_row.request_count >= p_max_requests then
-    return false;
-  end if;
-
-  update public.phone_otp_rate_limits
-    set request_count = request_count + 1
-    where key_hash = p_key_hash;
+  if current_row.request_count >= p_max_requests then return false; end if;
+  update public.phone_otp_rate_limits set request_count = request_count + 1 where key_hash = p_key_hash;
   return true;
 end;
 $$;
@@ -93,5 +74,7 @@ revoke all on table public.phone_otp_challenges from anon, authenticated;
 revoke all on table public.phone_otp_rate_limits from anon, authenticated;
 revoke all on function public.find_auth_user_by_phone(text) from public, anon, authenticated;
 revoke all on function public.consume_otp_ip_quota(text, integer, integer) from public, anon, authenticated;
+grant execute on function public.find_auth_user_by_phone(text) to service_role;
+grant execute on function public.consume_otp_ip_quota(text, integer, integer) to service_role;
 
 comment on table public.phone_otp_challenges is 'Server-only OTP challenge records; plaintext OTPs are never persisted.';
