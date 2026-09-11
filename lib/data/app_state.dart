@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/chat_model.dart';
@@ -22,6 +23,7 @@ class AppState extends ChangeNotifier {
             data.session?.user.email ??
             'مستخدم PhoneK';
         unawaited(_loadProfile());
+        unawaited(_loadFavorites());
         unawaited(loadChatThreads());
       }
       notifyListeners();
@@ -33,6 +35,7 @@ class AppState extends ChangeNotifier {
           _session!.user.email ??
           'مستخدم PhoneK';
       unawaited(_loadProfile());
+      unawaited(_loadFavorites());
       unawaited(loadChatThreads());
     }
 
@@ -59,6 +62,7 @@ class AppState extends ChangeNotifier {
     } else {
       _favoriteIds.add(id);
     }
+    unawaited(_persistFavorites());
     notifyListeners();
   }
 
@@ -77,6 +81,29 @@ class AppState extends ChangeNotifier {
   void login(String name) {
     _userName = name;
     notifyListeners();
+  }
+
+  String get _favoriteStorageKey => 'phonek_favorites_${_session?.user.id ?? 'guest'}';
+
+  Future<void> _loadFavorites() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _favoriteIds
+        ..clear()
+        ..addAll(prefs.getStringList(_favoriteStorageKey) ?? const <String>[]);
+      notifyListeners();
+    } catch (_) {
+      // Favorites remain available for the current session if local storage is unavailable.
+    }
+  }
+
+  Future<void> _persistFavorites() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList(_favoriteStorageKey, _favoriteIds.toList());
+    } catch (_) {
+      // Do not block the UI if local persistence fails.
+    }
   }
 
   Future<void> loadChatThreads() async {
