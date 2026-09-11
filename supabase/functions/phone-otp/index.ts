@@ -75,6 +75,16 @@ Deno.serve(async (req) => {
     if (!secret) return json({ error: 'OTP service is not configured' }, 503);
 
     if (action === 'send') {
+      const sourceIp = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown';
+      const ipKey = await hashOtp(sourceIp, secret);
+      const quota = await admin.rpc('consume_otp_ip_quota', {
+        p_key_hash: ipKey,
+        p_window_seconds: 3600,
+        p_max_requests: 10,
+      });
+      if (quota.error) throw quota.error;
+      if (quota.data !== true) return json({ error: 'تم تجاوز عدد طلبات التحقق. حاول لاحقاً' }, 429);
+
       const recent = await admin.from('phone_otp_challenges')
         .select('id,last_sent_at')
         .eq('phone_e164', phoneE164)
@@ -141,34 +151,20 @@ Deno.serve(async (req) => {
       let userId = existingId;
 
       if (!existingId) {
-        const created = await admin.auth.admin.createUser({
-          phone: phoneE164,
-          password: temporaryPassword,
-          phone_confirm: true,
-        });
+        const created = await admin.auth.admin.createUser({ phone: phoneE164, password: temporaryPassword, phone_confirm: true });
         if (created.error) throw created.error;
         userId = created.data.user.id;
       } else {
-        const updated = await admin.auth.admin.updateUserById(existingId, {
-          password: temporaryPassword,
-          phone_confirm: true,
-        });
+        const updated = await admin.auth.admin.updateUserById(existingId, { password: temporaryPassword, phone_confirm: true });
         if (updated.error) throw updated.error;
       }
 
-      const profile = await admin.from('profiles').upsert({
-        id: userId,
-        phone: phoneE164,
-        phone_verified: true,
-      }, { onConflict: 'id' });
+      const profile = await admin.from('profiles').upsert({ id: userId, phone: phoneE164, phone_verified: true }, { onConflict: 'id' });
       if (profile.error) throw profile.error;
 
       const tokenResponse = await fetch(`${Deno.env.get('SUPABASE_URL')}/auth/v1/token?grant_type=password`, {
         method: 'POST',
-        headers: {
-          apikey: Deno.env.get('SUPABASE_ANON_KEY')!,
-          'Content-Type': 'application/json',
-        },
+        headers: { apikey: Deno.env.get('SUPABASE_ANON_KEY')!, 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone: phoneE164, password: temporaryPassword }),
       });
       const session = await tokenResponse.json();
