@@ -5,7 +5,7 @@ import '../theme/app_theme.dart';
 import '../utils/formatters.dart';
 import '../features/merchant_badges/merchant_badges_screen.dart';
 import 'login_screen.dart';
-import 'admin_dashboard_screen.dart';
+import 'my_listings_screen.dart';
 import 'shop_account_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -40,17 +40,32 @@ class ProfileScreen extends StatelessWidget {
           const SizedBox(height: 8),
           Center(child: Text(appState.userName ?? '', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
           const SizedBox(height: 20),
-          _tile(context, Icons.list_alt, 'إعلاناتي', () {}),
-          _tile(context, Icons.storefront, appState.isShopOwner ? 'لوحة المحل: ${appState.shopName ?? ''}' : 'إنشاء حساب صاحب محل', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ShopAccountScreen()))),
-          if (appState.isShopOwner) _tile(context, Icons.workspace_premium, 'شارات المتجر', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MerchantBadgesScreen()))),
-          _tile(context, Icons.bookmark, 'عمليات البحث المحفوظة', () {}),
-          _tile(context, Icons.notifications, 'إعدادات الإشعارات', () {}),
-          _tile(context, Icons.admin_panel_settings, 'لوحة تحكم الأدمن', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminDashboardScreen()))),
-          _tile(context, Icons.help_outline, 'الأسئلة الشائعة', () {}),
-          _tile(context, Icons.description_outlined, 'الشروط والأحكام وسياسة الخصوصية', () {}),
+          _tile(
+            context,
+            Icons.list_alt,
+            'إعلاناتي',
+            () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MyListingsScreen())),
+          ),
+          _tile(
+            context,
+            Icons.storefront,
+            appState.isShopOwner ? 'لوحة المحل: ${appState.shopName ?? ''}' : 'إنشاء حساب صاحب محل',
+            () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ShopAccountScreen())),
+          ),
+          if (appState.isShopOwner)
+            _tile(
+              context,
+              Icons.workspace_premium,
+              'شارات المتجر',
+              () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MerchantBadgesScreen())),
+            ),
+          _tile(context, Icons.bookmark, 'عمليات البحث المحفوظة', () => _showComingSoon(context, 'عمليات البحث المحفوظة')),
+          _tile(context, Icons.notifications, 'إعدادات الإشعارات', () => _showComingSoon(context, 'إعدادات الإشعارات')),
+          // لا نعرض لوحة الأدمن حتى يوجد تفويض حقيقي من قاعدة البيانات/RLS.
+          _tile(context, Icons.help_outline, 'الأسئلة الشائعة', () => _showComingSoon(context, 'الأسئلة الشائعة')),
+          _tile(context, Icons.description_outlined, 'الشروط والأحكام وسياسة الخصوصية', () => _showComingSoon(context, 'الشروط والأحكام وسياسة الخصوصية')),
           const Divider(height: 32),
           _tile(context, Icons.logout, 'تسجيل الخروج', () => appState.logout(), color: AppColors.textSecondary),
-          _tile(context, Icons.delete_forever, 'حذف الحساب نهائياً', () => _confirmDelete(context), color: AppColors.danger),
         ],
       ),
     );
@@ -65,22 +80,9 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  void _confirmDelete(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        title: const Text('حذف الحساب نهائياً'),
-        content: const Text('سيتم حذف حسابك وكل إعلاناتك نهائياً ولا يمكن التراجع بعد 30 يوماً. هل أنت متأكد؟'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.danger, foregroundColor: Colors.white),
-            onPressed: () { Navigator.pop(ctx); context.read<AppState>().logout(); },
-            child: const Text('حذف نهائياً'),
-          ),
-        ],
-      ),
+  void _showComingSoon(BuildContext context, String feature) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('ميزة $feature لم تُربط بعد بقاعدة البيانات. لن نعرض حالة نجاح وهمية.')),
     );
   }
 }
