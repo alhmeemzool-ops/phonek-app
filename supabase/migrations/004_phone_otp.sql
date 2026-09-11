@@ -24,26 +24,22 @@ create index if not exists phone_otp_phone_created_idx
 
 alter table public.phone_otp_challenges enable row level security;
 
--- OTP rows are server-only. The mobile/web client must use the Edge Function.
 drop policy if exists "No direct OTP access" on public.phone_otp_challenges;
-
 create policy "No direct OTP access"
-  on public.phone_otp_challenges
-  for all
-  to authenticated, anon
-  using (false)
-  with check (false);
+  on public.phone_otp_challenges for all to authenticated, anon
+  using (false) with check (false);
 
-create or replace function public.hash_phone_otp(p_code text, p_secret text)
-returns text
+create or replace function public.find_auth_user_by_phone(p_phone text)
+returns uuid
 language sql
-immutable
-strict
+security definer
+set search_path = public, auth
+stable
 as $$
-  select encode(digest(p_secret || ':' || p_code, 'sha256'), 'hex');
+  select id from auth.users where phone = p_phone limit 1;
 $$;
 
 revoke all on table public.phone_otp_challenges from anon, authenticated;
-revoke all on function public.hash_phone_otp(text, text) from public, anon, authenticated;
+revoke all on function public.find_auth_user_by_phone(text) from public, anon, authenticated;
 
-comment on table public.phone_otp_challenges is 'Server-side OTP challenge records; plaintext OTPs are never persisted.';
+comment on table public.phone_otp_challenges is 'Server-only OTP challenge records; plaintext OTPs are never persisted.';
