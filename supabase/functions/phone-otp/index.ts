@@ -6,11 +6,10 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
-const json = (body: unknown, status = 200) =>
-  new Response(JSON.stringify(body), {
-    status,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-  });
+const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), {
+  status,
+  headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+});
 
 const normalizePhone = (value: string) => {
   const digits = value.replace(/[^0-9]/g, '');
@@ -24,7 +23,11 @@ const hashOtp = async (code: string, secret: string) => {
   return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, '0')).join('');
 };
 
-const randomOtp = () => String(Math.floor(100000 + Math.random() * 900000));
+const randomOtp = () => {
+  const bytes = new Uint32Array(1);
+  crypto.getRandomValues(bytes);
+  return String(100000 + (bytes[0] % 900000));
+};
 
 const admin = createClient(
   Deno.env.get('SUPABASE_URL')!,
@@ -38,7 +41,6 @@ async function sendWhatsAppOtp(phone: string, code: string) {
   const template = Deno.env.get('WHATSAPP_OTP_TEMPLATE') ?? 'phonek_otp';
   const language = Deno.env.get('WHATSAPP_OTP_LANG') ?? 'en_US';
   const graphVersion = Deno.env.get('WHATSAPP_GRAPH_VERSION') ?? 'v23.0';
-
   if (!token || !phoneNumberId) throw new Error('WhatsApp integration is not configured');
 
   const response = await fetch(`https://graph.facebook.com/${graphVersion}/${phoneNumberId}/messages`, {
@@ -57,8 +59,7 @@ async function sendWhatsAppOtp(phone: string, code: string) {
   });
 
   if (!response.ok) {
-    const detail = await response.text();
-    console.error('WhatsApp send failed', detail);
+    console.error('WhatsApp send failed', await response.text());
     throw new Error('تعذر إرسال رمز التحقق عبر WhatsApp');
   }
 }
@@ -81,7 +82,6 @@ Deno.serve(async (req) => {
         .gt('expires_at', new Date().toISOString())
         .order('created_at', { ascending: false })
         .limit(1);
-
       if (recent.error) throw recent.error;
       if (recent.data?.[0]) {
         const elapsed = Date.now() - new Date(recent.data[0].last_sent_at).getTime();
@@ -93,10 +93,11 @@ Deno.serve(async (req) => {
       const now = new Date();
       const expires = new Date(now.getTime() + 5 * 60_000);
 
-      await admin.from('phone_otp_challenges')
+      const cancelled = await admin.from('phone_otp_challenges')
         .update({ consumed_at: now.toISOString() })
         .eq('phone_e164', phoneE164)
         .is('consumed_at', null);
+      if (cancelled.error) throw cancelled.error;
 
       const inserted = await admin.from('phone_otp_challenges').insert({
         phone_e164: phoneE164,
@@ -119,7 +120,6 @@ Deno.serve(async (req) => {
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
-
       if (rowResult.error) throw rowResult.error;
       const challenge = rowResult.data;
       if (!challenge) return json({ error: 'لا يوجد رمز فعال' }, 400);
@@ -134,12 +134,13 @@ Deno.serve(async (req) => {
 
       await admin.from('phone_otp_challenges').update({ consumed_at: new Date().toISOString() }).eq('id', challenge.id);
 
-      const { data: users } = await admin.auth.admin.listUsers({ perPage: 1000 });
-      const existing = users.users.find((u) => u.phone === phoneE164);
+      const lookup = await admin.rpc('find_auth_user_by_phone', { p_phone: phoneE164 });
+      if (lookup.error) throw lookup.error;
+      const existingId = lookup.data as string | null;
       const temporaryPassword = `${crypto.randomUUID()}-${crypto.randomUUID()}`;
-      let userId = existing?.id;
+      let userId = existingId;
 
-      if (!existing) {
+      if (!existingId) {
         const created = await admin.auth.admin.createUser({
           phone: phoneE164,
           password: temporaryPassword,
@@ -148,18 +149,19 @@ Deno.serve(async (req) => {
         if (created.error) throw created.error;
         userId = created.data.user.id;
       } else {
-        const updated = await admin.auth.admin.updateUserById(existing.id, {
+        const updated = await admin.auth.admin.updateUserById(existingId, {
           password: temporaryPassword,
           phone_confirm: true,
         });
         if (updated.error) throw updated.error;
       }
 
-      await admin.from('profiles').upsert({
+      const profile = await admin.from('profiles').upsert({
         id: userId,
         phone: phoneE164,
         phone_verified: true,
       }, { onConflict: 'id' });
+      if (profile.error) throw profile.error;
 
       const tokenResponse = await fetch(`${Deno.env.get('SUPABASE_URL')}/auth/v1/token?grant_type=password`, {
         method: 'POST',
@@ -174,7 +176,6 @@ Deno.serve(async (req) => {
         console.error('Token exchange failed', session);
         return json({ error: 'تم التحقق من الهاتف لكن تعذر إنشاء جلسة الدخول' }, 500);
       }
-
       return json({ ok: true, accessToken: session.access_token, refreshToken: session.refresh_token });
     }
 
