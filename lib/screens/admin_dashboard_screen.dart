@@ -17,6 +17,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   int _totalViews = 0;
   int _featured = 0;
   int _pending = 0;
+  List<Map<String, dynamic>> _pendingListings = const [];
 
   @override
   void initState() {
@@ -25,17 +26,17 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 
   Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+    if (mounted) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
 
     try {
       final client = Supabase.instance.client;
       final user = client.auth.currentUser;
-      if (user == null) {
-        throw const AuthException('يجب تسجيل الدخول أولاً');
-      }
+      if (user == null) throw const AuthException('يجب تسجيل الدخول أولاً');
 
       final profile = await client
           .from('profiles')
@@ -44,27 +45,23 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           .maybeSingle();
 
       if (profile?['is_admin'] != true) {
-        if (mounted) {
-          setState(() {
-            _authorized = false;
-            _loading = false;
-          });
-        }
+        if (mounted) setState(() { _authorized = false; _loading = false; });
         return;
       }
 
       final rows = await client
           .from('listings')
-          .select('status, view_count, is_featured');
+          .select('id, title, brand, price, city, image_urls, seller_id, status, created_at, view_count, is_featured')
+          .order('created_at', ascending: false);
 
       var views = 0;
       var featured = 0;
-      var pending = 0;
-      for (final row in (rows as List).whereType<Map<String, dynamic>>()) {
-        views += (row['view_count'] as num?)?.toInt() ?? 0;
-        if (row['is_featured'] == true) featured++;
-        final status = row['status'] as String?;
-        if (status == 'pendingReview' || status == 'pending_review') pending++;
+      final pending = <Map<String, dynamic>>[];
+      for (final raw in (rows as List).whereType<Map<String, dynamic>>()) {
+        views += (raw['view_count'] as num?)?.toInt() ?? 0;
+        if (raw['is_featured'] == true) featured++;
+        final status = raw['status'] as String?;
+        if (status == 'pendingReview' || status == 'pending_review') pending.add(raw);
       }
 
       if (!mounted) return;
@@ -73,21 +70,63 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         _totalListings = rows.length;
         _totalViews = views;
         _featured = featured;
-        _pending = pending;
+        _pending = pending.length;
+        _pendingListings = pending;
         _loading = false;
       });
     } on PostgrestException catch (error) {
       if (!mounted) return;
-      setState(() {
-        _error = 'تعذر تحميل لوحة الإدارة: ${error.message}';
-        _loading = false;
-      });
+      setState(() { _error = 'تعذر تحميل لوحة الإدارة: ${error.message}'; _loading = false; });
     } catch (error) {
       if (!mounted) return;
-      setState(() {
-        _error = error.toString();
-        _loading = false;
-      });
+      setState(() { _error = error.toString(); _loading = false; });
+    }
+  }
+
+  Future<void> _moderate(Map<String, dynamic> listing, {required bool approve}) async {
+    final id = listing['id'] as String?;
+    if (id == null) return;
+    final client = Supabase.instance.client;
+    final user = client.auth.currentUser;
+    if (user == null) return;
+
+    String? reason;
+    if (!approve) {
+      final controller = TextEditingController();
+      reason = await showDialog<String>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('رفض الإعلان'),
+          content: TextField(
+            controller: controller,
+            maxLines: 3,
+            decoration: const InputDecoration(hintText: 'سبب الرفض (اختياري)'),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
+            FilledButton(onPressed: () => Navigator.pop(context, controller.text.trim()), child: const Text('رفض')),
+          ],
+        ),
+      );
+      if (!mounted || reason == null) return;
+    }
+
+    try {
+      await client.from('listings').update({
+        'status': approve ? 'active' : 'frozen',
+        'reviewed_at': DateTime.now().toUtc().toIso8601String(),
+        'reviewed_by': user.id,
+        'rejection_reason': approve ? null : (reason.isEmpty ? null : reason),
+      }).eq('id', id);
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(approve ? 'تم اعتماد الإعلان.' : 'تم رفض الإعلان.')),
+      );
+      await _load();
+    } on PostgrestException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذر تنفيذ العملية: ${error.message}')));
     }
   }
 
@@ -107,95 +146,69 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                         physics: const AlwaysScrollableScrollPhysics(),
                         padding: const EdgeInsets.all(16),
                         children: [
-                          Row(
-                            children: [
-                              Expanded(child: _statCard('الإعلانات', '$_totalListings', Icons.list_alt)),
-                              const SizedBox(width: 10),
-                              Expanded(child: _statCard('المشاهدات', '$_totalViews', Icons.remove_red_eye)),
-                              const SizedBox(width: 10),
-                              Expanded(child: _statCard('المميزة', '$_featured', Icons.star)),
-                            ],
-                          ),
+                          Row(children: [
+                            Expanded(child: _statCard('الإعلانات', '$_totalListings', Icons.list_alt)),
+                            const SizedBox(width: 10),
+                            Expanded(child: _statCard('المشاهدات', '$_totalViews', Icons.remove_red_eye)),
+                            const SizedBox(width: 10),
+                            Expanded(child: _statCard('المميزة', '$_featured', Icons.star)),
+                          ]),
                           const SizedBox(height: 20),
-                          _statusCard(
-                            Icons.pending_actions,
-                            'إعلانات بانتظار المراجعة',
-                            '$_pending إعلان يحتاج إلى مراجعة.',
-                          ),
-                          const SizedBox(height: 12),
-                          _statusCard(
-                            Icons.flag_outlined,
-                            'البلاغات',
-                            'قسم البلاغات يحتاج جدول البلاغات قبل عرض بيانات حقيقية.',
-                          ),
-                          const SizedBox(height: 24),
-                          const Text(
-                            'الإحصائيات أعلاه تُقرأ الآن من Supabase. صلاحية الأدمن يجب أن تكون مفروضة أيضًا بسياسات RLS في قاعدة البيانات.',
-                            style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
-                          ),
+                          _statusCard(Icons.pending_actions, 'إعلانات بانتظار المراجعة', '$_pending إعلان يحتاج إلى مراجعة.'),
+                          if (_pendingListings.isNotEmpty) ...[
+                            const SizedBox(height: 12),
+                            ..._pendingListings.map(_pendingCard),
+                          ],
+                          const SizedBox(height: 16),
+                          _statusCard(Icons.flag_outlined, 'البلاغات', 'سيتم تفعيل البلاغات عند إضافة جدول البلاغات وربطه بالـRLS.'),
                         ],
                       ),
                     ),
     );
   }
 
-  Widget _message(IconData icon, String text) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 52, color: AppColors.textSecondary),
-            const SizedBox(height: 12),
-            Text(text, textAlign: TextAlign.center),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _errorView() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.cloud_off, size: 52, color: AppColors.textSecondary),
-            const SizedBox(height: 12),
-            Text(_error!, textAlign: TextAlign.center),
-            const SizedBox(height: 12),
-            TextButton.icon(onPressed: _load, icon: const Icon(Icons.refresh), label: const Text('إعادة المحاولة')),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _statusCard(IconData icon, String title, String subtitle) {
+  Widget _pendingCard(Map<String, dynamic> listing) {
+    final images = (listing['image_urls'] as List?)?.whereType<String>().toList() ?? const [];
+    final title = listing['title'] as String? ?? 'إعلان بدون عنوان';
+    final brand = listing['brand'] as String? ?? '';
+    final city = listing['city'] as String? ?? '';
+    final price = (listing['price'] as num?)?.toInt() ?? 0;
     return Card(
-      child: ListTile(
-        leading: Icon(icon, color: AppColors.gold),
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Text(subtitle, style: const TextStyle(color: AppColors.textSecondary)),
+      margin: const EdgeInsets.only(bottom: 10),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: images.isEmpty
+                  ? Container(width: 64, height: 64, color: AppColors.surface, child: const Icon(Icons.phone_android))
+                  : Image.network(images.first, width: 64, height: 64, fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Container(width: 64, height: 64, color: AppColors.surface, child: const Icon(Icons.broken_image))),
+            ),
+            const SizedBox(width: 12),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(title, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.bold)),
+              if (brand.isNotEmpty) Text(brand, style: const TextStyle(color: AppColors.textSecondary)),
+              Text('$price ج.س${city.isEmpty ? '' : ' • $city'}', style: const TextStyle(color: AppColors.gold)),
+            ])),
+          ]),
+          const SizedBox(height: 10),
+          Row(children: [
+            Expanded(child: OutlinedButton.icon(onPressed: () => _moderate(listing, approve: false), icon: const Icon(Icons.close), label: const Text('رفض'))),
+            const SizedBox(width: 10),
+            Expanded(child: FilledButton.icon(onPressed: () => _moderate(listing, approve: true), icon: const Icon(Icons.check), label: const Text('اعتماد'))),
+          ]),
+        ]),
       ),
     );
   }
 
-  Widget _statCard(String label, String value, IconData icon) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        child: Column(
-          children: [
-            Icon(icon, color: AppColors.gold),
-            const SizedBox(height: 6),
-            Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-            Text(label, style: const TextStyle(color: AppColors.textSecondary, fontSize: 11)),
-          ],
-        ),
-      ),
-    );
-  }
+  Widget _message(IconData icon, String text) => Center(child: Padding(padding: const EdgeInsets.all(24), child: Column(mainAxisSize: MainAxisSize.min, children: [Icon(icon, size: 52, color: AppColors.textSecondary), const SizedBox(height: 12), Text(text, textAlign: TextAlign.center)])));
+
+  Widget _errorView() => Center(child: Padding(padding: const EdgeInsets.all(24), child: Column(mainAxisSize: MainAxisSize.min, children: [const Icon(Icons.cloud_off, size: 52, color: AppColors.textSecondary), const SizedBox(height: 12), Text(_error!, textAlign: TextAlign.center), const SizedBox(height: 12), TextButton.icon(onPressed: _load, icon: const Icon(Icons.refresh), label: const Text('إعادة المحاولة'))])));
+
+  Widget _statusCard(IconData icon, String title, String subtitle) => Card(child: ListTile(leading: Icon(icon, color: AppColors.gold), title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)), subtitle: Text(subtitle, style: const TextStyle(color: AppColors.textSecondary))));
+
+  Widget _statCard(String label, String value, IconData icon) => Card(child: Padding(padding: const EdgeInsets.symmetric(vertical: 16), child: Column(children: [Icon(icon, color: AppColors.gold), const SizedBox(height: 6), Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)), Text(label, style: const TextStyle(color: AppColors.textSecondary, fontSize: 11))])));
 }
