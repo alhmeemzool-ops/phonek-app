@@ -31,13 +31,13 @@ class _ShopApplicationScreenState extends State<ShopApplicationScreen> {
   XFile? _identityPhoto;
   double? _latitude;
   double? _longitude;
+  double? _locationAccuracy;
   String? _address;
 
   @override
   void initState() {
     super.initState();
-    final state = context.read<AppState>();
-    _shopName.text = state.shopName ?? '';
+    _shopName.text = context.read<AppState>().shopName ?? '';
   }
 
   Future<void> _pickLocation() async {
@@ -45,6 +45,7 @@ class _ShopApplicationScreenState extends State<ShopApplicationScreen> {
     try {
       final position = await LocationService.getCurrentPosition();
       if (!mounted) return;
+      _locationAccuracy = position.accuracy;
       final result = await Navigator.push<Map<String, dynamic>>(
         context,
         MaterialPageRoute(
@@ -111,9 +112,9 @@ class _ShopApplicationScreenState extends State<ShopApplicationScreen> {
     }
     setState(() => _saving = true);
     try {
-      // Privacy by design: raw biometric media is not stored by this client.
-      // A production eKYC provider must perform landmark/liveness/ID matching
-      // server-side and return a signed verification result before activation.
+      // Never persist raw Faceprints or biometric templates in PhoneK.
+      // The captured media is intentionally not persisted by this client.
+      // A production eKYC SDK/provider must return the trusted result server-side.
       await Supabase.instance.client.from('shop_applications').insert({
         'user_id': user.id,
         'shop_name': _shopName.text.trim(),
@@ -122,19 +123,23 @@ class _ShopApplicationScreenState extends State<ShopApplicationScreen> {
         'latitude': _latitude,
         'longitude': _longitude,
         'address': _address,
+        'location_accuracy_m': _locationAccuracy,
         'verification_status': 'pending',
         'liveness_status': 'pending_provider',
         'identity_match_status': 'pending_provider',
+        'kyc_result': 'pending',
+        'consented_at': DateTime.now().toUtc().toIso8601String(),
       });
+
+      // Do not grant shop privileges before trusted eKYC + admin approval.
       await Supabase.instance.client.from('profiles').upsert({
         'id': user.id,
         'name': _shopName.text.trim(),
-        'is_shop': true,
         'phone': _phone.text.trim(),
         'city': _city.text.trim(),
       });
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم إرسال طلب فتح المحل للمراجعة والتحقق')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم إرسال طلب المحل. سيتم تفعيل الحساب بعد التحقق من الهوية والمراجعة.')));
       Navigator.pop(context);
     } on PostgrestException catch (error) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذر إرسال الطلب: ${error.message}')));
@@ -151,10 +156,7 @@ class _ShopApplicationScreenState extends State<ShopApplicationScreen> {
         currentStep: _step,
         controlsBuilder: (context, details) => Row(
           children: [
-            ElevatedButton(
-              onPressed: _saving ? null : (_step == 4 ? _submit : _next),
-              child: Text(_step == 4 ? 'إرسال الطلب' : 'التالي'),
-            ),
+            ElevatedButton(onPressed: _saving ? null : (_step == 4 ? _submit : _next), child: Text(_step == 4 ? 'إرسال الطلب' : 'التالي')),
             if (_step > 0) ...[
               const SizedBox(width: 10),
               TextButton(onPressed: _saving ? null : () => setState(() => _step--), child: const Text('السابق')),
@@ -191,12 +193,12 @@ class _ShopApplicationScreenState extends State<ShopApplicationScreen> {
       ]);
 
   Widget _faceVerification() => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Text('التقط صورة للوجه داخل الإطار، ثم فيديو قصير لتنفيذ حركة حيوية. هذه الواجهة تجهّز البيانات لطبقة eKYC/anti-spoofing الآمنة على الخادم.'),
+        const Text('التقط صورة للوجه داخل الإطار، ثم فيديو قصير لتنفيذ حركة حيوية. هذه الخطوة لا تعني نجاح التحقق؛ النجاح يصدر فقط من مزود eKYC الموثوق.'),
         const SizedBox(height: 12),
         _captureTile(Icons.face, 'التقاط الوجه', _facePhoto != null, _captureFace),
         _captureTile(Icons.videocam, 'اختبار الحيوية — ابتسم أو أدر رأسك ببطء', _faceVideo != null, _captureLivenessVideo),
         const SizedBox(height: 8),
-        const Text('المطابقة الحقيقية للنقاط المرجعية، كشف الصورة/الفيديو/القناع والتزييف العميق، وإنشاء Faceprint يجب أن تتم عبر محرك eKYC متخصص على الخادم؛ لا يتم حفظ Faceprint خام داخل التطبيق.', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+        const Text('المطابقة، كشف الصورة/الفيديو/القناع والتزييف العميق وإنشاء Faceprint لا تتم داخل Flutter ولا تُحفظ كبيانات خام في PhoneK.', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
       ]);
 
   Widget _identity() => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -210,10 +212,10 @@ class _ShopApplicationScreenState extends State<ShopApplicationScreen> {
         _summary('الهاتف', _phone.text),
         _summary('المدينة', _city.text),
         _summary('الموقع', _latitude == null ? 'غير محدد' : '${_latitude!.toStringAsFixed(6)}, ${_longitude!.toStringAsFixed(6)}'),
-        _summary('الوجه والحيوية', 'جاهز للتحقق'),
+        _summary('الوجه والحيوية', 'جاهز لبدء تحقق eKYC'),
         _summary('الهوية', 'جاهزة للمطابقة'),
         const SizedBox(height: 8),
-        const Text('بعد الإرسال يبقى الحساب قيد التحقق حتى تصدر نتيجة eKYC موثوقة؛ لا يتم تفعيل شارة التوثيق بمجرد التقاط الصور.', style: TextStyle(color: AppColors.textSecondary)),
+        const Text('بعد الإرسال يبقى الطلب قيد التحقق. لا تُمنح شارة التوثيق ولا صلاحيات المحل قبل وصول نتيجة eKYC الموثقة والمراجعة.', style: TextStyle(color: AppColors.textSecondary)),
       ]);
 
   Widget _summary(String label, String value) => ListTile(contentPadding: EdgeInsets.zero, title: Text(label), subtitle: Text(value));
