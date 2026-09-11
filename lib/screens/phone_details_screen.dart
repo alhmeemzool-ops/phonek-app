@@ -1,6 +1,8 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../data/app_state.dart';
 import '../models/phone_model.dart';
@@ -40,7 +42,6 @@ class PhoneDetailsScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.only(bottom: 100),
         children: [
-          // معرض الصور
           Stack(
             children: [
               SizedBox(
@@ -79,13 +80,10 @@ class PhoneDetailsScreen extends StatelessWidget {
                     if (listing.priceOnCall)
                       const Text('اتصل للسعر', style: TextStyle(color: AppColors.gold, fontSize: 22, fontWeight: FontWeight.bold))
                     else
-                      Text(AppFormatters.priceSDG(listing.price),
-                          style: const TextStyle(color: AppColors.gold, fontSize: 22, fontWeight: FontWeight.bold)),
+                      Text(AppFormatters.priceSDG(listing.price), style: const TextStyle(color: AppColors.gold, fontSize: 22, fontWeight: FontWeight.bold)),
                     if (listing.oldPrice != null) ...[
                       const SizedBox(width: 8),
-                      Text(AppFormatters.priceSDG(listing.oldPrice!),
-                          style: const TextStyle(
-                              color: AppColors.textSecondary, fontSize: 14, decoration: TextDecoration.lineThrough)),
+                      Text(AppFormatters.priceSDG(listing.oldPrice!), style: const TextStyle(color: AppColors.textSecondary, fontSize: 14, decoration: TextDecoration.lineThrough)),
                     ],
                     if (listing.priceIsNegotiable && !listing.priceOnCall) ...[
                       const SizedBox(width: 8),
@@ -124,10 +122,7 @@ class PhoneDetailsScreen extends StatelessWidget {
                       children: [
                         const Icon(Icons.warning_amber_rounded, color: AppColors.danger, size: 18),
                         const SizedBox(width: 8),
-                        Expanded(
-                          child: Text('ملاحظات الأعطال: ${listing.damageNotes}',
-                              style: const TextStyle(color: AppColors.danger, fontSize: 13)),
-                        ),
+                        Expanded(child: Text('ملاحظات الأعطال: ${listing.damageNotes}', style: const TextStyle(color: AppColors.danger, fontSize: 13))),
                       ],
                     ),
                   ),
@@ -146,8 +141,7 @@ class PhoneDetailsScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
                 _sectionTitle('الوصف'),
-                Text(listing.description.isEmpty ? 'لا يوجد وصف إضافي.' : listing.description,
-                    style: const TextStyle(color: AppColors.textPrimary, height: 1.5)),
+                Text(listing.description.isEmpty ? 'لا يوجد وصف إضافي.' : listing.description, style: const TextStyle(color: AppColors.textPrimary, height: 1.5)),
                 const SizedBox(height: 20),
                 _sectionTitle('البائع'),
                 _sellerCard(context),
@@ -166,10 +160,7 @@ class PhoneDetailsScreen extends StatelessWidget {
                           width: 140,
                           child: PhoneCard(
                             listing: p,
-                            onTap: () => Navigator.pushReplacement(
-                              context,
-                              MaterialPageRoute(builder: (_) => PhoneDetailsScreen(listing: p)),
-                            ),
+                            onTap: () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => PhoneDetailsScreen(listing: p))),
                           ),
                         );
                       },
@@ -179,20 +170,12 @@ class PhoneDetailsScreen extends StatelessWidget {
                 const SizedBox(height: 20),
                 Container(
                   padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceLight,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
+                  decoration: BoxDecoration(color: AppColors.surfaceLight, borderRadius: BorderRadius.circular(8)),
                   child: const Row(
                     children: [
                       Icon(Icons.security, size: 16, color: AppColors.gold),
                       SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'التقِ بالبائع في مكان عام ونهاري، ولا تدفع أي مبلغ قبل معاينة الجهاز.',
-                          style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
-                        ),
-                      ),
+                      Expanded(child: Text('التقِ بالبائع في مكان عام ونهاري، ولا تدفع أي مبلغ قبل معاينة الجهاز.', style: TextStyle(color: AppColors.textSecondary, fontSize: 12))),
                     ],
                   ),
                 ),
@@ -215,49 +198,37 @@ class PhoneDetailsScreen extends StatelessWidget {
       MapEntry('الحالة', listing.condition.labelAr),
       MapEntry('التخزين', listing.storage),
       MapEntry('الرام', listing.ram),
-      if (listing.isIphone && listing.batteryHealthPercent != null)
-        MapEntry('صحة البطارية', '${listing.batteryHealthPercent}%'),
+      if (listing.isIphone && listing.batteryHealthPercent != null) MapEntry('صحة البطارية', '${listing.batteryHealthPercent}%'),
       MapEntry('الضمان', _warrantyLabel(listing.warranty)),
     ];
     return Container(
       decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(10)),
       child: Column(
-        children: rows.map((r) {
-          return Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: Colors.white10))),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(r.key, style: const TextStyle(color: AppColors.textSecondary)),
-                Text(r.value, style: const TextStyle(fontWeight: FontWeight.w600)),
-              ],
-            ),
-          );
-        }).toList(),
+        children: rows.map((r) => Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: Colors.white10))),
+          child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+            Text(r.key, style: const TextStyle(color: AppColors.textSecondary)),
+            Text(r.value, style: const TextStyle(fontWeight: FontWeight.w600)),
+          ]),
+        )).toList(),
       ),
     );
   }
 
   String _warrantyLabel(WarrantyType w) {
     switch (w) {
-      case WarrantyType.none:
-        return 'بدون ضمان';
-      case WarrantyType.storeWarranty:
-        return 'ضمان محل';
-      case WarrantyType.agentWarranty:
-        return 'ضمان وكيل رسمي';
+      case WarrantyType.none: return 'بدون ضمان';
+      case WarrantyType.storeWarranty: return 'ضمان محل';
+      case WarrantyType.agentWarranty: return 'ضمان وكيل رسمي';
     }
   }
 
-  Widget _accessoryChip(String label, bool included) {
-    return Chip(
-      avatar: Icon(included ? Icons.check_circle : Icons.cancel,
-          size: 16, color: included ? AppColors.success : AppColors.textSecondary),
-      label: Text(label),
-      backgroundColor: AppColors.surfaceLight,
-    );
-  }
+  Widget _accessoryChip(String label, bool included) => Chip(
+        avatar: Icon(included ? Icons.check_circle : Icons.cancel, size: 16, color: included ? AppColors.success : AppColors.textSecondary),
+        label: Text(label),
+        backgroundColor: AppColors.surfaceLight,
+      );
 
   Widget _sellerCard(BuildContext context) {
     final seller = listing.seller;
@@ -266,40 +237,20 @@ class PhoneDetailsScreen extends StatelessWidget {
       decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(10)),
       child: Row(
         children: [
-          CircleAvatar(
-            radius: 24,
-            backgroundColor: AppColors.surfaceLight,
-            child: Text(AppFormatters.firstChar(seller.name), style: const TextStyle(color: AppColors.gold)),
-          ),
+          CircleAvatar(radius: 24, backgroundColor: AppColors.surfaceLight, child: Text(AppFormatters.firstChar(seller.name), style: const TextStyle(color: AppColors.gold))),
           const SizedBox(width: 12),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Flexible(child: Text(seller.name, style: const TextStyle(fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis)),
-                    if (seller.isVerifiedStore) ...[
-                      const SizedBox(width: 4),
-                      const Icon(Icons.verified, size: 16, color: Colors.lightBlueAccent),
-                    ],
-                  ],
-                ),
-                const SizedBox(height: 2),
-                Text(seller.replySpeedLabel, style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
-                if (seller.isVerifiedStore)
-                  Text('${seller.completedSales} عملية بيع ناجحة', style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
-              ],
-            ),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [
+                Flexible(child: Text(seller.name, style: const TextStyle(fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis)),
+                if (seller.isVerifiedStore) ...[const SizedBox(width: 4), const Icon(Icons.verified, size: 16, color: Colors.lightBlueAccent)],
+              ]),
+              const SizedBox(height: 2),
+              Text(seller.replySpeedLabel, style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+              if (seller.isVerifiedStore) Text('${seller.completedSales} عملية بيع ناجحة', style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+            ]),
           ),
-          if (seller.isVerifiedStore && seller.rating > 0)
-            Row(
-              children: [
-                const Icon(Icons.star, color: AppColors.gold, size: 16),
-                const SizedBox(width: 2),
-                Text(seller.rating.toStringAsFixed(1)),
-              ],
-            ),
+          if (seller.isVerifiedStore && seller.rating > 0) Row(children: [const Icon(Icons.star, color: AppColors.gold, size: 16), const SizedBox(width: 2), Text(seller.rating.toStringAsFixed(1))]),
         ],
       ),
     );
@@ -314,70 +265,63 @@ class PhoneDetailsScreen extends StatelessWidget {
         child: Row(
           children: [
             _iconAction(Icons.call, 'اتصال', () => _launchTel(listing.seller.phone)),
-            _iconAction(Icons.chat, 'واتساب', () => _launchWhatsapp(listing)),
-            Expanded(
-              child: ElevatedButton.icon(
-                icon: const Icon(Icons.forum, size: 18),
-                label: const Text('محادثة'),
-                onPressed: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => ChatScreen(listing: listing)),
-                ),
-              ),
-            ),
+            _iconAction(Icons.chat, 'واتساب', () => _launchWhatsapp(context, listing)),
+            Expanded(child: ElevatedButton.icon(
+              icon: const Icon(Icons.forum, size: 18),
+              label: const Text('محادثة'),
+              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ChatScreen(listing: listing))),
+            )),
             const SizedBox(width: 8),
-            Expanded(
-              child: OutlinedButton(
-                onPressed: () => _showOfferDialog(context),
-                child: const Text('تقديم عرض'),
-              ),
-            ),
+            Expanded(child: OutlinedButton(onPressed: () => _showOfferDialog(context), child: const Text('تقديم عرض'))),
           ],
         ),
       ),
     );
   }
 
-  Widget _iconAction(IconData icon, String label, VoidCallback onTap) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 6),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(10),
-        child: Padding(
-          padding: const EdgeInsets.all(6),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, color: AppColors.gold),
-              Text(label, style: const TextStyle(fontSize: 10)),
-            ],
+  Widget _iconAction(IconData icon, String label, VoidCallback onTap) => Padding(
+        padding: const EdgeInsets.only(left: 6),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(10),
+          child: Padding(
+            padding: const EdgeInsets.all(6),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [Icon(icon, color: AppColors.gold), Text(label, style: const TextStyle(fontSize: 10))]),
           ),
         ),
-      ),
-    );
-  }
+      );
 
   void _showOfferDialog(BuildContext context) {
     final controller = TextEditingController();
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.surface,
         title: const Text('تقديم عرض سعر'),
         content: TextField(
           controller: controller,
+          autofocus: true,
           keyboardType: TextInputType.number,
           decoration: const InputDecoration(hintText: 'أدخل السعر المقترح (ج.س)'),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
+              final amount = int.tryParse(controller.text.replaceAll(',', '').trim());
+              if (amount == null || amount <= 0) {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('أدخل سعراً صحيحاً')));
+                return;
+              }
               Navigator.pop(ctx);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('تم إرسال عرضك للبائع داخل المحادثة')),
-              );
+              try {
+                await context.read<AppState>().sendOffer(listing: listing, amount: amount);
+                if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم إرسال عرضك للبائع داخل المحادثة')));
+              } catch (error) {
+                if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_friendlyError(error))));
+              } finally {
+                controller.dispose();
+              }
             },
             child: const Text('إرسال'),
           ),
@@ -386,8 +330,13 @@ class PhoneDetailsScreen extends StatelessWidget {
     );
   }
 
+  String _friendlyError(Object error) {
+    if (error is AuthException) return error.message;
+    return 'تعذر إرسال العرض. تأكد من تسجيل الدخول وحاول مرة أخرى.';
+  }
+
   void _showShareOptions(BuildContext context) {
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       backgroundColor: AppColors.surface,
       builder: (ctx) => SafeArea(
@@ -396,12 +345,19 @@ class PhoneDetailsScreen extends StatelessWidget {
             ListTile(
               leading: const Icon(Icons.link, color: AppColors.gold),
               title: const Text('نسخ رابط الإعلان'),
-              onTap: () => Navigator.pop(ctx),
+              onTap: () async {
+                await Clipboard.setData(ClipboardData(text: listing.id));
+                if (ctx.mounted) Navigator.pop(ctx);
+                if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم نسخ رقم الإعلان')));
+              },
             ),
             ListTile(
-              leading: const Icon(Icons.image, color: AppColors.gold),
-              title: const Text('مشاركة كبطاقة مصورة'),
-              onTap: () => Navigator.pop(ctx),
+              leading: const Icon(Icons.share, color: AppColors.gold),
+              title: const Text('مشاركة الإعلان'),
+              onTap: () async {
+                Navigator.pop(ctx);
+                await Share.share(_shareText());
+              },
             ),
           ],
         ),
@@ -409,15 +365,38 @@ class PhoneDetailsScreen extends StatelessWidget {
     );
   }
 
-  Future<void> _launchTel(String phone) async {
-    final uri = Uri.parse('tel:$phone');
-    if (await canLaunchUrl(uri)) await launchUrl(uri);
+  String _shareText() {
+    final price = listing.priceOnCall ? 'السعر عند الاتصال' : AppFormatters.priceSDG(listing.price);
+    return '📱 ${listing.title}\n💰 $price\n📍 ${listing.city}\n\nإعلان من تطبيق فونك\nرقم الإعلان: ${listing.id}';
   }
 
-  Future<void> _launchWhatsapp(PhoneListing listing) async {
+  Future<void> _launchTel(String phone) async {
+    final clean = phone.trim();
+    if (clean.isEmpty) return;
+    final uri = Uri(scheme: 'tel', path: clean);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
+    }
+  }
+
+  Future<void> _launchWhatsapp(BuildContext context, PhoneListing listing) async {
+    final whatsapp = listing.seller.whatsapp?.trim();
+    if (whatsapp == null || whatsapp.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('رقم واتساب غير متوفر لهذا البائع')));
+      return;
+    }
+    final digits = whatsapp.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('رقم واتساب غير صالح')));
+      return;
+    }
     final msg = Uri.encodeComponent('مرحباً، أنا مهتم بهاتف ${listing.title} المعروض في تطبيق فونك');
-    final uri = Uri.parse('https://wa.me/${listing.seller.whatsapp?.replaceAll('+', '')}?text=$msg');
-    if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
+    final uri = Uri.parse('https://wa.me/$digits?text=$msg');
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تعذر فتح واتساب')));
+    }
   }
 }
 
@@ -428,11 +407,7 @@ class _DetailImagePlaceholder extends StatelessWidget {
   Widget build(BuildContext context) {
     return const DecoratedBox(
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0xFF303030), Color(0xFF171717)],
-          begin: Alignment.topRight,
-          end: Alignment.bottomLeft,
-        ),
+        gradient: LinearGradient(colors: [Color(0xFF303030), Color(0xFF171717)], begin: Alignment.topRight, end: Alignment.bottomLeft),
       ),
       child: Center(
         child: Column(
