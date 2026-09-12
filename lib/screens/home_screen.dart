@@ -144,30 +144,27 @@ class _HomeScreenState extends State<HomeScreen> {
               child: _EmptyState(query: _searchQuery),
             )
           else
-            SliverPadding(
-              padding: const EdgeInsets.all(12),
-              sliver: SliverGrid(
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  childAspectRatio: 0.68,
-                  crossAxisSpacing: 10,
-                  mainAxisSpacing: 10,
-                ),
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) {
-                    final phone = listings[index];
-                    return PhoneCard(
-                      listing: phone,
-                      isFavorite: appState.isFavorite(phone.id),
-                      onFavoriteToggle: () => appState.toggleFavorite(phone.id),
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => PhoneDetailsScreen(listing: phone)),
+            SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (context, index) {
+                  final phone = listings[index];
+                  return Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 6, 12, 10),
+                    child: SizedBox(
+                      height: 360,
+                      child: PhoneCard(
+                        listing: phone,
+                        isFavorite: appState.isFavorite(phone.id),
+                        onFavoriteToggle: () => appState.toggleFavorite(phone.id),
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => PhoneDetailsScreen(listing: phone)),
+                        ),
                       ),
-                    );
-                  },
-                  childCount: listings.length,
-                ),
+                    ),
+                  );
+                },
+                childCount: listings.length,
               ),
             ),
         ],

@@ -114,18 +114,74 @@ class _AdminOperationsMonitorScreenState extends State<AdminOperationsMonitorScr
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('المراقبة التشغيلية'),
-        actions: [IconButton(onPressed: () => _load(), icon: const Icon(Icons.refresh))],
-      ),
-      body: _loading
+    return DefaultTabController(
+      length: 4,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('المراقبة التشغيلية'),
+          actions: [IconButton(onPressed: () => _load(), icon: const Icon(Icons.refresh))],
+          bottom: const TabBar(isScrollable: true, tabs: [
+            Tab(icon: Icon(Icons.forum_outlined), text: 'الدردشات'),
+            Tab(icon: Icon(Icons.login), text: 'تسجيلات الدخول'),
+            Tab(icon: Icon(Icons.phone_android), text: 'الإعلانات المقبولة'),
+            Tab(icon: Icon(Icons.workspace_premium_outlined), text: 'الشارات'),
+          ]),
+        ),
+        body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
               ? Center(child: Padding(padding: const EdgeInsets.all(24), child: Text(_error!, textAlign: TextAlign.center)))
-              : RefreshIndicator(
-                  onRefresh: _load,
-                  child: ListView(
+              : TabBarView(children: [_tab(_chatTab()), _tab(_loginTab()), _tab(_listingTab()), _tab(_badgeTab())]),
+      ),
+    );
+  }
+
+  Widget _tab(Widget child) => RefreshIndicator(
+        onRefresh: _load,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(16),
+          children: [child],
+        ),
+      );
+
+  Widget _chatTab() => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        _section('الدردشات الجارية', Icons.forum_outlined, _chatList()),
+        const SizedBox(height: 18),
+        const Text('تظهر كل محادثة مع المرسل والمرسل إليه ووقت آخر رسالة.', style: TextStyle(color: AppColors.textSecondary)),
+      ]);
+
+  Widget _loginTab() => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        _section('تسجيلات الدخول', Icons.login, _loginList()),
+      ]);
+
+  Widget _listingTab() => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        _section('الإعلانات المقبولة خلال آخر 24 ساعة', Icons.phone_android, _listingList()),
+      ]);
+
+  Widget _badgeTab() => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        _section('مراجعة نظام الشارات', Icons.workspace_premium_outlined, _badgeAudit()),
+      ]);
+
+  Widget _badgeAudit() {
+    final eligible = _newListings.where((r) => r['status'] == 'active' || r['status'] == 'approved').length;
+    return Card(child: Padding(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      const Text('فحص الاتساق', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+      const SizedBox(height: 10),
+      _auditRow('الإعلانات المقبولة المفحوصة', '${_newListings.length}'),
+      _auditRow('إعلانات بحالة نشطة/معتمدة', '$eligible'),
+      _auditRow('المحادثات النشطة', '${_threads.length}'),
+      const Divider(height: 24),
+      const Text('تُستخدم هذه الشاشة لمراجعة صحة التقييم والمبيعات والتوثيق قبل توزيع الشارات. أي حالة غير متوقعة تظهر هنا للمراجعة اليدوية.', style: TextStyle(color: AppColors.textSecondary)),
+    ])));
+  }
+
+  Widget _auditRow(String label, String value) => Padding(padding: const EdgeInsets.symmetric(vertical: 6), child: Row(children: [Expanded(child: Text(label)), Text(value, style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.gold))]));
+
+  /* Legacy aggregate view retained for compatibility with older routes. */
+  Widget _legacyBody() => RefreshIndicator(
+                      onRefresh: _load,
+                      child: ListView(
                     physics: const AlwaysScrollableScrollPhysics(),
                     padding: const EdgeInsets.all(16),
                     children: [
@@ -144,9 +200,7 @@ class _AdminOperationsMonitorScreenState extends State<AdminOperationsMonitorScr
                       _section('المراسلات الجارية', Icons.forum_outlined, _chatList()),
                     ],
                   ),
-                ),
-    );
-  }
+                );
 
   Widget _summary() {
     final failed = _logins.where((r) => r['success'] != true).length;
@@ -188,15 +242,15 @@ class _AdminOperationsMonitorScreenState extends State<AdminOperationsMonitorScr
   }
 
   Widget _listingList() {
-    if (_newListings.isEmpty) return _empty('لا توجد إعلانات خلال آخر 24 ساعة.');
-    return Column(children: _newListings.map((r) {
-      final status = r['status']?.toString() ?? '—';
+    final accepted = _newListings.where((r) => r['status'] == 'active' || r['status'] == 'approved').toList();
+    if (accepted.isEmpty) return _empty('لا توجد إعلانات مقبولة خلال آخر 24 ساعة.');
+    return Column(children: accepted.map((r) {
       return Card(child: ListTile(
         leading: const Icon(Icons.phone_android),
         title: Text(r['title']?.toString() ?? 'إعلان بدون عنوان'),
         subtitle: Text('${r['brand'] ?? ''} • ${r['city'] ?? ''}\n${_time(r['created_at'])}'),
         isThreeLine: true,
-        trailing: Text(status, style: TextStyle(color: status == 'pendingReview' || status == 'pending_review' ? AppColors.gold : AppColors.textSecondary, fontSize: 11)),
+        trailing: const Text('مقبول', style: TextStyle(color: Colors.green, fontSize: 11)),
       ));
     }).toList());
   }
@@ -216,10 +270,14 @@ class _AdminOperationsMonitorScreenState extends State<AdminOperationsMonitorScr
     return Column(children: active.map((thread) {
       final id = thread['id']?.toString() ?? '';
       final last = messagesByThread[id]!;
+      final sender = last['sender_id']?.toString() ?? 'غير معروف';
+      final buyer = thread['buyer_id']?.toString() ?? 'غير معروف';
+      final seller = thread['seller_id']?.toString() ?? 'غير معروف';
+      final recipient = sender == buyer ? seller : buyer;
       return Card(child: ListTile(
         leading: const Icon(Icons.forum_outlined),
         title: Text('محادثة ${_short(id)}'),
-        subtitle: Text('${_short(last['text'])}\nآخر نشاط: ${_time(last['created_at'])}'),
+        subtitle: Text('المرسل: ${_short(sender)}\nإلى: ${_short(recipient)}\nآخر رسالة: ${_time(last['created_at'])}\n${_short(last['text'])}'),
         isThreeLine: true,
         trailing: Icon(last['type'] == 'offer' ? Icons.local_offer_outlined : Icons.chat_bubble_outline, color: AppColors.gold),
       ));

@@ -22,6 +22,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   int _pending = 0;
   int _pendingShopApplications = 0;
   List<Map<String, dynamic>> _pendingListings = const [];
+  List<Map<String, dynamic>> _allListings = const [];
 
   @override
   void initState() { super.initState(); _load(); }
@@ -56,7 +57,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         shopPending = (shopRows as List).length;
       } catch (_) {}
       if (!mounted) return;
-      setState(() { _authorized = true; _totalListings = rows.length; _totalViews = views; _featured = featured; _pending = pending.length; _pendingListings = pending; _pendingShopApplications = shopPending; _loading = false; });
+      setState(() { _authorized = true; _totalListings = rows.length; _totalViews = views; _featured = featured; _pending = pending.length; _pendingListings = pending; _allListings = (rows as List).whereType<Map<String, dynamic>>().toList(); _pendingShopApplications = shopPending; _loading = false; });
     } on PostgrestException catch (error) { if (!mounted) return; setState(() { _error = 'تعذر تحميل لوحة الإدارة: ${error.message}'; _loading = false; }); }
     catch (error) { if (!mounted) return; setState(() { _error = error.toString(); _loading = false; }); }
   }
@@ -90,6 +91,34 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(approve ? 'تم اعتماد الإعلان.' : 'تم رفض الإعلان.')));
       await _load();
     } on PostgrestException catch (error) { if (!mounted) return; ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذر تنفيذ العملية: ${error.message}'))); }
+  }
+
+  Future<void> _editListing(Map<String, dynamic> listing) async {
+    final title = TextEditingController(text: listing['title']?.toString() ?? '');
+    final price = TextEditingController(text: listing['price']?.toString() ?? '0');
+    final city = TextEditingController(text: listing['city']?.toString() ?? '');
+    final description = TextEditingController(text: listing['description']?.toString() ?? '');
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('تعديل الإعلان'),
+        content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
+          TextField(controller: title, decoration: const InputDecoration(labelText: 'العنوان')),
+          TextField(controller: price, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'السعر')),
+          TextField(controller: city, decoration: const InputDecoration(labelText: 'المدينة')),
+          TextField(controller: description, maxLines: 4, decoration: const InputDecoration(labelText: 'الوصف')),
+        ])),
+        actions: [TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('إلغاء')), FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('حفظ'))],
+      ),
+    );
+    if (saved != true) return;
+    try {
+      await Supabase.instance.client.from('listings').update({'title': title.text.trim(), 'price': int.tryParse(price.text.trim()) ?? 0, 'city': city.text.trim(), 'description': description.text.trim()}).eq('id', listing['id']);
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم تحديث الإعلان.')));
+      await _load();
+    } on PostgrestException catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذر تعديل الإعلان: ${e.message}')));
+    }
   }
 
   void _openPendingListings() {
@@ -222,6 +251,18 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     );
   }
 
+  Widget _managedCard(Map<String, dynamic> listing) {
+    final status = listing['status']?.toString() ?? '—';
+    return Card(child: ListTile(
+      leading: const Icon(Icons.phone_android, color: AppColors.gold),
+      title: Text(listing['title']?.toString() ?? 'إعلان بدون عنوان'),
+      subtitle: Text('${listing['city'] ?? 'بدون مدينة'} • ${listing['price'] ?? 0} ج.س\nالحالة: $status'),
+      isThreeLine: true,
+      onTap: () => _openListingDetails(listing),
+      trailing: IconButton(onPressed: () => _editListing(listing), icon: const Icon(Icons.edit_outlined), tooltip: 'تعديل الإعلان'),
+    ));
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -277,6 +318,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                           )),
                           const SizedBox(height: 12),
                           if (_pendingListings.isNotEmpty) ..._pendingListings.map(_pendingCard),
+                          const SizedBox(height: 16),
+                          const Text('كل الإعلانات — صلاحية تعديل الأدمن', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 8),
+                          ..._allListings.map(_managedCard),
                           const SizedBox(height: 16),
                           _statusCard(Icons.flag_outlined, 'البلاغات', 'سيتم تفعيل البلاغات عند إضافة جدول البلاغات وربطه بالـRLS.'),
                         ],
