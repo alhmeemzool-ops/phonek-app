@@ -32,16 +32,23 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       final client = Supabase.instance.client;
       final user = client.auth.currentUser;
       if (user == null) throw const AuthException('يجب تسجيل الدخول أولاً');
-      final adminResult = await client.rpc('is_admin');
-      final knownAdmin = user.id == '2fbf66e9-9234-4ad4-8d33-6db4603530f8';
+
+      // The configured PhoneK admin UID is the primary UI authorization
+      // fallback. A temporary RPC failure must never turn into "no access".
+      final knownAdmin = user.id == AppState.adminUserId;
       final appStateAdmin = context.read<AppState>().isAdmin;
-      if (adminResult != true && !knownAdmin && !appStateAdmin) {
+      var adminResult = false;
+      try {
+        adminResult = await client.rpc('is_admin') == true;
+      } catch (_) {
+        // The UID/AppState checks below remain valid when the RPC is unavailable.
+      }
+
+      if (!knownAdmin && !appStateAdmin && !adminResult) {
         if (mounted) setState(() { _authorized = false; _loading = false; });
         return;
       }
-      // Keep this projection aligned with the live listings schema. A missing
-      // column here used to make the screen fall through to the misleading
-      // unauthorized state.
+
       final rows = await client.from('listings').select('id, title, brand, price, city, image_urls, seller_id, status, created_at, view_count, is_featured, description, condition, storage, ram, warranty');
       var views = 0; var featured = 0; final pending = <Map<String, dynamic>>[];
       for (final raw in (rows as List).whereType<Map<String, dynamic>>()) {
@@ -57,8 +64,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       } catch (_) {}
       if (!mounted) return;
       setState(() { _authorized = true; _totalListings = rows.length; _totalViews = views; _featured = featured; _pending = pending.length; _pendingListings = pending; _pendingShopApplications = shopPending; _loading = false; });
-    } on PostgrestException catch (error) { if (!mounted) return; setState(() { _error = 'تعذر تحميل لوحة الإدارة: ${error.message}'; _loading = false; }); }
-    catch (error) { if (!mounted) return; setState(() { _error = error.toString(); _loading = false; }); }
+    } on PostgrestException catch (error) {
+      if (!mounted) return;
+      setState(() { _error = 'تعذر تحميل لوحة الإدارة: ${error.message}'; _loading = false; });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() { _error = error.toString(); _loading = false; });
+    }
   }
 
   Future<void> _moderate(Map<String, dynamic> listing, {required bool approve}) async {
