@@ -33,16 +33,16 @@ create table if not exists public.merchant_badge_definitions (
 insert into public.merchant_badge_definitions
   (level, name_ar, name_en, description_ar, required_sales, min_rating, requires_identity, requires_license, asset_path)
 values
-  (1, 'بائع مبتدئ', 'Novice', 'يُمنح بمجرد تفعيل حساب التاجر بالهوية الشخصية، حتى مع 0 طلب.', 0, null, true, false, 'assets/badges/badge_level1.svg'),
-  (2, 'بائع ناشئ', 'Emerging', 'إكمال 15 طلباً ناجحاً.', 15, null, true, false, 'assets/badges/badge_level2.svg'),
-  (3, 'بائع صاعد', 'Rising', 'إكمال 40 طلباً ناجحاً.', 40, null, true, false, 'assets/badges/badge_level3.svg'),
-  (4, 'بائع موثوق', 'Verified', 'إكمال 80 طلباً ناجحاً مع تقديم وتوثيق رخصة المحل الرسمية.', 80, null, true, true, 'assets/badges/badge_level4.svg'),
-  (5, 'بائع متميز', 'Star', 'إكمال 150 طلباً ناجحاً مع تقييم عام أعلى من 4.2 نجمة.', 150, 4.20, true, false, 'assets/badges/badge_level5.svg'),
-  (6, 'بائع محترف', 'Pro', 'إكمال 300 طلب ناجح.', 300, null, true, false, 'assets/badges/badge_level6.svg'),
-  (7, 'بائع خبير', 'Expert', 'إكمال 600 طلب ناجح.', 600, null, true, false, 'assets/badges/badge_level7.svg'),
-  (8, 'بائع نخبة', 'Elite', 'إكمال 1,200 طلب ناجح.', 1200, null, true, false, 'assets/badges/badge_level8.svg'),
-  (9, 'بائع معتمد', 'Master', 'إكمال 2,500 طلب ناجح.', 2500, null, true, false, 'assets/badges/badge_level9.svg'),
-  (10, 'تاجر أسطوري', 'Legendary', 'إكمال 5,000 طلب ناجح أو أكثر.', 5000, null, true, false, 'assets/badges/badge_level10.svg')
+  (1, 'بائع مبتدئ', 'Novice', 'يُمنح بمجرد تفعيل حساب التاجر بالهوية الشخصية، حتى مع 0 طلب.', 0, null, true, false, 'native://merchant_badge_art/1'),
+  (2, 'بائع ناشئ', 'Emerging', 'إكمال 15 طلباً ناجحاً.', 15, null, true, false, 'native://merchant_badge_art/2'),
+  (3, 'بائع صاعد', 'Rising', 'إكمال 40 طلباً ناجحاً.', 40, null, true, false, 'native://merchant_badge_art/3'),
+  (4, 'بائع موثوق', 'Verified', 'إكمال 80 طلباً ناجحاً مع تقديم وتوثيق رخصة المحل الرسمية.', 80, null, true, true, 'native://merchant_badge_art/4'),
+  (5, 'بائع متميز', 'Star', 'إكمال 150 طلباً ناجحاً مع تقييم عام أعلى من 4.2 نجمة.', 150, 4.20, true, false, 'native://merchant_badge_art/5'),
+  (6, 'بائع محترف', 'Pro', 'إكمال 300 طلب ناجح.', 300, null, true, false, 'native://merchant_badge_art/6'),
+  (7, 'بائع خبير', 'Expert', 'إكمال 600 طلب ناجح.', 600, null, true, false, 'native://merchant_badge_art/7'),
+  (8, 'بائع نخبة', 'Elite', 'إكمال 1,200 طلب ناجح.', 1200, null, true, false, 'native://merchant_badge_art/8'),
+  (9, 'بائع معتمد', 'Master', 'إكمال 2,500 طلب ناجح.', 2500, null, true, false, 'native://merchant_badge_art/9'),
+  (10, 'تاجر أسطوري', 'Legendary', 'إكمال 5,000 طلب ناجح أو أكثر.', 5000, null, true, false, 'native://merchant_badge_art/10')
 on conflict (level) do update set
   name_ar = excluded.name_ar,
   name_en = excluded.name_en,
@@ -196,7 +196,11 @@ security definer
 set search_path = public
 as $$
 begin
-  perform public.recalculate_merchant_badges(coalesce(new.id, new.user_id));
+  if tg_table_name = 'shop_applications' then
+    perform public.recalculate_merchant_badges(new.user_id);
+  else
+    perform public.recalculate_merchant_badges(new.id);
+  end if;
   return new;
 end;
 $$;
