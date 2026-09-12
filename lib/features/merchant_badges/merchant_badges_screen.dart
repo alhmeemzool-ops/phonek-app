@@ -17,6 +17,10 @@ class _MerchantBadgesScreenState extends State<MerchantBadgesScreen> {
   bool _loading = true;
   int _sales = 0;
   int _level = 0;
+  int _eligibleLevel = 0;
+  double _rating = 0;
+  bool _identityVerified = false;
+  bool _licenseVerified = false;
   String? _error;
 
   @override
@@ -32,18 +36,36 @@ class _MerchantBadgesScreenState extends State<MerchantBadgesScreen> {
       final profileId = widget.shopId ?? user?.id;
       if (profileId == null) throw StateError('يجب تسجيل الدخول لعرض شارات المتجر');
 
-      // ShopAccountScreen stores merchant data in profiles. Keep the badge
-      // system on the same source of truth instead of querying a separate,
-      // undocumented shops table.
-      final row = await client
-          .from('profiles')
-          .select('id, completed_sales')
-          .eq('id', profileId)
-          .maybeSingle();
+      try {
+        final state = await client
+            .from('merchant_badge_state')
+            .select('current_level, eligible_level, completed_sales, rating, identity_verified, license_verified')
+            .eq('profile_id', profileId)
+            .maybeSingle();
 
-      if (row == null) throw StateError('بيانات المتجر غير موجودة');
-      _sales = (row['completed_sales'] as num?)?.toInt() ?? 0;
-      _level = levelForSales(_sales).clamp(0, merchantBadges.length);
+        if (state != null) {
+          _sales = (state['completed_sales'] as num?)?.toInt() ?? 0;
+          _level = (state['current_level'] as num?)?.toInt() ?? 0;
+          _eligibleLevel = (state['eligible_level'] as num?)?.toInt() ?? 0;
+          _rating = (state['rating'] as num?)?.toDouble() ?? 0;
+          _identityVerified = state['identity_verified'] == true;
+          _licenseVerified = state['license_verified'] == true;
+        } else {
+          _level = 0;
+          _eligibleLevel = 0;
+        }
+      } catch (_) {
+        // Compatibility fallback until migration 005 is applied remotely.
+        final row = await client
+            .from('profiles')
+            .select('id, completed_sales')
+            .eq('id', profileId)
+            .maybeSingle();
+        if (row == null) throw StateError('بيانات المتجر غير موجودة');
+        _sales = (row['completed_sales'] as num?)?.toInt() ?? 0;
+        _level = _sales > 0 ? levelForSales(_sales) : 0;
+        _eligibleLevel = _level;
+      }
     } catch (e) {
       _error = e.toString();
     } finally {
@@ -51,9 +73,27 @@ class _MerchantBadgesScreenState extends State<MerchantBadgesScreen> {
     }
   }
 
+  String _requirementText(MerchantBadge badge) {
+    final salesMissing = (badge.requiredSales - _sales).clamp(0, badge.requiredSales);
+    final parts = <String>[];
+    if (salesMissing > 0) parts.add('$salesMissing طلب ناجح متبقٍ');
+    if (badge.requiresLicense && !_licenseVerified) parts.add('توثيق رخصة المحل');
+    if (badge.minRating != null && _rating <= badge.minRating!) {
+      parts.add('تقييم أعلى من ${badge.minRating!.toStringAsFixed(1)}');
+    }
+    if (parts.isEmpty) return 'مؤهل لهذا المستوى';
+    return parts.join(' + ');
+  }
+
   @override
   Widget build(BuildContext context) {
     final nextBadge = _level < merchantBadges.length ? merchantBadges[_level] : null;
+    final progress = nextBadge == null
+        ? 1.0
+        : nextBadge.requiredSales == 0
+            ? 1.0
+            : (_sales / nextBadge.requiredSales).clamp(0.0, 1.0);
+
     return Scaffold(
       appBar: AppBar(title: const Text('شارات المتجر')),
       body: _loading
@@ -77,16 +117,29 @@ class _MerchantBadgesScreenState extends State<MerchantBadgesScreen> {
                             ]),
                             const SizedBox(height: 6),
                             Text('$_level / ${merchantBadges.length}', style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800)),
-                            const SizedBox(height: 14),
-                            Text('المبيعات المكتملة: $_sales'),
+                            const SizedBox(height: 12),
+                            Row(children: [
+                              const Icon(Icons.shopping_bag_outlined, size: 18),
+                              const SizedBox(width: 6),
+                              Text('الطلبات الناجحة: $_sales'),
+                              const Spacer(),
+                              if (_rating > 0) Text('التقييم: ${_rating.toStringAsFixed(1)} ★'),
+                            ]),
+                            const SizedBox(height: 8),
+                            Wrap(spacing: 8, runSpacing: 8, children: [
+                              _StatusPill(label: 'الهوية', enabled: _identityVerified),
+                              _StatusPill(label: 'الرخصة', enabled: _licenseVerified),
+                            ]),
                             if (nextBadge != null) ...[
+                              const SizedBox(height: 14),
+                              Text('المستوى التالي: ${nextBadge.nameAr}', style: const TextStyle(fontWeight: FontWeight.w800)),
+                              const SizedBox(height: 4),
+                              Text(_requirementText(nextBadge), style: const TextStyle(color: AppColors.textSecondary)),
                               const SizedBox(height: 8),
-                              Text('المتبقي للوصول إلى ${nextBadge.nameAr}: ${(nextBadge.requiredSales - _sales).clamp(0, nextBadge.requiredSales)} مبيعات', style: const TextStyle(color: AppColors.textSecondary)),
-                              const SizedBox(height: 8),
-                              LinearProgressIndicator(value: (_sales / nextBadge.requiredSales).clamp(0.0, 1.0)),
+                              LinearProgressIndicator(value: progress),
                             ] else ...[
-                              const SizedBox(height: 8),
-                              const Text('وصل المتجر إلى أعلى مستوى.'),
+                              const SizedBox(height: 10),
+                              const Text('🏆 وصل المتجر إلى أعلى مستوى: تاجر أسطوري.'),
                             ],
                           ]),
                         ),
@@ -100,4 +153,24 @@ class _MerchantBadgesScreenState extends State<MerchantBadgesScreen> {
                 ),
     );
   }
+}
+
+class _StatusPill extends StatelessWidget {
+  const _StatusPill({required this.label, required this.enabled});
+  final String label;
+  final bool enabled;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+        decoration: BoxDecoration(
+          color: enabled ? const Color(0x1A16A34A) : const Color(0x1A64748B),
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(enabled ? Icons.verified : Icons.hourglass_empty, size: 14, color: enabled ? const Color(0xFF16A34A) : const Color(0xFF64748B)),
+          const SizedBox(width: 4),
+          Text('$label ${enabled ? 'موثق' : 'غير موثق'}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+        ]),
+      );
 }
