@@ -17,7 +17,6 @@ class _MerchantBadgesScreenState extends State<MerchantBadgesScreen> {
   bool _loading = true;
   int _sales = 0;
   int _level = 0;
-  int _eligibleLevel = 0;
   double _rating = 0;
   bool _identityVerified = false;
   bool _licenseVerified = false;
@@ -46,13 +45,11 @@ class _MerchantBadgesScreenState extends State<MerchantBadgesScreen> {
         if (state != null) {
           _sales = (state['completed_sales'] as num?)?.toInt() ?? 0;
           _level = (state['current_level'] as num?)?.toInt() ?? 0;
-          _eligibleLevel = (state['eligible_level'] as num?)?.toInt() ?? 0;
           _rating = (state['rating'] as num?)?.toDouble() ?? 0;
           _identityVerified = state['identity_verified'] == true;
           _licenseVerified = state['license_verified'] == true;
         } else {
           _level = 0;
-          _eligibleLevel = 0;
         }
       } catch (_) {
         // Compatibility fallback until migration 005 is applied remotely.
@@ -64,7 +61,6 @@ class _MerchantBadgesScreenState extends State<MerchantBadgesScreen> {
         if (row == null) throw StateError('بيانات المتجر غير موجودة');
         _sales = (row['completed_sales'] as num?)?.toInt() ?? 0;
         _level = _sales > 0 ? levelForSales(_sales) : 0;
-        _eligibleLevel = _level;
       }
     } catch (e) {
       _error = e.toString();
