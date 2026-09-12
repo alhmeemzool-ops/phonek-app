@@ -15,6 +15,7 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+          cache: gradle
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
@@ -34,13 +35,13 @@ jobs:
           done
 
       - name: Analyze
-        run: flutter analyze
+        run: flutter analyze --no-pub
 
       - name: Run tests
-        run: flutter test
+        run: flutter test --no-pub
 
       - name: Build release APK
-        run: flutter build apk --release
+        run: flutter build apk --release --no-pub
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
