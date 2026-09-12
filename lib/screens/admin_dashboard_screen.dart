@@ -34,9 +34,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         if (mounted) setState(() { _authorized = false; _loading = false; });
         return;
       }
-      final rows = await client.from('listings').select('id, title, brand, price, city, image_urls, seller_id, status, created_at, view_count, is_featured').order('created_at', ascending: false);
+      final rows = await client.from('listings').select('id, title, brand, price, city, image_urls, seller_id, status, created_at, view_count, is_featured, description, condition, storage, color, ram, warranty, phone_model');
       var views = 0; var featured = 0; final pending = <Map<String, dynamic>>[];
-      for (final raw in (rows as List).whereType<Map<String, dynamic>>()) { views += (raw['view_count'] as num?)?.toInt() ?? 0; if (raw['is_featured'] == true) featured++; final status = raw['status'] as String?; if (status == 'pendingReview' || status == 'pending_review') pending.add(raw); }
+      for (final raw in (rows as List).whereType<Map<String, dynamic>>()) {
+        views += (raw['view_count'] as num?)?.toInt() ?? 0;
+        if (raw['is_featured'] == true) featured++;
+        final status = raw['status'] as String?;
+        if (status == 'pendingReview' || status == 'pending_review') pending.add(raw);
+      }
       var shopPending = 0;
       try {
         final shopRows = await client.from('shop_applications').select('id').eq('verification_status', 'pending');
@@ -73,9 +78,144 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       if (!approve) updateData['rejection_reason'] = reason?.isEmpty == true ? null : reason;
       await client.from('listings').update(updateData).eq('id', id);
       if (!mounted) return;
+      Navigator.of(context).maybePop();
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(approve ? 'تم اعتماد الإعلان.' : 'تم رفض الإعلان.')));
       await _load();
     } on PostgrestException catch (error) { if (!mounted) return; ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذر تنفيذ العملية: ${error.message}'))); }
+  }
+
+  void _openPendingListings() {
+    if (_pendingListings.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('لا توجد إعلانات منتظرة للمراجعة حالياً.')));
+      return;
+    }
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.85,
+        maxChildSize: 0.95,
+        builder: (_, controller) => ListView(
+          controller: controller,
+          padding: const EdgeInsets.all(16),
+          children: [
+            const Text('الإعلانات المنتظرة للمراجعة', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 12),
+            ..._pendingListings.map(_pendingCard),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _openListingDetails(Map<String, dynamic> listing) {
+    final images = (listing['image_urls'] as List?)?.whereType<String>().toList() ?? const [];
+    final title = listing['title'] as String? ?? 'إعلان بدون عنوان';
+    final brand = listing['brand'] as String? ?? '';
+    final city = listing['city'] as String? ?? '';
+    final description = listing['description'] as String? ?? '';
+    final condition = listing['condition'] as String? ?? '';
+    final storage = listing['storage']?.toString() ?? '';
+    final ram = listing['ram']?.toString() ?? '';
+    final color = listing['color']?.toString() ?? '';
+    final warranty = listing['warranty']?.toString() ?? '';
+    final model = listing['phone_model']?.toString() ?? '';
+    final price = (listing['price'] as num?)?.toInt() ?? 0;
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.88,
+        maxChildSize: 0.96,
+        builder: (_, controller) => ListView(
+          controller: controller,
+          padding: const EdgeInsets.all(16),
+          children: [
+            Row(children: [
+              const Expanded(child: Text('تفاصيل الإعلان', style: TextStyle(fontSize: 21, fontWeight: FontWeight.bold))),
+              IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close)),
+            ]),
+            if (images.isNotEmpty) ...[
+              SizedBox(height: 230, child: PageView.builder(itemCount: images.length, itemBuilder: (_, i) => Padding(padding: const EdgeInsets.only(right: 8), child: ClipRRect(borderRadius: BorderRadius.circular(14), child: Image.network(images[i], fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Center(child: Icon(Icons.broken_image, size: 50))))))),
+              const SizedBox(height: 14),
+            ],
+            Text(title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            if (brand.isNotEmpty) _detailRow('العلامة', brand),
+            if (model.isNotEmpty) _detailRow('الموديل', model),
+            _detailRow('السعر', '$price ج.س'),
+            if (city.isNotEmpty) _detailRow('المدينة', city),
+            if (condition.isNotEmpty) _detailRow('الحالة', condition),
+            if (storage.isNotEmpty) _detailRow('التخزين', storage),
+            if (ram.isNotEmpty) _detailRow('الرام', ram),
+            if (color.isNotEmpty) _detailRow('اللون', color),
+            if (warranty.isNotEmpty) _detailRow('الضمان', warranty),
+            if (description.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              const Text('الوصف', style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 5),
+              Text(description),
+            ],
+            const SizedBox(height: 18),
+            const Text('بعد مراجعة التفاصيل والصور يمكنك اتخاذ القرار:', style: TextStyle(color: AppColors.textSecondary)),
+            const SizedBox(height: 10),
+            Row(children: [
+              Expanded(child: OutlinedButton.icon(onPressed: () => _moderate(listing, approve: false), icon: const Icon(Icons.close), label: const Text('رفض'))),
+              const SizedBox(width: 10),
+              Expanded(child: FilledButton.icon(onPressed: () => _moderate(listing, approve: true), icon: const Icon(Icons.check), label: const Text('اعتماد'))),
+            ]),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _detailRow(String label, String value) => Padding(padding: const EdgeInsets.symmetric(vertical: 5), child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [SizedBox(width: 90, child: Text(label, style: const TextStyle(color: AppColors.textSecondary))), Expanded(child: Text(value, style: const TextStyle(fontWeight: FontWeight.w600)))]));
+
+  Widget _pendingCard(Map<String, dynamic> listing) {
+    final images = (listing['image_urls'] as List?)?.whereType<String>().toList() ?? const [];
+    final title = listing['title'] as String? ?? 'إعلان بدون عنوان';
+    final brand = listing['brand'] as String? ?? '';
+    final city = listing['city'] as String? ?? '';
+    final price = (listing['price'] as num?)?.toInt() ?? 0;
+    return Card(
+      margin: const EdgeInsets.only(bottom: 10),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () => _openListingDetails(listing),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: images.isEmpty
+                    ? Container(width: 64, height: 64, color: AppColors.surface, child: const Icon(Icons.phone_android))
+                    : Image.network(images.first, width: 64, height: 64, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Container(width: 64, height: 64, color: AppColors.surface, child: const Icon(Icons.broken_image))),
+              ),
+              const SizedBox(width: 12),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(title, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.bold)),
+                if (brand.isNotEmpty) Text(brand, style: const TextStyle(color: AppColors.textSecondary)),
+                Text('$price ج.س${city.isEmpty ? '' : ' • $city'}', style: const TextStyle(color: AppColors.gold)),
+              ])),
+              const Icon(Icons.chevron_left, color: AppColors.gold),
+            ]),
+            const SizedBox(height: 6),
+            const Text('اضغط على الإعلان لعرض التفاصيل والصور قبل القرار', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+            const SizedBox(height: 10),
+            Row(children: [
+              Expanded(child: OutlinedButton.icon(onPressed: () => _openListingDetails(listing), icon: const Icon(Icons.visibility_outlined), label: const Text('التفاصيل'))),
+              const SizedBox(width: 10),
+              Expanded(child: OutlinedButton.icon(onPressed: () => _moderate(listing, approve: false), icon: const Icon(Icons.close), label: const Text('رفض'))),
+              const SizedBox(width: 10),
+              Expanded(child: FilledButton.icon(onPressed: () => _moderate(listing, approve: true), icon: const Icon(Icons.check), label: const Text('اعتماد'))),
+            ]),
+          ]),
+        ),
+      ),
+    );
   }
 
   @override
@@ -138,67 +278,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                         ],
                       ),
                     ),
-    );
-  }
-
-  void _openPendingListings() {
-    if (_pendingListings.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('لا توجد إعلانات منتظرة للمراجعة حالياً.')));
-      return;
-    }
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      builder: (_) => DraggableScrollableSheet(
-        expand: false,
-        initialChildSize: 0.85,
-        maxChildSize: 0.95,
-        builder: (_, controller) => ListView(
-          controller: controller,
-          padding: const EdgeInsets.all(16),
-          children: [
-            const Text('الإعلانات المنتظرة للمراجعة', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 12),
-            ..._pendingListings.map(_pendingCard),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _pendingCard(Map<String, dynamic> listing) {
-    final images = (listing['image_urls'] as List?)?.whereType<String>().toList() ?? const [];
-    final title = listing['title'] as String? ?? 'إعلان بدون عنوان';
-    final brand = listing['brand'] as String? ?? '';
-    final city = listing['city'] as String? ?? '';
-    final price = (listing['price'] as num?)?.toInt() ?? 0;
-    return Card(
-      margin: const EdgeInsets.only(bottom: 10),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: images.isEmpty
-                  ? Container(width: 64, height: 64, color: AppColors.surface, child: const Icon(Icons.phone_android))
-                  : Image.network(images.first, width: 64, height: 64, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Container(width: 64, height: 64, color: AppColors.surface, child: const Icon(Icons.broken_image))),
-            ),
-            const SizedBox(width: 12),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(title, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.bold)),
-              if (brand.isNotEmpty) Text(brand, style: const TextStyle(color: AppColors.textSecondary)),
-              Text('$price ج.س${city.isEmpty ? '' : ' • $city'}', style: const TextStyle(color: AppColors.gold)),
-            ])),
-          ]),
-          const SizedBox(height: 10),
-          Row(children: [
-            Expanded(child: OutlinedButton.icon(onPressed: () => _moderate(listing, approve: false), icon: const Icon(Icons.close), label: const Text('رفض'))),
-            const SizedBox(width: 10),
-            Expanded(child: FilledButton.icon(onPressed: () => _moderate(listing, approve: true), icon: const Icon(Icons.check), label: const Text('اعتماد'))),
-          ]),
-        ]),
-      ),
     );
   }
 
