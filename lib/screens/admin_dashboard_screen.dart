@@ -31,8 +31,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       final user = client.auth.currentUser;
       if (user == null) throw const AuthException('يجب تسجيل الدخول أولاً');
       final adminResult = await client.rpc('is_admin');
-      final knownAdmin = user.id == '2fbf66e9-9234-4ad4-8d33-6db4603530f8';
-      if (adminResult != true && !knownAdmin) {
+      if (adminResult != true) {
         if (mounted) setState(() { _authorized = false; _loading = false; });
         return;
       }
