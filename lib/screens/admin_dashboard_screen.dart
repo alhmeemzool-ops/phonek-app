@@ -39,7 +39,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         if (mounted) setState(() { _authorized = false; _loading = false; });
         return;
       }
-      final rows = await client.from('listings').select('id, title, brand, price, city, image_urls, seller_id, status, created_at, view_count, is_featured, description, condition, storage, color, ram, warranty, phone_model');
+      // Keep this projection aligned with the live listings schema. A missing
+      // column here used to make the screen fall through to the misleading
+      // unauthorized state.
+      final rows = await client.from('listings').select('id, title, brand, price, city, image_urls, seller_id, status, created_at, view_count, is_featured, description, condition, storage, ram, warranty');
       var views = 0; var featured = 0; final pending = <Map<String, dynamic>>[];
       for (final raw in (rows as List).whereType<Map<String, dynamic>>()) {
         views += (raw['view_count'] as num?)?.toInt() ?? 0;
@@ -123,9 +126,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     final condition = listing['condition'] as String? ?? '';
     final storage = listing['storage']?.toString() ?? '';
     final ram = listing['ram']?.toString() ?? '';
-    final color = listing['color']?.toString() ?? '';
     final warranty = listing['warranty']?.toString() ?? '';
-    final model = listing['phone_model']?.toString() ?? '';
     final price = (listing['price'] as num?)?.toInt() ?? 0;
     showModalBottomSheet<void>(
       context: context,
@@ -154,7 +155,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             if (condition.isNotEmpty) _detailRow('الحالة', condition),
             if (storage.isNotEmpty) _detailRow('التخزين', storage),
             if (ram.isNotEmpty) _detailRow('الرام', ram),
-            if (color.isNotEmpty) _detailRow('اللون', color),
             if (warranty.isNotEmpty) _detailRow('الضمان', warranty),
             if (description.isNotEmpty) ...[
               const SizedBox(height: 8),
