@@ -28,8 +28,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       final client = Supabase.instance.client;
       final user = client.auth.currentUser;
       if (user == null) throw const AuthException('يجب تسجيل الدخول أولاً');
-      final profile = await client.from('profiles').select('is_admin').eq('id', user.id).maybeSingle();
-      if (profile?['is_admin'] != true) { if (mounted) setState(() { _authorized = false; _loading = false; }); return; }
+      if (user.email?.trim().toLowerCase() != 'alhmeemzool@gmail.com') {
+        if (mounted) setState(() { _authorized = false; _loading = false; });
+        return;
+      }
       final rows = await client.from('listings').select('id, title, brand, price, city, image_urls, seller_id, status, created_at, view_count, is_featured').order('created_at', ascending: false);
       var views = 0; var featured = 0; final pending = <Map<String, dynamic>>[];
       for (final raw in (rows as List).whereType<Map<String, dynamic>>()) { views += (raw['view_count'] as num?)?.toInt() ?? 0; if (raw['is_featured'] == true) featured++; final status = raw['status'] as String?; if (status == 'pendingReview' || status == 'pending_review') pending.add(raw); }

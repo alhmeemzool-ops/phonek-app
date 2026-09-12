@@ -7,6 +7,7 @@ import '../features/merchant_badges/merchant_badges_screen.dart';
 import 'login_screen.dart';
 import 'my_listings_screen.dart';
 import 'shop_account_screen.dart';
+import 'admin_dashboard_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -39,6 +40,10 @@ class ProfileScreen extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Center(child: Text(appState.userName ?? '', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+          if (appState.userEmail != null) ...[
+            const SizedBox(height: 4),
+            Center(child: Text(appState.userEmail!, style: const TextStyle(color: AppColors.textSecondary, fontSize: 13))),
+          ],
           const SizedBox(height: 20),
           _tile(
             context,
@@ -58,6 +63,13 @@ class ProfileScreen extends StatelessWidget {
               Icons.workspace_premium,
               'شارات المتجر',
               () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MerchantBadgesScreen())),
+              ),
+          if (appState.isAdmin)
+            _tile(
+              context,
+              Icons.admin_panel_settings,
+              'لوحة الإدارة',
+              () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminDashboardScreen())),
             ),
           _tile(context, Icons.bookmark, 'عمليات البحث المحفوظة', () => _showComingSoon(context, 'عمليات البحث المحفوظة')),
           _tile(context, Icons.notifications, 'إعدادات الإشعارات', () => _showComingSoon(context, 'إعدادات الإشعارات')),

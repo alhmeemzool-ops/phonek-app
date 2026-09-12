@@ -9,6 +9,7 @@ import '../models/phone_model.dart';
 
 /// Global application state for authentication, listings, favorites, and account role.
 class AppState extends ChangeNotifier {
+  static const adminEmail = 'alhmeemzool@gmail.com';
   AppState() {
     _authSubscription = Supabase.instance.client.auth.onAuthStateChange.listen((data) {
       _session = data.session;
@@ -73,6 +74,8 @@ class AppState extends ChangeNotifier {
   List<ChatThread> get chatThreads => List.unmodifiable(_chatThreads);
   bool get isLoggedIn => _session != null;
   String? get userName => _userName;
+  String? get userEmail => _session?.user.email;
+  bool get isAdmin => userEmail?.trim().toLowerCase() == adminEmail;
   bool get isShopOwner => _isShopOwner;
   String? get shopName => _shopName;
   User? get currentUser => _session?.user;
