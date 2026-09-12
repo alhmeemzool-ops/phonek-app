@@ -43,11 +43,12 @@ class _AdminOperationsMonitorScreenState extends State<AdminOperationsMonitorScr
     }
     if (!silent && mounted) setState(() { _loading = true; _error = null; });
     try {
+      final cutoff = DateTime.now().toUtc().subtract(const Duration(hours: 24)).toIso8601String();
       final results = await Future.wait([
-        client.from('login_events').select('id,user_id,phone_e164,method,success,created_at').order('created_at', ascending: false).limit(30),
-        client.from('listings').select('id,title,brand,price,city,status,created_at,seller_id').order('created_at', ascending: false).limit(30),
-        client.from('chat_threads').select('id,listing_id,buyer_id,seller_id,created_at').order('created_at', ascending: false).limit(30),
-        client.from('chat_messages').select('id,thread_id,sender_id,text,type,status,created_at,offer_amount').order('created_at', ascending: false).limit(50),
+        client.from('login_events').select('id,user_id,phone_e164,method,success,created_at').order('created_at', ascending: false).limit(50),
+        client.from('listings').select('id,title,brand,price,city,status,created_at,seller_id').gte('created_at', cutoff).order('created_at', ascending: false).limit(50),
+        client.from('chat_threads').select('id,listing_id,buyer_id,seller_id,created_at').order('created_at', ascending: false).limit(50),
+        client.from('chat_messages').select('id,thread_id,sender_id,text,type,status,created_at,offer_amount').order('created_at', ascending: false).limit(200),
       ]);
       if (!mounted) return;
       setState(() {
@@ -81,6 +82,11 @@ class _AdminOperationsMonitorScreenState extends State<AdminOperationsMonitorScr
     return '${text.substring(0, 18)}…';
   }
 
+  bool _within24h(dynamic value) {
+    final date = DateTime.tryParse(value?.toString() ?? '');
+    return date != null && DateTime.now().toUtc().difference(date.toUtc()) <= const Duration(hours: 24);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -99,10 +105,12 @@ class _AdminOperationsMonitorScreenState extends State<AdminOperationsMonitorScr
                     padding: const EdgeInsets.all(16),
                     children: [
                       _summary(),
+                      const SizedBox(height: 8),
+                      Text('تحديث تلقائي كل 20 ثانية • الإعلانات المعروضة خلال آخر 24 ساعة', style: TextStyle(color: AppColors.textSecondary, fontSize: 11)),
                       const SizedBox(height: 20),
-                      _section('تسجيلات الدخول الأخيرة', Icons.login, _loginList()),
+                      _section('تسجيلات الدخول', Icons.login, _loginList()),
                       const SizedBox(height: 20),
-                      _section('الإعلانات الجديدة', Icons.phone_android, _listingList()),
+                      _section('الإعلانات الجديدة — آخر 24 ساعة', Icons.phone_android, _listingList()),
                       const SizedBox(height: 20),
                       _section('المراسلات الجارية', Icons.forum_outlined, _chatList()),
                     ],
@@ -111,36 +119,47 @@ class _AdminOperationsMonitorScreenState extends State<AdminOperationsMonitorScr
     );
   }
 
-  Widget _summary() => Row(children: [
-        Expanded(child: _stat('الدخول', _logins.length, Icons.login)),
-        const SizedBox(width: 8),
-        Expanded(child: _stat('إعلانات', _newListings.length, Icons.inventory_2_outlined)),
-        const SizedBox(width: 8),
-        Expanded(child: _stat('محادثات', _threads.length, Icons.forum_outlined)),
-        const SizedBox(width: 8),
-        Expanded(child: _stat('رسائل', _messages.length, Icons.chat_bubble_outline)),
-      ]);
+  Widget _summary() {
+    final failed = _logins.where((r) => r['success'] != true).length;
+    final activeThreads = _threads.where((t) {
+      final id = t['id']?.toString() ?? '';
+      return _messages.any((m) => m['thread_id']?.toString() == id && _within24h(m['created_at']));
+    }).length;
+    return Row(children: [
+      Expanded(child: _stat('الدخول', _logins.length, Icons.login)),
+      const SizedBox(width: 6),
+      Expanded(child: _stat('فشل', failed, Icons.warning_amber_outlined)),
+      const SizedBox(width: 6),
+      Expanded(child: _stat('إعلانات', _newListings.length, Icons.inventory_2_outlined)),
+      const SizedBox(width: 6),
+      Expanded(child: _stat('نشطة', activeThreads, Icons.forum_outlined)),
+    ]);
+  }
 
-  Widget _stat(String label, int value, IconData icon) => Card(child: Padding(padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4), child: Column(children: [Icon(icon, color: AppColors.gold), const SizedBox(height: 4), Text('$value', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)), Text(label, style: const TextStyle(fontSize: 10, color: AppColors.textSecondary))])));
+  Widget _stat(String label, int value, IconData icon) => Card(child: Padding(padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 2), child: Column(children: [Icon(icon, color: AppColors.gold), const SizedBox(height: 4), Text('$value', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17)), Text(label, style: const TextStyle(fontSize: 10, color: AppColors.textSecondary))])));
 
   Widget _section(String title, IconData icon, Widget child) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [Icon(icon, color: AppColors.gold), const SizedBox(width: 8), Text(title, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold))]),
-        const SizedBox(height: 8),
-        child,
-      ]);
+    Row(children: [Icon(icon, color: AppColors.gold), const SizedBox(width: 8), Text(title, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold))]),
+    const SizedBox(height: 8),
+    child,
+  ]);
 
   Widget _loginList() {
     if (_logins.isEmpty) return _empty('لا توجد تسجيلات دخول مسجلة بعد.');
-    return Column(children: _logins.map((r) => Card(child: ListTile(
-      leading: const Icon(Icons.verified_user_outlined),
-      title: Text(r['phone_e164']?.toString() ?? 'مستخدم'),
-      subtitle: Text('${r['method'] ?? 'other'} • ${r['success'] == true ? 'ناجح' : 'فشل'}\n${_time(r['created_at'])}'),
-      isThreeLine: true,
-    ))).toList());
+    return Column(children: _logins.map((r) {
+      final success = r['success'] == true;
+      return Card(child: ListTile(
+        leading: Icon(success ? Icons.verified_user_outlined : Icons.error_outline, color: success ? null : Colors.redAccent),
+        title: Text(r['phone_e164']?.toString() ?? 'مستخدم'),
+        subtitle: Text('${r['method'] ?? 'other'} • ${success ? 'ناجح' : 'فشل'}\n${_time(r['created_at'])}'),
+        isThreeLine: true,
+        trailing: success ? null : const Text('تنبيه', style: TextStyle(color: Colors.redAccent, fontSize: 11)),
+      ));
+    }).toList());
   }
 
   Widget _listingList() {
-    if (_newListings.isEmpty) return _empty('لا توجد إعلانات جديدة.');
+    if (_newListings.isEmpty) return _empty('لا توجد إعلانات خلال آخر 24 ساعة.');
     return Column(children: _newListings.map((r) {
       final status = r['status']?.toString() ?? '—';
       return Card(child: ListTile(
@@ -154,22 +173,26 @@ class _AdminOperationsMonitorScreenState extends State<AdminOperationsMonitorScr
   }
 
   Widget _chatList() {
-    if (_threads.isEmpty) return _empty('لا توجد محادثات جارية.');
+    if (_threads.isEmpty) return _empty('لا توجد محادثات.');
     final messagesByThread = <String, Map<String, dynamic>>{};
     for (final message in _messages) {
-      messagesByThread.putIfAbsent(message['thread_id']?.toString() ?? '', () => message);
+      final id = message['thread_id']?.toString() ?? '';
+      if (id.isNotEmpty) messagesByThread.putIfAbsent(id, () => message);
     }
-    return Column(children: _threads.map((thread) {
+    final active = _threads.where((thread) {
+      final last = messagesByThread[thread['id']?.toString() ?? ''];
+      return last != null && _within24h(last['created_at']);
+    }).toList();
+    if (active.isEmpty) return _empty('لا توجد محادثات نشطة خلال آخر 24 ساعة.');
+    return Column(children: active.map((thread) {
       final id = thread['id']?.toString() ?? '';
-      final last = messagesByThread[id];
+      final last = messagesByThread[id]!;
       return Card(child: ListTile(
         leading: const Icon(Icons.forum_outlined),
         title: Text('محادثة ${_short(id)}'),
-        subtitle: Text(last == null
-            ? 'لم تصل رسالة بعد • ${_time(thread['created_at'])}'
-            : '${_short(last['text'])}\n${_time(last['created_at'])}'),
+        subtitle: Text('${_short(last['text'])}\nآخر نشاط: ${_time(last['created_at'])}'),
         isThreeLine: true,
-        trailing: last == null ? null : Icon(last['type'] == 'offer' ? Icons.local_offer_outlined : Icons.chat_bubble_outline, color: AppColors.gold),
+        trailing: Icon(last['type'] == 'offer' ? Icons.local_offer_outlined : Icons.chat_bubble_outline, color: AppColors.gold),
       ));
     }).toList());
   }
