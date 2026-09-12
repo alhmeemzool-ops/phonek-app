@@ -88,8 +88,13 @@ class _AdminShopApplicationsScreenState extends State<AdminShopApplicationsScree
   }
 
   Future<String?> signed(String? path) async {
-    if (path == null || path.isEmpty) return null;
+    if (path == null || path.isEmpty || path == 'not_provided') return null;
     try {
+      final exists = await client.rpc('storage_object_exists', params: {
+        'p_bucket': 'verification-documents',
+        'p_name': path,
+      });
+      if (exists != true) return null;
       return await client.storage.from('verification-documents').createSignedUrl(path, 300);
     } catch (_) {
       return null;
