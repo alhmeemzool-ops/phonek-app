@@ -35,6 +35,16 @@ const admin = createClient(
   { auth: { autoRefreshToken: false, persistSession: false } },
 );
 
+async function logLogin(userId: string | null, phoneE164: string, success: boolean) {
+  const result = await admin.from('login_events').insert({
+    user_id: userId,
+    phone_e164: phoneE164,
+    method: 'whatsapp_otp',
+    success,
+  });
+  if (result.error) console.error('Login audit insert failed', result.error);
+}
+
 async function sendWhatsAppOtp(phone: string, code: string) {
   const token = Deno.env.get('WHATSAPP_ACCESS_TOKEN');
   const phoneNumberId = Deno.env.get('WHATSAPP_PHONE_NUMBER_ID');
@@ -132,13 +142,23 @@ Deno.serve(async (req) => {
         .maybeSingle();
       if (rowResult.error) throw rowResult.error;
       const challenge = rowResult.data;
-      if (!challenge) return json({ error: 'لا يوجد رمز فعال' }, 400);
-      if (new Date(challenge.expires_at).getTime() <= Date.now()) return json({ error: 'انتهت صلاحية الرمز' }, 400);
-      if (challenge.attempts >= challenge.max_attempts) return json({ error: 'تم تجاوز عدد المحاولات' }, 429);
+      if (!challenge) {
+        await logLogin(null, phoneE164, false);
+        return json({ error: 'لا يوجد رمز فعال' }, 400);
+      }
+      if (new Date(challenge.expires_at).getTime() <= Date.now()) {
+        await logLogin(null, phoneE164, false);
+        return json({ error: 'انتهت صلاحية الرمز' }, 400);
+      }
+      if (challenge.attempts >= challenge.max_attempts) {
+        await logLogin(null, phoneE164, false);
+        return json({ error: 'تم تجاوز عدد المحاولات' }, 429);
+      }
 
       const expected = await hashOtp(String(code ?? ''), secret);
       if (expected !== challenge.code_hash) {
         await admin.from('phone_otp_challenges').update({ attempts: challenge.attempts + 1 }).eq('id', challenge.id);
+        await logLogin(null, phoneE164, false);
         return json({ error: 'رمز التحقق غير صحيح' }, 400);
       }
 
@@ -170,8 +190,10 @@ Deno.serve(async (req) => {
       const session = await tokenResponse.json();
       if (!tokenResponse.ok || !session.access_token || !session.refresh_token) {
         console.error('Token exchange failed', session);
+        await logLogin(userId, phoneE164, false);
         return json({ error: 'تم التحقق من الهاتف لكن تعذر إنشاء جلسة الدخول' }, 500);
       }
+      await logLogin(userId, phoneE164, true);
       return json({ ok: true, accessToken: session.access_token, refreshToken: session.refresh_token });
     }
 
