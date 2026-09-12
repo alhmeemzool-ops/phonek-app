@@ -58,12 +58,20 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       if (!mounted || reason == null) return;
     }
     try {
-      await client.from('listings').update({
+      final updateData = <String, dynamic>{
         'status': approve ? 'active' : 'frozen',
         'reviewed_at': DateTime.now().toUtc().toIso8601String(),
         'reviewed_by': user.id,
-        'rejection_reason': approve ? null : (reason?.isEmpty == true ? null : reason),
-      }).eq('id', id);
+      };
+
+      // rejection_reason is intentionally sent only for rejected listings.
+      // This prevents approval from failing when the optional column is not
+      // present in the current Supabase schema.
+      if (!approve) {
+        updateData['rejection_reason'] = reason?.isEmpty == true ? null : reason;
+      }
+
+      await client.from('listings').update(updateData).eq('id', id);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(approve ? 'تم اعتماد الإعلان.' : 'تم رفض الإعلان.')));
       await _load();
