@@ -15,6 +15,7 @@ class AdminOperationsMonitorScreen extends StatefulWidget {
 class _AdminOperationsMonitorScreenState extends State<AdminOperationsMonitorScreen> {
   bool _loading = true;
   String? _error;
+  final List<String> _warnings = [];
   List<Map<String, dynamic>> _logins = const [];
   List<Map<String, dynamic>> _newListings = const [];
   List<Map<String, dynamic>> _threads = const [];
@@ -34,6 +35,15 @@ class _AdminOperationsMonitorScreenState extends State<AdminOperationsMonitorScr
     super.dispose();
   }
 
+  Future<List<Map<String, dynamic>>> _queryRows(Future<dynamic> query, String label) async {
+    try {
+      return _rows(await query);
+    } catch (e) {
+      _warnings.add('$label: $e');
+      return const [];
+    }
+  }
+
   Future<void> _load({bool silent = false}) async {
     final client = Supabase.instance.client;
     final user = client.auth.currentUser;
@@ -42,26 +52,34 @@ class _AdminOperationsMonitorScreenState extends State<AdminOperationsMonitorScr
       return;
     }
     if (!silent && mounted) setState(() { _loading = true; _error = null; });
+    _warnings.clear();
     try {
       final cutoff = DateTime.now().toUtc().subtract(const Duration(hours: 24)).toIso8601String();
-      final results = await Future.wait([
+      final logins = await _queryRows(
         client.from('login_events').select('id,user_id,phone_e164,method,success,created_at').order('created_at', ascending: false).limit(50),
+        'تسجيلات الدخول',
+      );
+      final listings = await _queryRows(
         client.from('listings').select('id,title,brand,price,city,status,created_at,seller_id').gte('created_at', cutoff).order('created_at', ascending: false).limit(50),
+        'الإعلانات',
+      );
+      final threads = await _queryRows(
         client.from('chat_threads').select('id,listing_id,buyer_id,seller_id,created_at').order('created_at', ascending: false).limit(50),
+        'المحادثات',
+      );
+      final messages = await _queryRows(
         client.from('chat_messages').select('id,thread_id,sender_id,text,type,status,created_at,offer_amount').order('created_at', ascending: false).limit(200),
-      ]);
+        'الرسائل',
+      );
       if (!mounted) return;
       setState(() {
-        _logins = _rows(results[0]);
-        _newListings = _rows(results[1]);
-        _threads = _rows(results[2]);
-        _messages = _rows(results[3]);
+        _logins = logins;
+        _newListings = listings;
+        _threads = threads;
+        _messages = messages;
         _loading = false;
         _error = null;
       });
-    } on PostgrestException catch (e) {
-      if (!mounted) return;
-      setState(() { _loading = false; _error = 'تعذر تحميل المراقبة: ${e.message}'; });
     } catch (e) {
       if (!mounted) return;
       setState(() { _loading = false; _error = 'تعذر تحميل المراقبة: $e'; });
@@ -84,7 +102,9 @@ class _AdminOperationsMonitorScreenState extends State<AdminOperationsMonitorScr
 
   bool _within24h(dynamic value) {
     final date = DateTime.tryParse(value?.toString() ?? '');
-    return date != null && DateTime.now().toUtc().difference(date.toUtc()) <= const Duration(hours: 24);
+    if (date == null) return false;
+    final age = DateTime.now().toUtc().difference(date.toUtc());
+    return age >= Duration.zero && age <= const Duration(hours: 24);
   }
 
   @override
@@ -107,6 +127,10 @@ class _AdminOperationsMonitorScreenState extends State<AdminOperationsMonitorScr
                       _summary(),
                       const SizedBox(height: 8),
                       Text('تحديث تلقائي كل 20 ثانية • الإعلانات المعروضة خلال آخر 24 ساعة', style: TextStyle(color: AppColors.textSecondary, fontSize: 11)),
+                      if (_warnings.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Card(child: Padding(padding: const EdgeInsets.all(12), child: Text('بعض مصادر المراقبة غير متاحة حالياً؛ تم عرض المصادر التي تعمل بدلاً من جعل اللوحة فارغة.\n${_warnings.join('\n')}', style: const TextStyle(color: Colors.orangeAccent, fontSize: 11)))),
+                      ],
                       const SizedBox(height: 20),
                       _section('تسجيلات الدخول', Icons.login, _loginList()),
                       const SizedBox(height: 20),
