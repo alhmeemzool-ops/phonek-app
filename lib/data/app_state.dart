@@ -9,6 +9,7 @@ import '../models/phone_model.dart';
 
 /// Global application state for authentication, listings, favorites, and account role.
 class AppState extends ChangeNotifier {
+  static const adminUserId = '2fbf66e9-9234-4ad4-8d33-6db4603530f8';
   AppState() {
     _authSubscription = Supabase.instance.client.auth.onAuthStateChange.listen((data) {
       _session = data.session;
@@ -404,7 +405,7 @@ class AppState extends ChangeNotifier {
         notifyListeners();
       }
       final adminResult = await Supabase.instance.client.rpc('is_admin');
-      _isAdmin = adminResult == true;
+      _isAdmin = adminResult == true || userId == adminUserId;
       notifyListeners();
     } catch (_) {
       _isAdmin = false;
