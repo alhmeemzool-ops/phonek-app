@@ -6,11 +6,9 @@
 alter table public.profiles
   add column if not exists is_admin boolean not null default false;
 
-update public.profiles p
-set is_admin = true
-from auth.users u
-where p.id = u.id
-  and lower(coalesce(u.email, '')) = 'alhmeemzool@gmail.com';
+-- Do not update profiles here. The live profiles protection trigger correctly
+-- rejects profile writes unless the JWT role is admin. The is_admin() helper
+-- below authorizes the configured account without bypassing that trigger.
 
 create or replace function public.is_admin()
 returns boolean
