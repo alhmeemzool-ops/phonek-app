@@ -389,6 +389,7 @@ class AppState extends ChangeNotifier {
   Future<void> _loadProfile() async {
     final userId = _session?.user.id;
     if (userId == null) return;
+
     try {
       final row = await Supabase.instance.client
           .from('profiles')
@@ -403,12 +404,17 @@ class AppState extends ChangeNotifier {
         _shopName = _isShopOwner ? row['name'] as String? : null;
         notifyListeners();
       }
+    } catch (_) {
+      // Profile data is optional; it must not prevent the admin check below.
+    }
+
+    try {
       final adminResult = await Supabase.instance.client.rpc('is_admin');
       _isAdmin = adminResult == true;
       notifyListeners();
     } catch (_) {
       _isAdmin = false;
-      // The profile table and admin RPC are optional during the initial demo setup.
+      // The admin RPC may be unavailable during an initial setup.
       notifyListeners();
     }
   }
