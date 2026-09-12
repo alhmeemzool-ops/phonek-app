@@ -75,16 +75,18 @@ class _LoginScreenState extends State<LoginScreen> {
         throw const AuthException('تعذر إنشاء جلسة الدخول');
       }
       await Supabase.instance.client.auth.setSession(refreshToken);
-      // The audit row contains only login metadata; it never stores OTP codes.
-      final userId = Supabase.instance.client.auth.currentUser?.id;
-      if (userId != null) {
-        await Supabase.instance.client.from('login_events').insert({
-          'user_id': userId,
-          'phone_e164': phone,
-          'method': 'whatsapp_otp',
-          'success': true,
-        });
-      }
+      // Audit is best-effort so monitoring can never break a successful login.
+      try {
+        final userId = Supabase.instance.client.auth.currentUser?.id;
+        if (userId != null) {
+          await Supabase.instance.client.from('login_events').insert({
+            'user_id': userId,
+            'phone_e164': phone,
+            'method': 'whatsapp_otp',
+            'success': true,
+          });
+        }
+      } catch (_) {}
       if (mounted) Navigator.pop(context);
     } catch (error) {
       _showMessage(error is AuthException ? error.message : 'رمز التحقق غير صحيح أو انتهت صلاحيته');
@@ -149,67 +151,21 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 6),
               const Text('سجّل دخولك برقم هاتفك عبر WhatsApp', textAlign: TextAlign.center, style: TextStyle(color: AppColors.textSecondary)),
               const SizedBox(height: 28),
-              TextField(
-                controller: _phoneController,
-                keyboardType: TextInputType.phone,
-                enabled: !_isLoading,
-                decoration: const InputDecoration(
-                  labelText: 'رقم الهاتف',
-                  hintText: '2499XXXXXXXX',
-                  prefixIcon: Icon(Icons.phone_outlined),
-                ),
-              ),
+              TextField(controller: _phoneController, keyboardType: TextInputType.phone, enabled: !_isLoading, decoration: const InputDecoration(labelText: 'رقم الهاتف', hintText: '2499XXXXXXXX', prefixIcon: Icon(Icons.phone_outlined))),
               const SizedBox(height: 12),
               if (_codeSent) ...[
-                TextField(
-                  controller: _codeController,
-                  keyboardType: TextInputType.number,
-                  maxLength: 6,
-                  enabled: !_isLoading,
-                  decoration: const InputDecoration(
-                    labelText: 'رمز التحقق',
-                    hintText: '000000',
-                    prefixIcon: Icon(Icons.lock_outline),
-                    counterText: '',
-                  ),
-                ),
+                TextField(controller: _codeController, keyboardType: TextInputType.number, maxLength: 6, enabled: !_isLoading, decoration: const InputDecoration(labelText: 'رمز التحقق', hintText: '000000', prefixIcon: Icon(Icons.lock_outline), counterText: '')),
                 const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: _isLoading ? null : _verifyCode,
-                    child: Text(_isLoading ? 'جارٍ التحقق...' : 'تحقق ودخول'),
-                  ),
-                ),
-                TextButton(
-                  onPressed: (_isLoading || _resendSeconds > 0) ? null : _sendCode,
-                  child: Text(_resendSeconds > 0 ? 'إعادة الإرسال بعد $_resendSeconds ثانية' : 'إعادة إرسال الرمز'),
-                ),
+                SizedBox(width: double.infinity, child: ElevatedButton(onPressed: _isLoading ? null : _verifyCode, child: Text(_isLoading ? 'جارٍ التحقق...' : 'تحقق ودخول'))),
+                TextButton(onPressed: (_isLoading || _resendSeconds > 0) ? null : _sendCode, child: Text(_resendSeconds > 0 ? 'إعادة الإرسال بعد $_resendSeconds ثانية' : 'إعادة إرسال الرمز')),
               ] else ...[
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    icon: const Icon(Icons.mark_chat_unread_outlined),
-                    label: Text(_isLoading ? 'جارٍ الإرسال...' : 'إرسال رمز عبر WhatsApp'),
-                    onPressed: _isLoading ? null : _sendCode,
-                  ),
-                ),
+                SizedBox(width: double.infinity, child: ElevatedButton.icon(icon: const Icon(Icons.mark_chat_unread_outlined), label: Text(_isLoading ? 'جارٍ الإرسال...' : 'إرسال رمز عبر WhatsApp'), onPressed: _isLoading ? null : _sendCode)),
               ],
               const SizedBox(height: 8),
               const Divider(height: 32),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  icon: const Icon(Icons.g_mobiledata, size: 26),
-                  label: const Text('الدخول عبر Google'),
-                  onPressed: _isLoading ? null : _handleGoogleSignIn,
-                ),
-              ),
+              SizedBox(width: double.infinity, child: OutlinedButton.icon(icon: const Icon(Icons.g_mobiledata, size: 26), label: const Text('الدخول عبر Google'), onPressed: _isLoading ? null : _handleGoogleSignIn)),
               const SizedBox(height: 8),
-              OutlinedButton(
-                onPressed: _isLoading ? null : () => Navigator.pop(context),
-                child: const Text('تصفح بدون تسجيل دخول'),
-              ),
+              OutlinedButton(onPressed: _isLoading ? null : () => Navigator.pop(context), child: const Text('تصفح بدون تسجيل دخول')),
             ],
           ),
         ),
