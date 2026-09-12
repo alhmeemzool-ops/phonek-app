@@ -149,7 +149,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             ],
             Text(title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
             if (brand.isNotEmpty) _detailRow('العلامة', brand),
-            if (model.isNotEmpty) _detailRow('الموديل', model),
             _detailRow('السعر', '$price ج.س'),
             if (city.isNotEmpty) _detailRow('المدينة', city),
             if (condition.isNotEmpty) _detailRow('الحالة', condition),
