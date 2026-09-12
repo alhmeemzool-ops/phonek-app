@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../data/app_state.dart';
 import '../theme/app_theme.dart';
 import 'admin_operations_monitor_screen.dart';
 import 'admin_shop_applications_screen.dart';
@@ -32,7 +34,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       if (user == null) throw const AuthException('يجب تسجيل الدخول أولاً');
       final adminResult = await client.rpc('is_admin');
       final knownAdmin = user.id == '2fbf66e9-9234-4ad4-8d33-6db4603530f8';
-      if (adminResult != true && !knownAdmin) {
+      final appStateAdmin = context.read<AppState>().isAdmin;
+      if (adminResult != true && !knownAdmin && !appStateAdmin) {
         if (mounted) setState(() { _authorized = false; _loading = false; });
         return;
       }
