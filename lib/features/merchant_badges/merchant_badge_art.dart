@@ -38,7 +38,8 @@ class _MerchantBadgePainter extends CustomPainter {
       Color(0xFF4EA6E8),
       Color(0xFF9A65E8),
       Color(0xFFE24E5B),
-      Color(0xFF26B5A3),
+      // Level 7: upgraded to a more luxurious obsidian/plum + champagne-gold material.
+      Color(0xFF4A235A),
       Color(0xFF4B86F0),
       Color(0xFF2E3440),
       Color(0xFFE8F1FF),
@@ -54,7 +55,8 @@ class _MerchantBadgePainter extends CustomPainter {
       Color(0xFFBDE5FF),
       Color(0xFFE0C7FF),
       Color(0xFFFFB0B7),
-      Color(0xFF9EF4E8),
+      // Level 7: champagne-gold highlight for a premium collector-tier look.
+      Color(0xFFFFD98A),
       Color(0xFFD8E5FF),
       Color(0xFFFFD76A),
       Color(0xFFFFFFFF),
