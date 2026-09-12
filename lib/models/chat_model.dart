@@ -1,6 +1,6 @@
 enum MessageStatus { sent, delivered, read }
 
-enum MessageType { text, image, location, priceOffer }
+enum MessageType { text, image, location, priceOffer, offer }
 
 class ChatMessage {
   final String id;
@@ -9,7 +9,7 @@ class ChatMessage {
   final MessageType type;
   final DateTime timestamp;
   final MessageStatus status;
-  final int? offerAmount; // لرسائل تقديم عرض السعر
+  final int? offerAmount;
 
   const ChatMessage({
     required this.id,
