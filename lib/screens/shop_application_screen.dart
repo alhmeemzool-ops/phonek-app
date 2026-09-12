@@ -131,18 +131,17 @@ class _ShopApplicationScreenState extends State<ShopApplicationScreen> {
         'consented_at': DateTime.now().toUtc().toIso8601String(),
       });
 
-      // Do not grant shop privileges before trusted eKYC + admin approval.
-      await Supabase.instance.client.from('profiles').upsert({
-        'id': user.id,
-        'name': _shopName.text.trim(),
-        'phone': _phone.text.trim(),
-        'city': _city.text.trim(),
-      });
+      // The login Edge Function already creates/updates the user's profile.
+      // Do not upsert profiles here: it is unrelated to submitting an application
+      // and can cause an otherwise successful application to be reported as failed
+      // when profile RLS/schema rules differ between deployments.
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم إرسال طلب المحل. سيتم تفعيل الحساب بعد التحقق من الهوية والمراجعة.')));
       Navigator.pop(context);
     } on PostgrestException catch (error) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذر إرسال الطلب: ${error.message}')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذر إرسال الطلب إلى قاعدة البيانات: ${error.message}')));
+    } catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذر إرسال الطلب: $error')));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
