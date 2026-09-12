@@ -28,6 +28,35 @@ $$;
 revoke all on function public.is_admin() from public;
 grant execute on function public.is_admin() to authenticated;
 
+-- Keep the existing trigger and its business rules, but make its admin check
+-- use the reconciled server-side authorization instead of only app_metadata.
+create or replace function public.protect_shop_verification_fields()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, auth
+as $$
+begin
+  if not public.is_admin() then
+    if new.is_shop = true
+       or new.shop_verification_status not in ('none', 'pending')
+       or (tg_op = 'UPDATE' and new.is_shop is distinct from old.is_shop) then
+      raise exception 'Only an approved admin can change shop verification status'
+        using errcode = 'P0001';
+    end if;
+  end if;
+  return new;
+end;
+$$;
+revoke all on function public.protect_shop_verification_fields() from public, anon, authenticated;
+grant execute on function public.protect_shop_verification_fields() to postgres, service_role;
+
+drop policy if exists "profiles_update_admin_verification" on public.profiles;
+create policy "profiles_update_admin_verification"
+on public.profiles for update to authenticated
+using (public.is_admin())
+with check (public.is_admin());
+
 -- Existing shop_verification_requests is the authoritative shop workflow.
 alter table public.shop_verification_requests enable row level security;
 drop policy if exists "shop_verification_insert_own" on public.shop_verification_requests;
