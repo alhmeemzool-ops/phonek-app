@@ -9,13 +9,13 @@ import '../models/phone_model.dart';
 
 /// Global application state for authentication, listings, favorites, and account role.
 class AppState extends ChangeNotifier {
-  static const adminEmail = 'alhmeemzool@gmail.com';
   AppState() {
     _authSubscription = Supabase.instance.client.auth.onAuthStateChange.listen((data) {
       _session = data.session;
       if (_session == null) {
         _userName = null;
         _isShopOwner = false;
+        _isAdmin = false;
         _shopName = null;
         _favoriteIds.clear();
         _chatThreads.clear();
@@ -50,6 +50,7 @@ class AppState extends ChangeNotifier {
   StreamSubscription<AuthState>? _authSubscription;
   Session? _session;
   bool _isShopOwner = false;
+  bool _isAdmin = false;
   String? _shopName;
   String? _userName;
   bool _isLoadingListings = false;
@@ -75,7 +76,7 @@ class AppState extends ChangeNotifier {
   bool get isLoggedIn => _session != null;
   String? get userName => _userName;
   String? get userEmail => _session?.user.email;
-  bool get isAdmin => userEmail?.trim().toLowerCase() == adminEmail;
+  bool get isAdmin => _isAdmin;
   bool get isShopOwner => _isShopOwner;
   String? get shopName => _shopName;
   User? get currentUser => _session?.user;
@@ -402,8 +403,13 @@ class AppState extends ChangeNotifier {
         _shopName = _isShopOwner ? row['name'] as String? : null;
         notifyListeners();
       }
+      final adminResult = await Supabase.instance.client.rpc('is_admin');
+      _isAdmin = adminResult == true;
+      notifyListeners();
     } catch (_) {
-      // The profile table is optional during the initial demo setup.
+      _isAdmin = false;
+      // The profile table and admin RPC are optional during the initial demo setup.
+      notifyListeners();
     }
   }
 

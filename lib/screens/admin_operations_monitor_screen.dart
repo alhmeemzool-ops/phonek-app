@@ -47,7 +47,8 @@ class _AdminOperationsMonitorScreenState extends State<AdminOperationsMonitorScr
   Future<void> _load({bool silent = false}) async {
     final client = Supabase.instance.client;
     final user = client.auth.currentUser;
-    if (user == null || user.email?.trim().toLowerCase() != 'alhmeemzool@gmail.com') {
+    final adminResult = user == null ? false : await client.rpc('is_admin');
+    if (adminResult != true) {
       if (mounted) setState(() { _loading = false; _error = 'ليس لديك صلاحية للوصول إلى المراقبة التشغيلية.'; });
       return;
     }

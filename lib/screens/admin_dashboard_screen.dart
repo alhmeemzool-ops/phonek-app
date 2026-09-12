@@ -30,7 +30,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       final client = Supabase.instance.client;
       final user = client.auth.currentUser;
       if (user == null) throw const AuthException('يجب تسجيل الدخول أولاً');
-      if (user.email?.trim().toLowerCase() != 'alhmeemzool@gmail.com') {
+      final adminResult = await client.rpc('is_admin');
+      if (adminResult != true) {
         if (mounted) setState(() { _authorized = false; _loading = false; });
         return;
       }
