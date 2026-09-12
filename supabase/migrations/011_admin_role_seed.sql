@@ -1,13 +1,6 @@
 -- Ensure the configured PhoneK administrator is represented in the profile role.
 -- This is intentionally idempotent and keeps authorization server-side.
-update public.profiles p
-set is_admin = true
-from auth.users u
-where p.id = u.id
-  and lower(coalesce(u.email, '')) = 'alhmeemzool@gmail.com'
-  and p.is_admin is distinct from true;
-
--- Keep the helper aligned with the role sources used by RLS policies.
+-- Define the helper first because the profiles protection trigger calls it.
 create or replace function public.is_admin()
 returns boolean
 language sql
@@ -26,5 +19,18 @@ $$;
 
 revoke all on function public.is_admin() from public;
 grant execute on function public.is_admin() to authenticated;
+
+-- The existing protection trigger intentionally rejects role changes made by
+-- an end-user session. This migration runs as the database owner, so suspend
+-- user triggers only for this idempotent bootstrap update and restore them
+-- before completing the migration.
+alter table public.profiles disable trigger user;
+update public.profiles p
+set is_admin = true
+from auth.users u
+where p.id = u.id
+  and lower(coalesce(u.email, '')) = 'alhmeemzool@gmail.com'
+  and p.is_admin is distinct from true;
+alter table public.profiles enable trigger user;
 
 notify pgrst, 'reload schema';
