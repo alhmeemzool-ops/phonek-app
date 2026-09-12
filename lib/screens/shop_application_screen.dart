@@ -37,7 +37,9 @@ class _ShopApplicationScreenState extends State<ShopApplicationScreen> {
   @override
   void initState() {
     super.initState();
-    _shopName.text = context.read<AppState>().shopName ?? '';
+    final state = context.read<AppState>();
+    _shopName.text = state.shopName ?? '';
+    _phone.text = Supabase.instance.client.auth.currentUser?.phone ?? '';
   }
 
   Future<void> _pickLocation() async {
@@ -105,17 +107,18 @@ class _ShopApplicationScreenState extends State<ShopApplicationScreen> {
   }
 
   Future<void> _submit() async {
-    final user = context.read<AppState>().currentUser;
+    final client = Supabase.instance.client;
+    final user = client.auth.currentUser;
     if (user == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('يجب تسجيل الدخول أولاً')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('انتهت جلسة الدخول. سجل الدخول مرة أخرى ثم أرسل الطلب.')));
       return;
     }
+    if (_saving) return;
     setState(() => _saving = true);
     try {
-      // Never persist raw Faceprints or biometric templates in PhoneK.
-      // The captured media is intentionally not persisted by this client.
-      // A production eKYC SDK/provider must return the trusted result server-side.
-      await Supabase.instance.client.from('shop_applications').insert({
+      // Captured media remains local until a trusted eKYC provider is integrated.
+      // Never store raw faceprints or biometric templates in PhoneK.
+      await client.from('shop_applications').insert({
         'user_id': user.id,
         'shop_name': _shopName.text.trim(),
         'phone': _phone.text.trim(),
@@ -131,17 +134,17 @@ class _ShopApplicationScreenState extends State<ShopApplicationScreen> {
         'consented_at': DateTime.now().toUtc().toIso8601String(),
       });
 
-      // The login Edge Function already creates/updates the user's profile.
-      // Do not upsert profiles here: it is unrelated to submitting an application
-      // and can cause an otherwise successful application to be reported as failed
-      // when profile RLS/schema rules differ between deployments.
+      // Do not upsert profiles here. Profile RLS/schema rules must not turn a
+      // successfully inserted shop application into a false submission error.
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم إرسال طلب المحل. سيتم تفعيل الحساب بعد التحقق من الهوية والمراجعة.')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم إرسال طلب المحل بنجاح. سيظهر للإدارة للمراجعة.')));
       Navigator.pop(context);
     } on PostgrestException catch (error) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذر إرسال الطلب إلى قاعدة البيانات: ${error.message}')));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذر إرسال الطلب إلى قاعدة البيانات: ${error.message}')));
     } catch (error) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذر إرسال الطلب: $error')));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذر إرسال الطلب: $error')));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
