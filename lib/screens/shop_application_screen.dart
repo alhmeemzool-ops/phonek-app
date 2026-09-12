@@ -26,8 +26,7 @@ class _ShopApplicationScreenState extends State<ShopApplicationScreen> {
   int _step = 0;
   bool _saving = false;
   bool _locationBusy = false;
-  XFile? _facePhoto;
-  XFile? _faceVideo;
+  XFile? _livenessVideo;
   XFile? _identityPhoto;
   double? _latitude;
   double? _longitude;
@@ -73,14 +72,9 @@ class _ShopApplicationScreenState extends State<ShopApplicationScreen> {
     }
   }
 
-  Future<void> _captureFace() async {
-    final photo = await _picker.pickImage(source: ImageSource.camera, imageQuality: 85);
-    if (photo != null && mounted) setState(() => _facePhoto = photo);
-  }
-
   Future<void> _captureLivenessVideo() async {
     final video = await _picker.pickVideo(source: ImageSource.camera, maxDuration: const Duration(seconds: 8));
-    if (video != null && mounted) setState(() => _faceVideo = video);
+    if (video != null && mounted) setState(() => _livenessVideo = video);
   }
 
   Future<void> _captureIdentity() async {
@@ -94,8 +88,8 @@ class _ShopApplicationScreenState extends State<ShopApplicationScreen> {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('حدد موقع المحل على الخريطة أولاً')));
       return false;
     }
-    if (_step == 2 && (_facePhoto == null || _faceVideo == null)) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('أكمل التقاط الوجه وفيديو الحيوية أولاً')));
+    if (_step == 2 && _livenessVideo == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('أكمل فيديو التحقق الحيوي أولاً')));
       return false;
     }
     if (_step == 3 && _identityPhoto == null) {
@@ -121,7 +115,7 @@ class _ShopApplicationScreenState extends State<ShopApplicationScreen> {
       final identityPath = '$prefix/identity.jpg';
       final videoPath = '$prefix/liveness.mp4';
       await bucket.uploadBinary(identityPath, await _identityPhoto!.readAsBytes(), fileOptions: const FileOptions(contentType: 'image/jpeg'));
-      await bucket.uploadBinary(videoPath, await _faceVideo!.readAsBytes(), fileOptions: const FileOptions(contentType: 'video/mp4'));
+      await bucket.uploadBinary(videoPath, await _livenessVideo!.readAsBytes(), fileOptions: const FileOptions(contentType: 'video/mp4'));
       await client.from('shop_verification_requests').insert({
         'user_id': user.id,
         'shop_name': _shopName.text.trim(),
@@ -169,7 +163,7 @@ class _ShopApplicationScreenState extends State<ShopApplicationScreen> {
         steps: [
           Step(isActive: _step >= 0, title: const Text('بيانات المحل'), content: _details()),
           Step(isActive: _step >= 1, title: const Text('موقع المحل'), content: _location()),
-          Step(isActive: _step >= 2, title: const Text('التقاط الوجه والحيوية'), content: _faceVerification()),
+          Step(isActive: _step >= 2, title: const Text('فيديو التحقق الحيوي'), content: _livenessVerification()),
           Step(isActive: _step >= 3, title: const Text('وثيقة الهوية'), content: _identity()),
           Step(isActive: _step >= 4, title: const Text('المراجعة والإرسال'), content: _review()),
         ],
@@ -195,11 +189,10 @@ class _ShopApplicationScreenState extends State<ShopApplicationScreen> {
         if (_latitude != null) Padding(padding: const EdgeInsets.only(top: 12), child: Text('تم تحديد الموقع: ${_latitude!.toStringAsFixed(6)}, ${_longitude!.toStringAsFixed(6)}\n${_address ?? ''}')),
       ]);
 
-  Widget _faceVerification() => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Text('التقط صورة للوجه داخل الإطار، ثم فيديو قصير لتنفيذ حركة حيوية. هذه الخطوة لا تعني نجاح التحقق؛ النجاح يصدر فقط من مزود eKYC الموثوق.'),
+  Widget _livenessVerification() => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Text('التقط فيديو قصير لتنفيذ حركة حيوية. هذه الخطوة لا تعني نجاح التحقق؛ النجاح يصدر فقط من مزود eKYC الموثوق.'),
         const SizedBox(height: 12),
-        _captureTile(Icons.face, 'التقاط الوجه', _facePhoto != null, _captureFace),
-        _captureTile(Icons.videocam, 'اختبار الحيوية — ابتسم أو أدر رأسك ببطء', _faceVideo != null, _captureLivenessVideo),
+        _captureTile(Icons.videocam, 'اختبار الحيوية — ابتسم أو أدر رأسك ببطء', _livenessVideo != null, _captureLivenessVideo),
         const SizedBox(height: 8),
         const Text('المطابقة، كشف الصورة/الفيديو/القناع والتزييف العميق وإنشاء Faceprint لا تتم داخل Flutter ولا تُحفظ كبيانات خام في PhoneK.', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
       ]);
