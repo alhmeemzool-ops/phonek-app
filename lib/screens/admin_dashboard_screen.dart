@@ -45,7 +45,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       }
       var shopPending = 0;
       try {
-        final shopRows = await client.from('shop_applications').select('id').eq('verification_status', 'pending');
+        final shopRows = await client.from('shop_verification_requests').select('id').eq('status', 'pending');
         shopPending = (shopRows as List).length;
       } catch (_) {}
       if (!mounted) return;

@@ -31,7 +31,7 @@ class _AdminShopApplicationsScreenState extends State<AdminShopApplicationsScree
         if (mounted) setState(() { authorized = false; loading = false; });
         return;
       }
-      final data = await client.from('shop_applications').select('*').order('created_at', ascending: false);
+      final data = await client.from('shop_verification_requests').select('*').order('created_at', ascending: false);
       if (mounted) {
         setState(() {
           authorized = true;
@@ -67,13 +67,12 @@ class _AdminShopApplicationsScreenState extends State<AdminShopApplicationsScree
     if (admin == null) return;
     try {
       final update = <String, dynamic>{
-        'verification_status': approve ? 'approved' : 'rejected',
-        'reviewer_id': admin.id,
+        'status': approve ? 'approved' : 'rejected',
         'reviewed_by': admin.id,
         'reviewed_at': DateTime.now().toUtc().toIso8601String(),
       };
       if (!approve && reason!.isNotEmpty) update['rejection_reason'] = reason;
-      await client.from('shop_applications').update(update).eq('id', row['id']);
+      await client.from('shop_verification_requests').update(update).eq('id', row['id']);
       if (mounted) {
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(approve ? 'تم اعتماد الطلب.' : 'تم رفض الطلب.')));
@@ -87,7 +86,7 @@ class _AdminShopApplicationsScreenState extends State<AdminShopApplicationsScree
   Future<String?> signed(String? path) async {
     if (path == null || path.isEmpty) return null;
     try {
-      return await client.storage.from('shop-application-media').createSignedUrl(path, 300);
+      return await client.storage.from('verification-documents').createSignedUrl(path, 300);
     } catch (_) {
       return null;
     }
@@ -120,7 +119,7 @@ class _AdminShopApplicationsScreenState extends State<AdminShopApplicationsScree
                               itemCount: rows.length,
                               itemBuilder: (_, i) {
                                 final row = rows[i];
-                                final status = row['verification_status']?.toString() ?? 'pending';
+                                final status = row['status']?.toString() ?? 'pending';
                                 return Card(
                                   child: ListTile(
                                     onTap: () => openDetails(row),
@@ -146,7 +145,7 @@ class _Details extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final pending = row['verification_status']?.toString() == 'pending';
+    final pending = row['status']?.toString() == 'pending';
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -157,14 +156,13 @@ class _Details extends StatelessWidget {
               IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close)),
             ]),
             ...[
-              'user_id', 'phone', 'city', 'address', 'latitude', 'longitude', 'location_accuracy_m',
-              'verification_status', 'liveness_status', 'identity_match_status', 'kyc_result', 'rejection_reason',
+              'user_id', 'phone', 'city', 'address', 'latitude', 'longitude',
+              'status', 'rejection_reason',
             ].map((key) => _field(key, row[key])),
             const Divider(height: 28),
             const Text('مواد التوثيق', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            _Media(title: 'صورة الوجه', path: row['face_photo_path']?.toString(), signed: signed, image: true),
-            _Media(title: 'فيديو الحيوية', path: row['liveness_video_path']?.toString(), signed: signed),
-            _Media(title: 'صورة الهوية', path: row['identity_photo_path']?.toString(), signed: signed, image: true),
+            _Media(title: 'صورة الهوية', path: row['identity_image_path']?.toString(), signed: signed, image: true),
+            _Media(title: 'فيديو التحقق', path: row['identity_video_path']?.toString(), signed: signed),
             if (pending) ...[
               const SizedBox(height: 18),
               Row(children: [

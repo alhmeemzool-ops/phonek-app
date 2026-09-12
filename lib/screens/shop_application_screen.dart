@@ -116,22 +116,23 @@ class _ShopApplicationScreenState extends State<ShopApplicationScreen> {
     if (_saving) return;
     setState(() => _saving = true);
     try {
-      // Captured media remains local until a trusted eKYC provider is integrated.
-      // Never store raw faceprints or biometric templates in PhoneK.
-      await client.from('shop_applications').insert({
+      final bucket = client.storage.from('verification-documents');
+      final prefix = '${user.id}/${DateTime.now().microsecondsSinceEpoch}';
+      final identityPath = '$prefix/identity.jpg';
+      final videoPath = '$prefix/liveness.mp4';
+      await bucket.uploadBinary(identityPath, await _identityPhoto!.readAsBytes(), fileOptions: const FileOptions(contentType: 'image/jpeg'));
+      await bucket.uploadBinary(videoPath, await _faceVideo!.readAsBytes(), fileOptions: const FileOptions(contentType: 'video/mp4'));
+      await client.from('shop_verification_requests').insert({
         'user_id': user.id,
         'shop_name': _shopName.text.trim(),
         'phone': _phone.text.trim(),
         'city': _city.text.trim(),
         'latitude': _latitude,
         'longitude': _longitude,
-        'address': _address,
-        'location_accuracy_m': _locationAccuracy,
-        'verification_status': 'pending',
-        'liveness_status': 'pending_provider',
-        'identity_match_status': 'pending_provider',
-        'kyc_result': 'pending',
-        'consented_at': DateTime.now().toUtc().toIso8601String(),
+        'address': _address ?? '',
+        'identity_image_path': identityPath,
+        'identity_video_path': videoPath,
+        'status': 'pending',
       });
 
       // Do not upsert profiles here. Profile RLS/schema rules must not turn a

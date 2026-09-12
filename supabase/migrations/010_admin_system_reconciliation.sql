@@ -1,14 +1,11 @@
--- PhoneK: reconcile admin authorization, moderation protections, and private review media.
--- This migration is additive/idempotent and preserves all existing data.
+-- PhoneK: reconcile admin authorization with the live schema.
+-- The live project uses shop_verification_requests (not shop_applications).
+-- This migration is additive and preserves existing data and the existing
+-- profiles protect_shop_verification_fields() trigger.
 
--- Keep the schema dependency explicit for installations that skipped an earlier
--- compatibility migration.
 alter table public.profiles
   add column if not exists is_admin boolean not null default false;
 
--- The configured account is seeded when its profile already exists. The JWT
--- email fallback below also permits recovery when the profile row is absent;
--- it does not grant ordinary users an admin flag or client-side privilege.
 update public.profiles p
 set is_admin = true
 from auth.users u
@@ -23,21 +20,35 @@ security definer
 set search_path = public, auth
 as $$
   select coalesce(
-    (select p.is_admin = true
-       from public.profiles p
-      where p.id = auth.uid()),
+    (select p.is_admin = true from public.profiles p where p.id = auth.uid()),
     false
   )
+  or coalesce((auth.jwt() -> 'app_metadata' ->> 'role'), '') = 'admin'
   or lower(coalesce((select u.email from auth.users u where u.id = auth.uid()), ''))
        = 'alhmeemzool@gmail.com';
 $$;
-
 revoke all on function public.is_admin() from public;
 grant execute on function public.is_admin() to authenticated;
 
--- Do not rely on a client update policy alone: this trigger prevents a normal
--- user from changing moderation/verification fields through any other policy.
-create or replace function public.protect_shop_verification_fields()
+-- Existing shop_verification_requests is the authoritative shop workflow.
+alter table public.shop_verification_requests enable row level security;
+drop policy if exists "shop_verification_insert_own" on public.shop_verification_requests;
+drop policy if exists "shop_verification_select_own" on public.shop_verification_requests;
+drop policy if exists "shop_verification_update_admin" on public.shop_verification_requests;
+create policy "shop_verification_insert_own"
+on public.shop_verification_requests for insert to authenticated
+with check (auth.uid() = user_id and status = 'pending');
+create policy "shop_verification_select_own"
+on public.shop_verification_requests for select to authenticated
+using (auth.uid() = user_id or public.is_admin());
+create policy "shop_verification_update_admin"
+on public.shop_verification_requests for update to authenticated
+using (public.is_admin())
+with check (public.is_admin());
+
+-- Preserve the existing profiles trigger/function. This separate trigger is
+-- specifically for request-row moderation fields.
+create or replace function public.protect_shop_verification_request_fields()
 returns trigger
 language plpgsql
 security definer
@@ -45,15 +56,7 @@ set search_path = public, auth
 as $$
 begin
   if tg_op = 'UPDATE' and not public.is_admin() then
-    if new.verification_status is distinct from old.verification_status
-       or new.liveness_status is distinct from old.liveness_status
-       or new.identity_match_status is distinct from old.identity_match_status
-       or new.kyc_result is distinct from old.kyc_result
-       or new.kyc_verified_at is distinct from old.kyc_verified_at
-       or new.face_photo_path is distinct from old.face_photo_path
-       or new.liveness_video_path is distinct from old.liveness_video_path
-       or new.identity_photo_path is distinct from old.identity_photo_path
-       or new.reviewer_id is distinct from old.reviewer_id
+    if new.status is distinct from old.status
        or new.reviewed_by is distinct from old.reviewed_by
        or new.reviewed_at is distinct from old.reviewed_at
        or new.rejection_reason is distinct from old.rejection_reason then
@@ -64,41 +67,23 @@ begin
   return new;
 end;
 $$;
+revoke all on function public.protect_shop_verification_request_fields() from public, anon, authenticated;
+grant execute on function public.protect_shop_verification_request_fields() to postgres, service_role;
+drop trigger if exists protect_shop_verification_request_fields on public.shop_verification_requests;
+create trigger protect_shop_verification_request_fields
+before update on public.shop_verification_requests
+for each row execute function public.protect_shop_verification_request_fields();
 
-revoke all on function public.protect_shop_verification_fields() from public, anon, authenticated;
-grant execute on function public.protect_shop_verification_fields() to postgres, service_role;
-
-drop trigger if exists protect_shop_verification_fields on public.shop_applications;
-create trigger protect_shop_verification_fields
-before update on public.shop_applications
-for each row execute function public.protect_shop_verification_fields();
-
-alter table public.shop_applications enable row level security;
-drop policy if exists "shop_applications_owner_select" on public.shop_applications;
-drop policy if exists "shop_applications_owner_insert" on public.shop_applications;
-drop policy if exists "shop_applications_admin_update" on public.shop_applications;
-drop policy if exists "admins can read shop applications" on public.shop_applications;
-create policy "shop_applications_owner_select"
-on public.shop_applications for select to authenticated
-using (auth.uid() = user_id or public.is_admin());
-create policy "shop_applications_owner_insert"
-on public.shop_applications for insert to authenticated
-with check (auth.uid() = user_id);
-create policy "shop_applications_admin_update"
-on public.shop_applications for update to authenticated
-using (public.is_admin())
-with check (public.is_admin());
-
--- Ensure the moderation columns used by the app are present and constrained.
+-- Listing moderation fields and server-side protection.
 alter table public.listings
   add column if not exists reviewed_at timestamptz,
   add column if not exists reviewed_by uuid references auth.users(id),
   add column if not exists rejection_reason text;
-
 alter table public.listings enable row level security;
 drop policy if exists "admins can update listings" on public.listings;
 drop policy if exists "admins can manage listings" on public.listings;
 drop policy if exists "admins can select listings" on public.listings;
+drop policy if exists "Listings are viewable by everyone" on public.listings;
 create policy "admins can update listings"
 on public.listings for update to authenticated
 using (public.is_admin())
@@ -106,6 +91,9 @@ with check (public.is_admin());
 create policy "admins can select listings"
 on public.listings for select to authenticated
 using (public.is_admin() or status = 'active' or seller_id = auth.uid());
+create policy "Listings are viewable by everyone"
+on public.listings for select to anon, authenticated
+using (status = 'active' or seller_id = auth.uid() or public.is_admin());
 
 create or replace function public.protect_listing_moderation_fields()
 returns trigger
@@ -133,7 +121,6 @@ create trigger protect_listing_moderation_fields
 before update on public.listings
 for each row execute function public.protect_listing_moderation_fields();
 
--- login_events remains service-role write only; admins can read it through RLS.
 create table if not exists public.login_events (
   id uuid primary key default gen_random_uuid(),
   user_id uuid references auth.users(id) on delete set null,
@@ -151,24 +138,14 @@ on public.login_events for select to authenticated
 using (public.is_admin());
 revoke insert, update, delete on public.login_events from anon, authenticated;
 
--- Review media must stay private. Existing objects are not deleted.
-do $$
-begin
-  if to_regclass('storage.buckets') is not null then
-    update storage.buckets
-       set public = false
-     where id = 'shop-application-media';
-  end if;
-end $$;
-
-do $$
-begin
-  if to_regclass('storage.objects') is not null then
-    drop policy if exists "shop application media admin read" on storage.objects;
-    create policy "shop application media admin read"
-      on storage.objects for select to authenticated
-      using (bucket_id = 'shop-application-media' and public.is_admin());
-  end if;
-end $$;
+-- Existing verification documents bucket is already private. Keep ownership
+-- access and ensure the configured/admin role can read via the DB helper.
+drop policy if exists "verification_documents_select_own_or_admin" on storage.objects;
+create policy "verification_documents_select_own_or_admin"
+on storage.objects for select to authenticated
+using (
+  bucket_id = 'verification-documents'
+  and ((auth.uid())::text = (storage.foldername(name))[1] or public.is_admin())
+);
 
 notify pgrst, 'reload schema';
