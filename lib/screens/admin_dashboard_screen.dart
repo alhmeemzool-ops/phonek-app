@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../theme/app_theme.dart';
+import 'admin_operations_monitor_screen.dart';
+import 'admin_shop_applications_screen.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
@@ -17,13 +19,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   int _totalViews = 0;
   int _featured = 0;
   int _pending = 0;
+  int _pendingShopApplications = 0;
   List<Map<String, dynamic>> _pendingListings = const [];
 
   @override
   void initState() { super.initState(); _load(); }
 
   Future<void> _load() async {
-    if (mounted) { setState(() { _loading = true; _error = null; }); }
+    if (mounted) setState(() { _loading = true; _error = null; });
     try {
       final client = Supabase.instance.client;
       final user = client.auth.currentUser;
@@ -35,8 +38,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       final rows = await client.from('listings').select('id, title, brand, price, city, image_urls, seller_id, status, created_at, view_count, is_featured').order('created_at', ascending: false);
       var views = 0; var featured = 0; final pending = <Map<String, dynamic>>[];
       for (final raw in (rows as List).whereType<Map<String, dynamic>>()) { views += (raw['view_count'] as num?)?.toInt() ?? 0; if (raw['is_featured'] == true) featured++; final status = raw['status'] as String?; if (status == 'pendingReview' || status == 'pending_review') pending.add(raw); }
+      var shopPending = 0;
+      try {
+        final shopRows = await client.from('shop_applications').select('id').eq('verification_status', 'pending');
+        shopPending = (shopRows as List).length;
+      } catch (_) {}
       if (!mounted) return;
-      setState(() { _authorized = true; _totalListings = rows.length; _totalViews = views; _featured = featured; _pending = pending.length; _pendingListings = pending; _loading = false; });
+      setState(() { _authorized = true; _totalListings = rows.length; _totalViews = views; _featured = featured; _pending = pending.length; _pendingListings = pending; _pendingShopApplications = shopPending; _loading = false; });
     } on PostgrestException catch (error) { if (!mounted) return; setState(() { _error = 'تعذر تحميل لوحة الإدارة: ${error.message}'; _loading = false; }); }
     catch (error) { if (!mounted) return; setState(() { _error = error.toString(); _loading = false; }); }
   }
@@ -63,14 +71,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         'reviewed_at': DateTime.now().toUtc().toIso8601String(),
         'reviewed_by': user.id,
       };
-
-      // rejection_reason is intentionally sent only for rejected listings.
-      // This prevents approval from failing when the optional column is not
-      // present in the current Supabase schema.
-      if (!approve) {
-        updateData['rejection_reason'] = reason?.isEmpty == true ? null : reason;
-      }
-
+      if (!approve) updateData['rejection_reason'] = reason?.isEmpty == true ? null : reason;
       await client.from('listings').update(updateData).eq('id', id);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(approve ? 'تم اعتماد الإعلان.' : 'تم رفض الإعلان.')));
@@ -101,7 +102,29 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                             const SizedBox(width: 10),
                             Expanded(child: _statCard('المميزة', '$_featured', Icons.star)),
                           ]),
-                          const SizedBox(height: 20),
+                          const SizedBox(height: 12),
+                          Row(children: [
+                            Expanded(child: _statCard('إعلانات تنتظر', '$_pending', Icons.pending_actions)),
+                            const SizedBox(width: 10),
+                            Expanded(child: _statCard('طلبات محلات', '$_pendingShopApplications', Icons.store_mall_directory_outlined)),
+                          ]),
+                          const SizedBox(height: 16),
+                          Card(child: ListTile(
+                            leading: const Icon(Icons.monitor_heart_outlined, color: AppColors.gold),
+                            title: const Text('المراقبة التشغيلية', style: TextStyle(fontWeight: FontWeight.bold)),
+                            subtitle: const Text('تسجيلات الدخول • الإعلانات الجديدة • المراسلات الجارية'),
+                            trailing: const Icon(Icons.chevron_left),
+                            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminOperationsMonitorScreen())),
+                          )),
+                          const SizedBox(height: 10),
+                          Card(child: ListTile(
+                            leading: const Icon(Icons.storefront, color: AppColors.gold),
+                            title: const Text('طلبات فتح المحلات', style: TextStyle(fontWeight: FontWeight.bold)),
+                            subtitle: Text('$_pendingShopApplications طلب بانتظار مراجعة التوثيق والتفاصيل.'),
+                            trailing: const Icon(Icons.chevron_left),
+                            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminShopApplicationsScreen())),
+                          )),
+                          const SizedBox(height: 12),
                           _statusCard(Icons.pending_actions, 'إعلانات بانتظار المراجعة', '$_pending إعلان يحتاج إلى مراجعة.'),
                           if (_pendingListings.isNotEmpty) ...[
                             const SizedBox(height: 12),
