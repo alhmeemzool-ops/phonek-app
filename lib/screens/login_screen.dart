@@ -75,6 +75,16 @@ class _LoginScreenState extends State<LoginScreen> {
         throw const AuthException('تعذر إنشاء جلسة الدخول');
       }
       await Supabase.instance.client.auth.setSession(refreshToken);
+      // The audit row contains only login metadata; it never stores OTP codes.
+      final userId = Supabase.instance.client.auth.currentUser?.id;
+      if (userId != null) {
+        await Supabase.instance.client.from('login_events').insert({
+          'user_id': userId,
+          'phone_e164': phone,
+          'method': 'whatsapp_otp',
+          'success': true,
+        });
+      }
       if (mounted) Navigator.pop(context);
     } catch (error) {
       _showMessage(error is AuthException ? error.message : 'رمز التحقق غير صحيح أو انتهت صلاحيته');
