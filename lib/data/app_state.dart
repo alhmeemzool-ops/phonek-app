@@ -247,7 +247,7 @@ class AppState extends ChangeNotifier {
     try {
       final rows = await Supabase.instance.client
           .from('listings')
-          .select('*, profiles(*)')
+          .select('*, profiles!listings_seller_id_fkey(*)')
           .eq('status', 'active')
           .order('created_at', ascending: false);
 
