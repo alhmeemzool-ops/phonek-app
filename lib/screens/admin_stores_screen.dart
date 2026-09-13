@@ -92,7 +92,7 @@ class _AdminStoresScreenState extends State<AdminStoresScreen> {
 
   void _showStoreDetails(Map<String, dynamic> store, int level, int ads) {
     showModalBottomSheet<void>(context: context, isScrollControlled: true, backgroundColor: AppColors.surface, builder: (_) => SafeArea(child: Padding(padding: const EdgeInsets.all(20), child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Row(children: [Expanded(child: Text(store['name']?.toString() ?? 'تفاصيل المتجر', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800)), IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close))]),
+      Row(children: [Expanded(child: Text(store['name']?.toString() ?? 'تفاصيل المتجر', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800))), IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close))]),
       Text('${store['city'] ?? '—'} • ${store['is_verified_store'] == true ? 'متجر موثّق' : 'متجر مفعّل'}', style: const TextStyle(color: AppColors.textSecondary)),
       const SizedBox(height: 18),
       Row(children: [Expanded(child: _metric('الإعلانات', '$ads')), Expanded(child: _metric('المبيعات', '${store['completed_sales'] ?? 0}')), Expanded(child: _metric('المستوى', level > 0 ? 'LVL $level' : '—'))]),

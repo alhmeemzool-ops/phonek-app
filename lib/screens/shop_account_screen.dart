@@ -21,7 +21,7 @@ class ShopAccountScreen extends StatelessWidget {
           Card(child: Padding(padding: const EdgeInsets.all(18), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Row(children: [const CircleAvatar(radius: 28, backgroundColor: AppColors.surfaceLight, child: Icon(Icons.storefront, color: AppColors.gold)), const SizedBox(width: 12), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(state.shopName ?? 'متجري', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)), const Text('متجر مفعّل', style: TextStyle(color: AppColors.success))])), const Icon(Icons.verified, color: AppColors.gold)]),
             const SizedBox(height: 18),
-            Row(children: [Expanded(child: _metric('كتلوجي', '${myListings.length}')), Expanded(child: _metric('مشاهدات', '${myListings.fold<int>(0, (sum, item) => sum + item.viewCount)}')), Expanded(child: _metric('إعلانات نشطة', '${myListings.where((item) => item.status.name == 'active').length}'))]),
+            Row(children: [Expanded(child: _metric('كتلوجي', '${myListings.length}')), Expanded(child: _metric('مشاهدات', '${myListings.fold<int>(0, (sum, item) => sum + item.viewCount.toInt())}')), Expanded(child: _metric('إعلانات نشطة', '${myListings.where((item) => item.status.name == 'active').length}'))]),
           ]))),
           const SizedBox(height: 12),
           const Text('أدوات المتجر', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
@@ -58,7 +58,23 @@ class ShopAccountScreen extends StatelessWidget {
 
   Widget _tool(BuildContext context, IconData icon, String title, String subtitle, VoidCallback onTap) => Card(child: ListTile(leading: Icon(icon, color: AppColors.gold), title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)), subtitle: Text(subtitle, style: const TextStyle(color: AppColors.textSecondary)), trailing: const Icon(Icons.chevron_left), onTap: onTap));
 
-  void _showRatings(BuildContext context, List listings) => showModalBottomSheet<void>(context: context, backgroundColor: AppColors.surface, builder: (_) => const SafeArea(child: Padding(padding: EdgeInsets.all(20), child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [Text('الإعجابات والتقييمات', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)), SizedBox(height: 12), Text('سيظهر هنا متوسط التقييم وعدد الإعجابات من بيانات العملاء المنشورة بعد ربط جداول التقييمات.', style: TextStyle(color: AppColors.textSecondary)), SizedBox(height: 20)])));
+  void _showRatings(BuildContext context, List listings) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.surface,
+      builder: (_) => const SafeArea(
+        child: Padding(
+          padding: EdgeInsets.all(20),
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('الإعجابات والتقييمات', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+            SizedBox(height: 12),
+            Text('سيظهر هنا متوسط التقييم وعدد الإعجابات من بيانات العملاء المنشورة بعد ربط جداول التقييمات.', style: TextStyle(color: AppColors.textSecondary)),
+            SizedBox(height: 20),
+          ]),
+        ),
+      ),
+    );
+  }
 }
 
 class _FeatureTile extends StatelessWidget {
