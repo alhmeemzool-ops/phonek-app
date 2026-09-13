@@ -1,105 +1,48 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-
 import '../features/merchant_badges/badge_model.dart';
 import '../features/merchant_badges/badge_widgets.dart';
 import '../theme/app_theme.dart';
+import 'shop_profile_screen.dart';
 
 class AdminStoresScreen extends StatefulWidget {
   const AdminStoresScreen({super.key});
-
-  @override
-  State<AdminStoresScreen> createState() => _AdminStoresScreenState();
+  @override State<AdminStoresScreen> createState() => _AdminStoresScreenState();
 }
-
 class _AdminStoresScreenState extends State<AdminStoresScreen> {
-  bool _loading = true;
-  String? _error;
-  String? _selectedCity;
-  List<Map<String, dynamic>> _stores = const [];
-  final Map<String, int> _listingCounts = {};
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
+  bool _loading = true; String? _error; String? _selectedCity;
+  List<Map<String,dynamic>> _stores = const []; final Map<String,int> _listingCounts = {};
+  @override void initState(){super.initState();_load();}
   Future<void> _load() async {
-    if (mounted) setState(() { _loading = true; _error = null; });
-    try {
-      final client = Supabase.instance.client;
-      final profiles = await client.from('profiles').select('id, name, city, is_shop, is_verified_store, completed_sales, rating').eq('is_shop', true).order('name');
-      final badgeStates = await client.from('merchant_badge_state').select('profile_id, identity_verified, license_verified, current_level').limit(5000);
-      final statesByProfile = <String, Map<String, dynamic>>{for (final row in (badgeStates as List).whereType<Map<String, dynamic>>()) row['profile_id'].toString(): row};
-      final listings = await client.from('listings').select('seller_id, status').limit(5000);
-      _listingCounts
-        ..clear()
-        ..addEntries((listings as List).whereType<Map<String, dynamic>>().map((row) => MapEntry(row['seller_id']?.toString() ?? '', 1)))
-        ..updateAll((key, value) => 0);
-      for (final row in (listings as List).whereType<Map<String, dynamic>>()) {
-        final id = row['seller_id']?.toString();
-        if (id == null || id.isEmpty || row['status'] == 'deleted') continue;
-        _listingCounts[id] = (_listingCounts[id] ?? 0) + 1;
-      }
-      if (!mounted) return;
-      setState(() { _stores = (profiles as List).whereType<Map<String, dynamic>>().map((store) => {...store, ...?statesByProfile[store['id']?.toString()]}).toList(); _loading = false; });
-    } on PostgrestException catch (error) {
-      if (mounted) setState(() { _error = error.message; _loading = false; });
-    } catch (error) {
-      if (mounted) setState(() { _error = error.toString(); _loading = false; });
-    }
+    if(mounted)setState((){_loading=true;_error=null;});
+    try{
+      final c=Supabase.instance.client;
+      final profiles=await c.from('profiles').select('id,name,city,is_shop,is_verified_store,completed_sales,rating,phone,whatsapp,bio,avatar_url,reply_speed_label,shop_address,shop_location_url,shop_hours,payment_methods').eq('is_shop',true).order('name');
+      final badges=await c.from('merchant_badge_state').select('profile_id,current_level,eligible_level,completed_sales,rating,identity_verified,license_verified').limit(5000);
+      final byId=<String,Map<String,dynamic>>{for(final r in (badges as List).whereType<Map<String,dynamic>>()) r['profile_id'].toString():r};
+      final listings=await c.from('listings').select('seller_id,status').limit(10000);
+      _listingCounts.clear();
+      for(final r in (listings as List).whereType<Map<String,dynamic>>()){final id=r['seller_id']?.toString();if(id!=null&&id.isNotEmpty&&r['status']!='deleted')_listingCounts[id]=(_listingCounts[id]??0)+1;}
+      if(!mounted)return;
+      setState(()=>_stores=(profiles as List).whereType<Map<String,dynamic>>().map((s)=>{...s,...?byId[s['id']?.toString()]}).toList()..sort((a,b)=>(a['name']??'').toString().compareTo((b['name']??'').toString())));
+      setState(()=>_loading=false);
+    }on PostgrestException catch(e){if(mounted)setState((){_error=e.message;_loading=false;});}catch(e){if(mounted)setState((){_error=e.toString();_loading=false;});}
   }
-
-  List<Map<String, dynamic>> get _filteredStores => _stores.where((store) => _selectedCity == null || store['city'] == _selectedCity).toList();
-
-  @override
-  Widget build(BuildContext context) {
-    final cities = _stores.map((store) => store['city']?.toString()).whereType<String>().where((city) => city.isNotEmpty).toSet().toList()..sort();
-    return Scaffold(
-      appBar: AppBar(title: const Text('إدارة المتاجر'), actions: [IconButton(onPressed: _load, icon: const Icon(Icons.refresh))]),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.gold))
-          : _error != null
-              ? Center(child: Padding(padding: const EdgeInsets.all(24), child: Column(mainAxisSize: MainAxisSize.min, children: [const Icon(Icons.cloud_off, size: 48), const SizedBox(height: 12), Text('تعذر تحميل المتاجر\n$_error', textAlign: TextAlign.center), TextButton.icon(onPressed: _load, icon: const Icon(Icons.refresh), label: const Text('إعادة المحاولة'))])))
-              : RefreshIndicator(onRefresh: _load, child: ListView(padding: const EdgeInsets.all(16), children: [
-                  Text('${_stores.length} متجر مفعّل', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
-                  const SizedBox(height: 4),
-                  const Text('التقييمات والإعلانات تُقرأ من البيانات الحية، ولا تُحسب من أرقام ثابتة.', style: TextStyle(color: AppColors.textSecondary)),
-                  const SizedBox(height: 16),
-                  DropdownButtonFormField<String>(value: _selectedCity, decoration: const InputDecoration(labelText: 'فلتر الولاية / المدينة', prefixIcon: Icon(Icons.location_on_outlined)), items: [const DropdownMenuItem<String>(value: null, child: Text('كل الولايات والمدن')), ...cities.map((city) => DropdownMenuItem(value: city, child: Text(city)))], onChanged: (value) => setState(() => _selectedCity = value)),
-                  const SizedBox(height: 14),
-                  ..._filteredStores.map(_storeCard),
-                  if (_filteredStores.isEmpty) const Padding(padding: EdgeInsets.all(40), child: Center(child: Text('لا توجد متاجر بهذا الفلتر'))),
-                ])),
-    );
+  List<Map<String,dynamic>> get _filtered=>_stores.where((s)=>_selectedCity==null||s['city']==_selectedCity).toList();
+  @override Widget build(BuildContext context){
+    final cities=_stores.map((s)=>s['city']?.toString()).whereType<String>().where((x)=>x.isNotEmpty).toSet().toList()..sort();
+    return Scaffold(appBar:AppBar(title:const Text('إدارة المتاجر والشارات'),actions:[IconButton(onPressed:_load,icon:const Icon(Icons.refresh))]),body:_loading?const Center(child:CircularProgressIndicator(color:AppColors.gold)):_error!=null?Center(child:Padding(padding:const EdgeInsets.all(24),child:Column(mainAxisSize:MainAxisSize.min,children:[Text('تعذر تحميل المتاجر:\n$_error',textAlign:TextAlign.center),TextButton.icon(onPressed:_load,icon:const Icon(Icons.refresh),label:const Text('إعادة المحاولة'))]))):RefreshIndicator(onRefresh:_load,child:ListView(padding:const EdgeInsets.all(14),children:[Text('${_stores.length} متجر شغال',style:const TextStyle(fontSize:21,fontWeight:FontWeight.w800)),const SizedBox(height:5),const Text('إدارة فعلية للمتاجر النشطة، كتلوجاتها، بياناتها ومستويات الشارات.',style:TextStyle(color:AppColors.textSecondary)),const SizedBox(height:14),DropdownButtonFormField<String>(initialValue:_selectedCity,decoration:const InputDecoration(labelText:'المدينة'),items:[const DropdownMenuItem<String>(value:null,child:Text('كل المدن')),...cities.map((x)=>DropdownMenuItem(value:x,child:Text(x)))],onChanged:(v)=>setState(()=>_selectedCity=v)),const SizedBox(height:14),..._filtered.map(_card)])));
   }
-
-  Widget _storeCard(Map<String, dynamic> store) {
-    final id = store['id']?.toString() ?? '';
-    final sales = (store['completed_sales'] as num?)?.toInt() ?? 0;
-    final rating = (store['rating'] as num?)?.toDouble() ?? 0;
-    final level = levelForStatus(sales: sales, identityVerified: store['is_identity_verified'] == true || store['is_verified_store'] == true, licenseVerified: store['is_license_verified'] == true, rating: rating);
-    final ads = _listingCounts[id] ?? 0;
-    return Card(margin: const EdgeInsets.only(bottom: 12), child: InkWell(borderRadius: BorderRadius.circular(14), onTap: () => _showStoreDetails(store, level, ads), child: Padding(padding: const EdgeInsets.all(14), child: Column(children: [
-      Row(children: [CircleAvatar(backgroundColor: AppColors.surfaceLight, child: Text((store['name']?.toString().trim().isNotEmpty == true ? store['name'].toString().trim()[0] : 'م'), style: const TextStyle(color: AppColors.gold))), const SizedBox(width: 10), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(store['name']?.toString() ?? 'متجر بدون اسم', style: const TextStyle(fontWeight: FontWeight.bold)), Text('${store['city'] ?? '—'} • $ads إعلان', style: const TextStyle(color: AppColors.textSecondary, fontSize: 12))])), if (level > 0) MerchantBadgeChip(level: level, compact: true)]),
-      const SizedBox(height: 12),
-      Row(children: [Expanded(child: _metric('التقييم الحقيقي', rating > 0 ? '${rating.toStringAsFixed(1)} ★' : '—')), Expanded(child: _metric('الإعلانات', '$ads')), Expanded(child: _metric('المبيعات', '$sales')), Expanded(child: _metric('المستوى', level == 0 ? 'غير مؤهل' : 'LVL $level'))]),
-    ]))));
+  Widget _card(Map<String,dynamic> s){
+    final id=s['id']?.toString()??''; final sales=(s['completed_sales'] as num?)?.toInt()??(s['completed_sales'] is String?int.tryParse(s['completed_sales']):0)??0; final rating=(s['rating'] as num?)?.toDouble()??0; final level=(s['current_level'] as num?)?.toInt()??levelForStatus(sales:sales,identityVerified:s['identity_verified']==true||s['is_verified_store']==true,licenseVerified:s['license_verified']==true,rating:rating); final ads=_listingCounts[id]??0;
+    return Card(margin:const EdgeInsets.only(bottom:12),child:InkWell(borderRadius:BorderRadius.circular(14),onTap:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>ShopProfileScreen(shopId:id,initialSeller:SellerInfo(id:id,name:s['name']?.toString()??'متجر',phone:s['phone']?.toString()??'',whatsapp:s['whatsapp']?.toString(),bio:s['bio']?.toString(),avatarUrl:s['avatar_url']?.toString(),isShop:true,isVerifiedStore:s['is_verified_store']==true,rating:rating,completedSales:sales,city:s['city']?.toString()??'',replySpeedLabel:s['reply_speed_label']?.toString()??'يرد عادة خلال ساعات')))),child:Padding(padding:const EdgeInsets.all(14),child:Column(children:[Row(children:[CircleAvatar(backgroundColor:AppColors.surfaceLight,child:Text((s['name']?.toString().trim().isNotEmpty==true?s['name'].toString().trim()[0]:'م'),style:const TextStyle(color:AppColors.gold))),const SizedBox(width:10),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(s['name']?.toString()??'متجر',style:const TextStyle(fontWeight:FontWeight.bold)),Text('${s['city']??'—'} • $ads إعلان',style:const TextStyle(color:AppColors.textSecondary,fontSize:12))])),if(level>0)MerchantBadgeChip(level:level,compact:true)]),const SizedBox(height:12),Row(children:[Expanded(child:_metric('التقييم',rating>0?'${rating.toStringAsFixed(1)} ★':'—')),Expanded(child:_metric('الإعلانات','$ads')),Expanded(child:_metric('المبيعات','$sales')),Expanded(child:_metric('المستوى',level>0?'${badgeForLevel(level).nameAr}':'غير مؤهل'))]),const SizedBox(height:10),Row(children:[Expanded(child:OutlinedButton.icon(onPressed:()=>_editStore(s),icon:const Icon(Icons.edit_outlined),label:const Text('تعديل المتجر'))),const SizedBox(width:8),Expanded(child:OutlinedButton.icon(onPressed:()=>_editBadge(s),icon:const Icon(Icons.workspace_premium_outlined),label:const Text('إدارة الشارة')))])])));
   }
-
-  Widget _metric(String label, String value) => Column(children: [Text(value, style: const TextStyle(fontWeight: FontWeight.w800, color: AppColors.gold)), const SizedBox(height: 3), Text(label, style: const TextStyle(fontSize: 10, color: AppColors.textSecondary))]);
-
-  void _showStoreDetails(Map<String, dynamic> store, int level, int ads) {
-    showModalBottomSheet<void>(context: context, isScrollControlled: true, backgroundColor: AppColors.surface, builder: (_) => SafeArea(child: Padding(padding: const EdgeInsets.all(20), child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Row(children: [Expanded(child: Text(store['name']?.toString() ?? 'تفاصيل المتجر', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800))), IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close))]),
-      Text('${store['city'] ?? '—'} • ${store['is_verified_store'] == true ? 'متجر موثّق' : 'متجر مفعّل'}', style: const TextStyle(color: AppColors.textSecondary)),
-      const SizedBox(height: 18),
-      Row(children: [Expanded(child: _metric('الإعلانات', '$ads')), Expanded(child: _metric('المبيعات', '${store['completed_sales'] ?? 0}')), Expanded(child: _metric('المستوى', level > 0 ? 'LVL $level' : '—'))]),
-      const SizedBox(height: 18),
-      const Text('الشارات المكتسبة', style: TextStyle(fontWeight: FontWeight.bold)),
-      const SizedBox(height: 10),
-      Wrap(spacing: 8, runSpacing: 8, children: [for (final badge in merchantBadges.take(level)) MerchantBadgeChip(level: badge.level, compact: true)]),
-    ]))));
+  Widget _metric(String l,String v)=>Column(children:[Text(v,style:const TextStyle(color:AppColors.gold,fontWeight:FontWeight.w800)),const SizedBox(height:2),Text(l,style:const TextStyle(color:AppColors.textSecondary,fontSize:10))]);
+  Future<void> _editStore(Map<String,dynamic> s) async {
+    final name=TextEditingController(text:s['name']?.toString()??''); final city=TextEditingController(text:s['city']?.toString()??''); final address=TextEditingController(text:s['shop_address']?.toString()??''); final map=TextEditingController(text:s['shop_location_url']?.toString()??''); final phone=TextEditingController(text:s['phone']?.toString()??'');
+    final ok=await showDialog<bool>(context:context,builder:(ctx)=>AlertDialog(title:const Text('تعديل بيانات المتجر'),content:SingleChildScrollView(child:Column(mainAxisSize:MainAxisSize.min,children:[TextField(controller:name,decoration:const InputDecoration(labelText:'اسم المتجر')),TextField(controller:city,decoration:const InputDecoration(labelText:'المدينة')),TextField(controller:address,decoration:const InputDecoration(labelText:'العنوان')),TextField(controller:map,decoration:const InputDecoration(labelText:'رابط Google Maps')),TextField(controller:phone,decoration:const InputDecoration(labelText:'رقم الاتصال'))])),actions:[TextButton(onPressed:()=>Navigator.pop(ctx,false),child:const Text('إلغاء')),FilledButton(onPressed:()=>Navigator.pop(ctx,true),child:const Text('حفظ'))]));
+    if(ok!=true)return; try{await Supabase.instance.client.from('profiles').update({'name':name.text.trim(),'city':city.text.trim(),'shop_address':address.text.trim(),'shop_location_url':map.text.trim(),'phone':phone.text.trim(),'is_shop':true}).eq('id',s['id']);await _load();if(mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('تم تحديث المتجر')));}catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('تعذر التحديث: $e')));}
   }
+  Future<void> _editBadge(Map<String,dynamic> s) async {
+    final id=s['id']?.toString();if(id==null||id.isEmpty)return;var level=(s['current_level'] as num?)?.toInt()??0;final ok=await showDialog<bool>(context:context,builder:(ctx)=>StatefulBuilder(builder:(ctx,setLocal)=>AlertDialog(title:const Text('إدارة شارة المتجر'),content:Column(mainAxisSize:MainAxisSize.min,children:[Text('المستوى الحالي: $level'),Slider(min:0,max:10,divisions:10,value:level.toDouble(),onChanged:(v)=>setLocal(()=>level=v.round())),if(level>0)MerchantBadgeChip(level:level)]),actions:[TextButton(onPressed:()=>Navigator.pop(ctx,false),child:const Text('إلغاء')),FilledButton(onPressed:()=>Navigator.pop(ctx,true),child:const Text('حفظ'))]));if(ok!=true)return;try{await Supabase.instance.client.from('merchant_badge_state').update({'current_level':level,'eligible_level':level}).eq('profile_id',id);await _load();}catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('تعذر تحديث الشارة: $e')));}}
 }
