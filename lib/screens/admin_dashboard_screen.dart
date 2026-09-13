@@ -5,6 +5,7 @@ import '../data/app_state.dart';
 import '../theme/app_theme.dart';
 import 'admin_operations_monitor_screen.dart';
 import 'admin_shop_applications_screen.dart';
+import 'admin_stores_screen.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
@@ -290,7 +291,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                           Row(children: [
                             Expanded(child: _statCard('إعلانات تنتظر', '$_pending', Icons.pending_actions)),
                             const SizedBox(width: 10),
-                            Expanded(child: _statCard('طلبات محلات', '$_pendingShopApplications', Icons.store_mall_directory_outlined)),
+                            Expanded(child: _statCard('طلبات متاجر', '$_pendingShopApplications', Icons.store_mall_directory_outlined)),
                           ]),
                           const SizedBox(height: 16),
                           Card(child: ListTile(
@@ -303,10 +304,18 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                           const SizedBox(height: 10),
                           Card(child: ListTile(
                             leading: const Icon(Icons.storefront, color: AppColors.gold),
-                            title: const Text('طلبات فتح المحلات', style: TextStyle(fontWeight: FontWeight.bold)),
+                            title: const Text('طلبات فتح المتاجر', style: TextStyle(fontWeight: FontWeight.bold)),
                             subtitle: Text('$_pendingShopApplications طلب بانتظار مراجعة التوثيق والتفاصيل.'),
                             trailing: const Icon(Icons.chevron_left),
                             onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminShopApplicationsScreen())),
+                          )),
+                          const SizedBox(height: 10),
+                          Card(child: ListTile(
+                            leading: const Icon(Icons.workspace_premium_outlined, color: AppColors.gold),
+                            title: const Text('إدارة المتاجر والشارات', style: TextStyle(fontWeight: FontWeight.bold)),
+                            subtitle: const Text('كل المتاجر المفعّلة، تقييماتها، إعلاناتها، ومستويات الشارات.'),
+                            trailing: const Icon(Icons.chevron_left),
+                            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminStoresScreen())),
                           )),
                           const SizedBox(height: 10),
                           Card(child: ListTile(

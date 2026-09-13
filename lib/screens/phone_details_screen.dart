@@ -10,6 +10,8 @@ import '../models/phone_model.dart';
 import '../theme/app_theme.dart';
 import '../utils/formatters.dart';
 import '../widgets/phone_card.dart';
+import '../features/merchant_badges/badge_widgets.dart';
+import '../features/merchant_badges/badge_model.dart';
 import 'chat_screen.dart';
 
 class PhoneDetailsScreen extends StatelessWidget {
@@ -102,7 +104,7 @@ class PhoneDetailsScreen extends StatelessWidget {
   String _warrantyLabel(WarrantyType w) {
     switch (w) {
       case WarrantyType.none: return 'بدون ضمان';
-      case WarrantyType.storeWarranty: return 'ضمان محل';
+      case WarrantyType.storeWarranty: return 'ضمان متجر';
       case WarrantyType.agentWarranty: return 'ضمان وكيل رسمي';
     }
   }
@@ -115,7 +117,7 @@ class PhoneDetailsScreen extends StatelessWidget {
       CircleAvatar(radius: 24, backgroundColor: AppColors.surfaceLight, child: Text(AppFormatters.firstChar(seller.name), style: const TextStyle(color: AppColors.gold))),
       const SizedBox(width: 12),
       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [Flexible(child: Text(seller.name, style: const TextStyle(fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis)), if (seller.isVerifiedStore) ...[const SizedBox(width: 4), const Icon(Icons.verified, size: 16, color: Colors.lightBlueAccent)]]),
+        Row(children: [Flexible(child: Text(seller.name, style: const TextStyle(fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis)), if (seller.isVerifiedStore) ...[const SizedBox(width: 4), const Icon(Icons.verified, size: 16, color: Colors.lightBlueAccent), const SizedBox(width: 6), MerchantBadgeChip(level: levelForSales(seller.completedSales), compact: true)]]),
         const SizedBox(height: 2),
         Text(seller.replySpeedLabel, style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
         if (seller.isVerifiedStore) Text('${seller.completedSales} عملية بيع ناجحة', style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),

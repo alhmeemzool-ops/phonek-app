@@ -65,7 +65,7 @@ class _ShopApplicationScreenState extends State<ShopApplicationScreen> {
       }
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذر تحديد موقع المحل: $error')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذر تحديد موقع المتجر: $error')));
       }
     } finally {
       if (mounted) setState(() => _locationBusy = false);
@@ -85,7 +85,7 @@ class _ShopApplicationScreenState extends State<ShopApplicationScreen> {
   bool _next() {
     if (_step == 0 && !(_formKey.currentState?.validate() ?? false)) return false;
     if (_step == 1 && (_latitude == null || _longitude == null)) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('حدد موقع المحل على الخريطة أولاً')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('حدد موقع المتجر على الخريطة أولاً')));
       return false;
     }
     if (_step == 2 && _livenessVideo == null) {
@@ -132,7 +132,7 @@ class _ShopApplicationScreenState extends State<ShopApplicationScreen> {
       // Do not upsert profiles here. Profile RLS/schema rules must not turn a
       // successfully inserted shop application into a false submission error.
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم إرسال طلب المحل بنجاح. سيظهر للإدارة للمراجعة.')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم إرسال طلب المتجر بنجاح. سيظهر للإدارة للمراجعة.')));
       Navigator.pop(context);
     } on PostgrestException catch (error) {
       if (!mounted) return;
@@ -148,7 +148,7 @@ class _ShopApplicationScreenState extends State<ShopApplicationScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('التقديم لفتح محل')),
+      appBar: AppBar(title: const Text('التقديم لفتح متجر')),
       body: Stepper(
         currentStep: _step,
         controlsBuilder: (context, details) => Row(
@@ -161,8 +161,8 @@ class _ShopApplicationScreenState extends State<ShopApplicationScreen> {
           ],
         ),
         steps: [
-          Step(isActive: _step >= 0, title: const Text('بيانات المحل'), content: _details()),
-          Step(isActive: _step >= 1, title: const Text('موقع المحل'), content: _location()),
+          Step(isActive: _step >= 0, title: const Text('بيانات المتجر'), content: _details()),
+          Step(isActive: _step >= 1, title: const Text('موقع المتجر'), content: _location()),
           Step(isActive: _step >= 2, title: const Text('فيديو التحقق الحيوي'), content: _livenessVerification()),
           Step(isActive: _step >= 3, title: const Text('وثيقة الهوية'), content: _identity()),
           Step(isActive: _step >= 4, title: const Text('المراجعة والإرسال'), content: _review()),
@@ -174,7 +174,7 @@ class _ShopApplicationScreenState extends State<ShopApplicationScreen> {
   Widget _details() => Form(
         key: _formKey,
         child: Column(children: [
-          TextFormField(controller: _shopName, decoration: const InputDecoration(labelText: 'اسم المحل', prefixIcon: Icon(Icons.store)), validator: (v) => v == null || v.trim().length < 2 ? 'أدخل اسم المحل' : null),
+          TextFormField(controller: _shopName, decoration: const InputDecoration(labelText: 'اسم المتجر', prefixIcon: Icon(Icons.store)), validator: (v) => v == null || v.trim().length < 2 ? 'أدخل اسم المتجر' : null),
           const SizedBox(height: 12),
           TextFormField(controller: _phone, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: 'رقم التواصل', prefixIcon: Icon(Icons.phone)), validator: (v) => v == null || v.trim().length < 7 ? 'أدخل رقمًا صحيحًا' : null),
           const SizedBox(height: 12),
@@ -183,7 +183,7 @@ class _ShopApplicationScreenState extends State<ShopApplicationScreen> {
       );
 
   Widget _location() => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Text('شارك موقع المحل بسرعة من الخريطة، ثم ثبّت العلامة على المدخل أو الفرع الصحيح.'),
+        const Text('شارك موقع المتجر بسرعة من الخريطة، ثم ثبّت العلامة على المدخل أو الفرع الصحيح.'),
         const SizedBox(height: 12),
         SizedBox(width: double.infinity, child: ElevatedButton.icon(onPressed: _locationBusy ? null : _pickLocation, icon: _locationBusy ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.map), label: const Text('اختيار الموقع عبر Google Maps'))),
         if (_latitude != null) Padding(padding: const EdgeInsets.only(top: 12), child: Text('تم تحديد الموقع: ${_latitude!.toStringAsFixed(6)}, ${_longitude!.toStringAsFixed(6)}\n${_address ?? ''}')),
@@ -204,14 +204,14 @@ class _ShopApplicationScreenState extends State<ShopApplicationScreen> {
       ]);
 
   Widget _review() => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        _summary('المحل', _shopName.text),
+        _summary('المتجر', _shopName.text),
         _summary('الهاتف', _phone.text),
         _summary('المدينة', _city.text),
         _summary('الموقع', _latitude == null ? 'غير محدد' : '${_latitude!.toStringAsFixed(6)}, ${_longitude!.toStringAsFixed(6)}'),
         _summary('الوجه والحيوية', 'جاهز لبدء تحقق eKYC'),
         _summary('الهوية', 'جاهزة للمطابقة'),
         const SizedBox(height: 8),
-        const Text('بعد الإرسال يبقى الطلب قيد التحقق. لا تُمنح شارة التوثيق ولا صلاحيات المحل قبل وصول نتيجة eKYC الموثقة والمراجعة.', style: TextStyle(color: AppColors.textSecondary)),
+        const Text('بعد الإرسال يبقى الطلب قيد التحقق. لا تُمنح شارة التوثيق ولا صلاحيات المتجر قبل وصول نتيجة eKYC الموثقة والمراجعة.', style: TextStyle(color: AppColors.textSecondary)),
       ]);
 
   Widget _summary(String label, String value) => ListTile(contentPadding: EdgeInsets.zero, title: Text(label), subtitle: Text(value));

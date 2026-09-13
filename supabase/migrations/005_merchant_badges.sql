@@ -36,7 +36,7 @@ values
   (1, 'بائع مبتدئ', 'Novice', 'يُمنح بمجرد تفعيل حساب التاجر بالهوية الشخصية، حتى مع 0 طلب.', 0, null, true, false, 'native://merchant_badge_art/1'),
   (2, 'بائع ناشئ', 'Emerging', 'إكمال 15 طلباً ناجحاً.', 15, null, true, false, 'native://merchant_badge_art/2'),
   (3, 'بائع صاعد', 'Rising', 'إكمال 40 طلباً ناجحاً.', 40, null, true, false, 'native://merchant_badge_art/3'),
-  (4, 'بائع موثوق', 'Verified', 'إكمال 80 طلباً ناجحاً مع تقديم وتوثيق رخصة المحل الرسمية.', 80, null, true, true, 'native://merchant_badge_art/4'),
+  (4, 'بائع موثوق', 'Verified', 'إكمال 80 طلباً ناجحاً مع تقديم وتوثيق رخصة المتجر الرسمية.', 80, null, true, true, 'native://merchant_badge_art/4'),
   (5, 'بائع متميز', 'Star', 'إكمال 150 طلباً ناجحاً مع تقييم عام أعلى من 4.2 نجمة.', 150, 4.20, true, false, 'native://merchant_badge_art/5'),
   (6, 'بائع محترف', 'Pro', 'إكمال 300 طلب ناجح.', 300, null, true, false, 'native://merchant_badge_art/6'),
   (7, 'بائع خبير', 'Expert', 'إكمال 600 طلب ناجح.', 600, null, true, false, 'native://merchant_badge_art/7'),

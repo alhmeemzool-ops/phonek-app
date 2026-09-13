@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../models/phone_model.dart';
 import '../theme/app_theme.dart';
 import '../utils/formatters.dart';
+import '../features/merchant_badges/badge_widgets.dart';
+import '../features/merchant_badges/badge_model.dart';
 
 class PhoneCard extends StatelessWidget {
   final PhoneListing listing;
@@ -60,6 +62,12 @@ class PhoneCard extends StatelessWidget {
                       top: 6,
                       right: 6,
                       child: _Badge(text: 'مميز', color: AppColors.gold, textColor: Colors.black),
+                    ),
+                  if (listing.seller.isShop && listing.seller.isVerifiedStore)
+                    Positioned(
+                      top: 6,
+                      left: listing.status == ListingStatus.sold || listing.condition == DeviceCondition.cracked ? 62 : 6,
+                      child: MerchantBadgeChip(level: levelForSales(listing.seller.completedSales), compact: true),
                     ),
                   if (listing.status == ListingStatus.sold)
                     const Positioned(

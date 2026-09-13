@@ -1,12 +1,12 @@
 import '../models/phone_model.dart';
 import '../models/chat_model.dart';
 
-/// بيانات تجريبية محلية للمعاينة فقط.
+/// بيانات تجريبية متجرية للمعاينة فقط.
 /// ستُستبدل تدريجيًا بقراءة حقيقية من Supabase عند اكتمال طبقة البيانات.
 class MockData {
   static const seller1 = SellerInfo(
     id: 's1',
-    name: 'محل النور للهواتف',
+    name: 'متجر النور للهواتف',
     phone: '+249900000001',
     whatsapp: '+249900000001',
     bio: 'معرض هواتف موثوق - الخرطوم السوق العربي',
@@ -98,7 +98,7 @@ class MockData {
       id: 'c1',
       phoneListingId: 'p1',
       phoneTitle: 'Samsung Galaxy A73 5G',
-      otherUserName: 'محل النور للهواتف',
+      otherUserName: 'متجر النور للهواتف',
       otherUserOnline: true,
       messages: [
         ChatMessage(

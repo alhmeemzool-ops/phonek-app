@@ -93,8 +93,8 @@ class _ChatScreenState extends State<ChatScreen> {
       appBar: AppBar(
         title: Column(
           children: [
-            Text(widget.thread?.otherUserName ?? widget.listing.seller.name, style: const TextStyle(fontSize: 15)),
-            Text(widget.listing.title, style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+            Text(widget.thread?.otherUserName ?? widget.listing.seller.name, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+            Text(widget.listing.title, style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
           ],
         ),
       ),
@@ -107,7 +107,7 @@ class _ChatScreenState extends State<ChatScreen> {
             child: const Text(
               'التقِ بالبائع في مكان عام ونهاري، ولا تدفع قبل المعاينة',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+              style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
             ),
           ),
           Expanded(
@@ -133,9 +133,9 @@ class _ChatScreenState extends State<ChatScreen> {
     return Align(
       alignment: isMe ? Alignment.centerLeft : Alignment.centerRight,
       child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 4),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.72),
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.78),
         decoration: BoxDecoration(
           color: isMe ? AppColors.gold : AppColors.surfaceLight,
           borderRadius: BorderRadius.circular(14),
@@ -143,14 +143,14 @@ class _ChatScreenState extends State<ChatScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(m.text, style: TextStyle(color: isMe ? Colors.black : Colors.white)),
+            Text(m.text, style: TextStyle(color: isMe ? Colors.black : Colors.white, fontSize: 15, height: 1.45)),
             const SizedBox(height: 2),
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
                   AppFormatters.timeAgo(m.timestamp),
-                  style: TextStyle(fontSize: 9, color: isMe ? Colors.black54 : AppColors.textSecondary),
+                  style: TextStyle(fontSize: 11, color: isMe ? Colors.black54 : AppColors.textSecondary),
                 ),
                 if (isMe) ...[
                   const SizedBox(width: 4),

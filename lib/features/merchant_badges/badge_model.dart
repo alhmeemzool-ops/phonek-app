@@ -49,7 +49,7 @@ const merchantBadges = <MerchantBadge>[
     level: 4,
     nameAr: 'بائع موثوق',
     nameEn: 'Verified',
-    descriptionAr: 'إكمال 80 طلباً ناجحاً + توثيق رخصة المحل الرسمية.',
+    descriptionAr: 'إكمال 80 طلباً ناجحاً + توثيق رخصة المتجر الرسمية.',
     requiredSales: 80,
     requiresLicense: true,
   ),

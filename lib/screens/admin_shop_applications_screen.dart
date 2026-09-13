@@ -55,7 +55,7 @@ class _AdminShopApplicationsScreenState extends State<AdminShopApplicationsScree
       reason = await showDialog<String>(
         context: context,
         builder: (_) => AlertDialog(
-          title: const Text('رفض طلب المحل'),
+          title: const Text('رفض طلب المتجر'),
           content: TextField(controller: controller, maxLines: 4, decoration: const InputDecoration(labelText: 'سبب الرفض', hintText: 'اكتب السبب بوضوح')),
           actions: [
             TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
@@ -100,17 +100,17 @@ class _AdminShopApplicationsScreenState extends State<AdminShopApplicationsScree
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('طلبات فتح المحلات'), actions: [IconButton(onPressed: load, icon: const Icon(Icons.refresh))]),
+      appBar: AppBar(title: const Text('طلبات فتح المتاجر'), actions: [IconButton(onPressed: load, icon: const Icon(Icons.refresh))]),
       body: loading
           ? const Center(child: CircularProgressIndicator())
           : !authorized
-              ? const Center(child: Text('ليس لديك صلاحية للوصول إلى طلبات المحلات.'))
+              ? const Center(child: Text('ليس لديك صلاحية للوصول إلى طلبات المتاجر.'))
               : error != null
                   ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [Text('تعذر تحميل الطلبات: $error'), TextButton(onPressed: load, child: const Text('إعادة المحاولة'))]))
                   : RefreshIndicator(
                       onRefresh: load,
                       child: rows.isEmpty
-                          ? ListView(children: const [SizedBox(height: 180), Center(child: Text('لا توجد طلبات محلات.'))])
+                          ? ListView(children: const [SizedBox(height: 180), Center(child: Text('لا توجد طلبات متاجر.'))])
                           : ListView.builder(
                               padding: const EdgeInsets.all(14),
                               itemCount: rows.length,
@@ -164,12 +164,12 @@ class _RequestDetailsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final pending = row['status']?.toString() == 'pending';
     return Scaffold(
-      appBar: AppBar(title: const Text('تفاصيل طلب المحل')),
+      appBar: AppBar(title: const Text('تفاصيل طلب المتجر')),
       body: ListView(padding: const EdgeInsets.all(16), children: [
-        Text(row['shop_name']?.toString() ?? 'طلب محل', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+        Text(row['shop_name']?.toString() ?? 'طلب متجر', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
         const SizedBox(height: 14),
-        _section('بيانات المحل', [
-          _field('اسم المحل', row['shop_name']), _field('الهاتف', row['phone']), _field('المدينة', row['city']),
+        _section('بيانات المتجر', [
+          _field('اسم المتجر', row['shop_name']), _field('الهاتف', row['phone']), _field('المدينة', row['city']),
           _field('العنوان', row['address']), _field('الحالة', _status(row['status'])), _field('تاريخ الطلب', _time(row['created_at'])),
         ]),
         const SizedBox(height: 14),

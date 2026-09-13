@@ -277,6 +277,25 @@ class AppState extends ChangeNotifier {
     }
   }
 
+  Future<void> updateListing({required String id, required String title, required int price, required String city, required String description}) async {
+    final userId = _session?.user.id;
+    if (userId == null) throw const AuthException('سجّل الدخول لتعديل الإعلان');
+    await Supabase.instance.client.from('listings').update({
+      'title': title.trim(),
+      'price': price,
+      'city': city.trim(),
+      'description': description.trim(),
+    }).eq('id', id).eq('seller_id', userId);
+    await loadListings();
+  }
+
+  Future<void> deleteListing(String id) async {
+    final userId = _session?.user.id;
+    if (userId == null) throw const AuthException('سجّل الدخول لحذف الإعلان');
+    await Supabase.instance.client.from('listings').update({'status': 'expired'}).eq('id', id).eq('seller_id', userId);
+    await loadListings();
+  }
+
   PhoneListing? _listingFromRow(Map<String, dynamic> row) {
     try {
       final sellerRow = row['profiles'] is Map<String, dynamic>

@@ -54,7 +54,7 @@ class ProfileScreen extends StatelessWidget {
           _tile(
             context,
             Icons.storefront,
-            appState.isShopOwner ? 'لوحة المحل: ${appState.shopName ?? ''}' : 'إنشاء حساب صاحب محل',
+            appState.isShopOwner ? 'لوحة المتجر: ${appState.shopName ?? ''}' : 'إنشاء حساب صاحب متجر',
             () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ShopAccountScreen())),
           ),
           if (appState.isShopOwner)

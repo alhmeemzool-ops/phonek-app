@@ -73,7 +73,7 @@ class _MerchantBadgesScreenState extends State<MerchantBadgesScreen> {
     final salesMissing = (badge.requiredSales - _sales).clamp(0, badge.requiredSales);
     final parts = <String>[];
     if (salesMissing > 0) parts.add('$salesMissing طلب ناجح متبقٍ');
-    if (badge.requiresLicense && !_licenseVerified) parts.add('توثيق رخصة المحل');
+    if (badge.requiresLicense && !_licenseVerified) parts.add('توثيق رخصة المتجر');
     if (badge.minRating != null && _rating <= badge.minRating!) {
       parts.add('تقييم أعلى من ${badge.minRating!.toStringAsFixed(1)}');
     }

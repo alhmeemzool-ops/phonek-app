@@ -17,7 +17,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
   Future<void> _resolve(LatLng p) async { final a = await LocationService.reverseGeocode(p.latitude, p.longitude); if (mounted) setState(() => _address = a); }
   void _select(LatLng p) { setState(() => _selected = p); _resolve(p); }
   @override Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('موقع المحل')),
+    appBar: AppBar(title: const Text('موقع المتجر')),
     body: Stack(children: [
       GoogleMap(initialCameraPosition: CameraPosition(target: _selected, zoom: 16), myLocationEnabled: true, myLocationButtonEnabled: true, zoomControlsEnabled: false, onTap: _select,
         markers: {Marker(markerId: const MarkerId('shop'), position: _selected, draggable: true, onDragEnd: _select)}),
@@ -26,7 +26,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
         const SizedBox(height: 6),
         Text('${_selected.latitude.toStringAsFixed(6)}, ${_selected.longitude.toStringAsFixed(6)}', style: const TextStyle(color: AppColors.textSecondary)),
         const SizedBox(height: 10),
-        ElevatedButton.icon(onPressed: () => Navigator.pop(context, {'latitude': _selected.latitude, 'longitude': _selected.longitude, 'address': _address}), icon: const Icon(Icons.check), label: const Text('تأكيد موقع المحل')),
+        ElevatedButton.icon(onPressed: () => Navigator.pop(context, {'latitude': _selected.latitude, 'longitude': _selected.longitude, 'address': _address}), icon: const Icon(Icons.check), label: const Text('تأكيد موقع المتجر')),
       ]))))
     ]),
   );
