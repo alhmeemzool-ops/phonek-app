@@ -123,7 +123,7 @@ class _MerchantCatalogScreenState extends State<MerchantCatalogScreen> {
     final sold = row['status'] == 'sold';
     final listing = _listingFromRow(row);
     return Card(clipBehavior: Clip.antiAlias, child: Padding(padding: const EdgeInsets.all(10), child: Column(children: [
-      if (listing != null) SizedBox(height: 265, child: PhoneCard(listing: listing)),
+      if (listing != null) SizedBox(height: 265, child: PhoneCard(listing: listing, onTap: () {})),
       Row(children: [Expanded(child: Text(frozen ? 'مجمد — لا يظهر للزوار' : sold ? 'مباع' : 'ظاهر للزوار', style: TextStyle(fontWeight: FontWeight.w800, color: frozen ? Colors.orange.shade800 : null))), if (frozen) const Icon(Icons.pause_circle_filled_rounded, size: 18) else if (!sold) const Icon(Icons.visibility_outlined, size: 18)]),
       const SizedBox(height: 8),
       Row(children: [Expanded(child: OutlinedButton.icon(onPressed: sold ? null : () => _edit(row), icon: const Icon(Icons.edit_outlined, size: 18), label: const Text('تعديل'))), const SizedBox(width: 6), Expanded(child: OutlinedButton.icon(onPressed: sold ? null : () => _setFrozen(row, !frozen), icon: Icon(frozen ? Icons.play_arrow_rounded : Icons.pause_rounded, size: 18), label: Text(frozen ? 'إلغاء التجميد' : 'تجميد'))), const SizedBox(width: 6), IconButton(onPressed: () => _delete(row), tooltip: 'حذف', icon: const Icon(Icons.delete_outline_rounded))]),
