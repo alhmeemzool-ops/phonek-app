@@ -45,3 +45,5 @@ jobs:
         with:
           args: deploy --dir=build/web --prod --site=87a6418c-d38b-45ef-91d8-e0ae340431ca
           secrets: '["NETLIFY_AUTH_TOKEN"]'
+
+# Trigger preview deployment after Netlify token setup.
