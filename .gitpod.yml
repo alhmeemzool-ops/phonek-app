@@ -1,0 +1,19 @@
+image:
+  file: .gitpod.Dockerfile
+
+tasks:
+  - name: PhoneK Web Preview
+    init: flutter pub get
+    command: flutter run -d web-server --web-hostname 0.0.0.0 --web-port 8080
+
+ports:
+  - name: PhoneK Preview
+    port: 8080
+    onOpen: open-browser
+    visibility: public
+    protocol: http
+
+vscode:
+  extensions:
+    - Dart-Code.flutter
+    - Dart-Code.dart-code
