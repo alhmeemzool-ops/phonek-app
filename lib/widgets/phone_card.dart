@@ -6,6 +6,11 @@ import '../utils/formatters.dart';
 import '../features/merchant_badges/badge_widgets.dart';
 import '../features/merchant_badges/badge_model.dart';
 
+String _optimizedListingImageUrl(String url) {
+  if (url.isEmpty || !url.contains('/storage/v1/object/public/')) return url;
+  return '${url.replaceFirst('/storage/v1/object/public/', '/storage/v1/render/image/public/')}?width=700&quality=72&resize=contain';
+}
+
 class PhoneCard extends StatelessWidget {
   final PhoneListing listing;
   final VoidCallback onTap;
@@ -19,12 +24,12 @@ class PhoneCard extends StatelessWidget {
     final merchantLevel=listing.seller.isShop&&listing.seller.isVerifiedStore?levelForSales(listing.seller.completedSales):0;
     return GestureDetector(onTap:onTap,child:Card(clipBehavior:Clip.antiAlias,child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
       Expanded(child:Stack(children:[Positioned.fill(child:listing.imageUrls.isNotEmpty?CachedNetworkImage(
-        imageUrl:listing.imageUrls.first,
+        imageUrl:_optimizedListingImageUrl(listing.imageUrls.first),
         fit:BoxFit.cover,
-        memCacheWidth:720,
-        memCacheHeight:720,
-        maxWidthDiskCache:720,
-        maxHeightDiskCache:720,
+        memCacheWidth:700,
+        memCacheHeight:700,
+        maxWidthDiskCache:700,
+        maxHeightDiskCache:700,
         fadeInDuration:const Duration(milliseconds:140),
         placeholder:(_,__)=>const _ImagePlaceholder(),
         errorWidget:(_,__,___)=>const _ImagePlaceholder(),
