@@ -25,8 +25,8 @@ class _AdminStoresScreenState extends State<AdminStoresScreen> {
     if (mounted) setState(() { _loading = true; _error = null; });
     try {
       final c = Supabase.instance.client;
-      final profiles = await c.from('profiles').select('id,name,city,is_shop,is_verified_store,completed_sales,rating,phone,whatsapp,bio,avatar_url,reply_speed_label,shop_address,shop_location_url,shop_hours,payment_methods').eq('is_shop', true).order('name');
-      final badges = await c.from('merchant_badge_state').select('profile_id,current_level,eligible_level,completed_sales,rating,identity_verified,license_verified').limit(5000);
+      final profiles = await c.from('profiles').select('id,name,city,is_shop,is_verified_store,completed_sales,rating,phone,whatsapp,bio,avatar_url,reply_speed_label,shop_address,shop_location_url,shop_hours,payment_methods,created_at');
+      final badges = await c.from('merchant_badge_state').select('profile_id,current_level,eligible_level,completed_sales,rating,identity_verified,license_verified,active_days').limit(5000);
       final byId = <String, Map<String, dynamic>>{
         for (final r in (badges as List).whereType<Map<String, dynamic>>()) r['profile_id'].toString(): r,
       };
@@ -93,7 +93,10 @@ class _AdminStoresScreenState extends State<AdminStoresScreen> {
     final id = s['id']?.toString() ?? '';
     final sales = (s['completed_sales'] as num?)?.toInt() ?? int.tryParse(s['completed_sales']?.toString() ?? '') ?? 0;
     final rating = (s['rating'] as num?)?.toDouble() ?? double.tryParse(s['rating']?.toString() ?? '') ?? 0;
-    final level = (s['current_level'] as num?)?.toInt() ?? levelForStatus(sales: sales, identityVerified: s['identity_verified'] == true || s['is_verified_store'] == true, licenseVerified: s['license_verified'] == true, rating: rating);
+    final created = DateTime.tryParse('${s['created_at']}');
+    final fallbackActiveDays = created == null ? 0 : DateTime.now().difference(created).inDays.clamp(0, 100000);
+    final activeDays = (s['active_days'] as num?)?.toInt() ?? fallbackActiveDays;
+    final level = (s['current_level'] as num?)?.toInt() ?? levelForStatus(sales: sales, activeDays: activeDays, identityVerified: s['identity_verified'] == true || s['is_verified_store'] == true, licenseVerified: s['license_verified'] == true, rating: rating);
     final ads = _listingCounts[id] ?? 0;
     final seller = SellerInfo(id: id, name: s['name']?.toString() ?? 'متجر', phone: s['phone']?.toString() ?? '', whatsapp: s['whatsapp']?.toString(), bio: s['bio']?.toString(), avatarUrl: s['avatar_url']?.toString(), isShop: true, isVerifiedStore: s['is_verified_store'] == true, rating: rating, completedSales: sales, city: s['city']?.toString() ?? '', replySpeedLabel: s['reply_speed_label']?.toString() ?? 'يرد عادة خلال ساعات');
     return Card(
@@ -108,8 +111,6 @@ class _AdminStoresScreenState extends State<AdminStoresScreen> {
               Row(children: [CircleAvatar(backgroundColor: AppColors.surfaceLight, child: Text((s['name']?.toString().trim().isNotEmpty == true) ? s['name'].toString().trim()[0] : 'م', style: const TextStyle(color: AppColors.gold))), const SizedBox(width: 10), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(s['name']?.toString() ?? 'متجر', style: const TextStyle(fontWeight: FontWeight.bold)), Text('${s['city'] ?? '—'} • $ads إعلان', style: const TextStyle(color: AppColors.textSecondary, fontSize: 12))])), if (level > 0) MerchantBadgeChip(level: level, compact: true)]),
               const SizedBox(height: 12),
               Row(children: [Expanded(child: _metric('التقييم', rating > 0 ? '${rating.toStringAsFixed(1)} ★' : '—')), Expanded(child: _metric('الإعلانات', '$ads')), Expanded(child: _metric('المبيعات', '$sales')), Expanded(child: _metric('المستوى', level > 0 ? badgeForLevel(level).nameAr : 'غير مؤهل'))]),
-              const SizedBox(height: 10),
-              Row(children: [Expanded(child: OutlinedButton.icon(onPressed: () => _editStore(s), icon: const Icon(Icons.edit_outlined), label: const Text('تعديل المتجر'))), const SizedBox(width: 8), Expanded(child: OutlinedButton.icon(onPressed: () => _editBadge(s), icon: const Icon(Icons.workspace_premium_outlined), label: const Text('إدارة الشارة')))]),
             ],
           ),
         ),
@@ -117,30 +118,5 @@ class _AdminStoresScreenState extends State<AdminStoresScreen> {
     );
   }
 
-  Widget _metric(String l, String v) => Column(children: [Text(v, style: const TextStyle(color: AppColors.gold, fontWeight: FontWeight.w800)), const SizedBox(height: 2), Text(l, style: const TextStyle(color: AppColors.textSecondary, fontSize: 10))]);
-
-  Future<void> _editStore(Map<String, dynamic> s) async {
-    final name = TextEditingController(text: s['name']?.toString() ?? '');
-    final city = TextEditingController(text: s['city']?.toString() ?? '');
-    final address = TextEditingController(text: s['shop_address']?.toString() ?? '');
-    final map = TextEditingController(text: s['shop_location_url']?.toString() ?? '');
-    final phone = TextEditingController(text: s['phone']?.toString() ?? '');
-    final ok = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(title: const Text('تعديل بيانات المتجر'), content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [TextField(controller: name, decoration: const InputDecoration(labelText: 'اسم المتجر')), TextField(controller: city, decoration: const InputDecoration(labelText: 'المدينة')), TextField(controller: address, decoration: const InputDecoration(labelText: 'العنوان')), TextField(controller: map, decoration: const InputDecoration(labelText: 'رابط Google Maps')), TextField(controller: phone, decoration: const InputDecoration(labelText: 'رقم الاتصال'))])), actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')), FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('حفظ'))]));
-    if (ok != true) return;
-    try {
-      await Supabase.instance.client.from('profiles').update({'name': name.text.trim(), 'city': city.text.trim(), 'shop_address': address.text.trim(), 'shop_location_url': map.text.trim(), 'phone': phone.text.trim(), 'is_shop': true}).eq('id', s['id']);
-      await _load();
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم تحديث المتجر')));
-    } catch (e) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذر التحديث: $e'))); }
-  }
-
-  Future<void> _editBadge(Map<String, dynamic> s) async {
-    final id = s['id']?.toString();
-    if (id == null || id.isEmpty) return;
-    var level = (s['current_level'] as num?)?.toInt() ?? 0;
-    final ok = await showDialog<bool>(context: context, builder: (ctx) => StatefulBuilder(builder: (ctx, setLocal) => AlertDialog(title: const Text('إدارة شارة المتجر'), content: Column(mainAxisSize: MainAxisSize.min, children: [Text('المستوى الحالي: $level'), Slider(min: 0, max: 10, divisions: 10, value: level.toDouble(), onChanged: (v) => setLocal(() => level = v.round())), if (level > 0) MerchantBadgeChip(level: level)]), actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')), FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('حفظ'))])));
-    if (ok != true) return;
-    try { await Supabase.instance.client.from('merchant_badge_state').update({'current_level': level, 'eligible_level': level}).eq('profile_id', id); await _load(); }
-    catch (e) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذر تحديث الشارة: $e'))); }
-  }
+  Widget _metric(String label, String value) => Column(children: [Text(value, style: const TextStyle(fontWeight: FontWeight.w900)), const SizedBox(height: 3), Text(label, style: const TextStyle(fontSize: 11, color: AppColors.textSecondary))]);
 }
