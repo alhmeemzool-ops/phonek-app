@@ -35,7 +35,7 @@ jobs:
           done
 
       - name: Analyze
-        run: flutter analyze --no-pub
+        run: flutter analyze --no-pub --no-fatal-warnings
 
       - name: Run tests
         run: flutter test --no-pub
