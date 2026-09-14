@@ -4,6 +4,7 @@ import '../data/app_state.dart';
 import '../theme/app_theme.dart';
 import '../utils/formatters.dart';
 import '../features/merchant_badges/merchant_badges_screen.dart';
+import '../features/merchant_store/merchant_catalog_screen.dart';
 import '../services/admin_store_provisioner.dart';
 import 'login_screen.dart';
 import 'my_listings_screen.dart';
@@ -15,6 +16,7 @@ class ProfileScreen extends StatelessWidget {
   @override Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
     if (!appState.isLoggedIn) return Scaffold(appBar: AppBar(title: const Text('حسابي')), body: Center(child: ElevatedButton(onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LoginScreen())), child: const Text('تسجيل الدخول'))));
+    final merchant = appState.isShopOwner || appState.isAdmin;
     return Scaffold(appBar: AppBar(title: const Text('حسابي')), body: ListView(children: [
       const SizedBox(height: 16),
       CircleAvatar(radius: 36, backgroundColor: AppColors.surfaceLight, child: Text(AppFormatters.firstChar(appState.userName), style: const TextStyle(color: AppColors.gold, fontSize: 24))),
@@ -22,13 +24,16 @@ class ProfileScreen extends StatelessWidget {
       if (appState.userEmail != null) ...[const SizedBox(height: 4), Center(child: Text(appState.userEmail!, style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)))],
       const SizedBox(height: 20),
       _tile(context, Icons.list_alt, 'إعلاناتي', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MyListingsScreen()))),
-      _tile(context, Icons.storefront, appState.isShopOwner || appState.isAdmin ? 'لوحة المتجر: ${appState.shopName ?? 'PhoneK'}' : 'إنشاء حساب صاحب متجر', () async {
+      _tile(context, Icons.storefront, merchant ? 'لوحة المتجر: ${appState.shopName ?? 'PhoneK'}' : 'إنشاء حساب صاحب متجر', () async {
         if (appState.isAdmin) {
           try { await AdminStoreProvisioner.ensure(); await appState.loadListings(); } catch (e) { if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذر تجهيز متجر الأدمن: $e'))); }
         }
         if (context.mounted) Navigator.push(context, MaterialPageRoute(builder: (_) => const ShopAccountScreen()));
       }),
-      if (appState.isShopOwner || appState.isAdmin) _tile(context, Icons.workspace_premium, 'شارات المتجر', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MerchantBadgesScreen()))),
+      if (merchant) ...[
+        _tile(context, Icons.inventory_2_outlined, 'كتالوج المتجر', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MerchantCatalogScreen()))),
+        _tile(context, Icons.workspace_premium, 'شارات المتجر', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MerchantBadgesScreen()))),
+      ],
       if (appState.isAdmin) _tile(context, Icons.admin_panel_settings, 'لوحة الإدارة', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminDashboardScreen()))),
       _tile(context, Icons.bookmark, 'عمليات البحث المحفوظة', () => _showComingSoon(context, 'عمليات البحث المحفوظة')),
       _tile(context, Icons.notifications, 'إعدادات الإشعارات', () => _showComingSoon(context, 'إعدادات الإشعارات')),
