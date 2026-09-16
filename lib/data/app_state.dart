@@ -391,9 +391,11 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> signInWithGoogle() async {
+    // This exact URI must also exist in Supabase Authentication > URL Configuration.
+    // The trailing slash is intentional and matches Supabase's Flutter deep-link guidance.
     final redirectTo = kIsWeb
         ? '${Uri.base.origin}${Uri.base.path.endsWith('/') ? Uri.base.path : '${Uri.base.path}/'}'
-        : 'io.supabase.phonek://login-callback';
+        : 'io.supabase.phonek://login-callback/';
     final response = await Supabase.instance.client.auth.signInWithOAuth(
       OAuthProvider.google,
       redirectTo: redirectTo,
