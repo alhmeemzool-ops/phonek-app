@@ -31,17 +31,16 @@ android {
             keyAlias = keystoreProperties["keyAlias"] as String?
             keyPassword = keystoreProperties["keyPassword"] as String?
             storePassword = keystoreProperties["storePassword"] as String?
-            storeFile = keystoreProperties["storeFile"]?.let { rootProject.file("android/$it") }
+            storeFile = keystoreProperties["storeFile"]?.let { rootProject.file(it) }
         }
     }
 
     buildTypes {
         release {
-            signingConfig = if (keystorePropertiesFile.exists()) {
-                signingConfigs.getByName("release")
-            } else {
-                signingConfigs.getByName("debug")
+            if (!keystorePropertiesFile.exists()) {
+                throw GradleException("Release signing is not configured. GitHub Actions must provide android/key.properties and upload-keystore.jks.")
             }
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 }
