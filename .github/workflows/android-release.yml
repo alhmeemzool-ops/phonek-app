@@ -58,7 +58,9 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
         run: |
-          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/upload-keystore.jks
+          # Normalize copied secret values (line breaks/Markdown whitespace) before decoding.
+          # --ignore-garbage tolerates harmless formatting characters without exposing the secret.
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | tr -d '[:space:]' | base64 --decode --ignore-garbage > android/upload-keystore.jks
           cat > android/key.properties <<EOF
           storePassword=$KEYSTORE_PASSWORD
           keyPassword=$KEY_PASSWORD
@@ -66,6 +68,7 @@ jobs:
           storeFile=upload-keystore.jks
           EOF
           chmod 600 android/upload-keystore.jks android/key.properties
+          keytool -list -keystore android/upload-keystore.jks -storepass "$KEYSTORE_PASSWORD" -alias "$KEY_ALIAS" >/dev/null
 
       - name: Install dependencies
         run: flutter pub get
