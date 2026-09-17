@@ -2,15 +2,6 @@ name: PhoneK Android Release
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - 'lib/**'
-      - 'android/**'
-      - 'assets/**'
-      - 'pubspec.yaml'
-      - 'pubspec.lock'
-      - '.github/workflows/android-release.yml'
 
 permissions:
   contents: write
