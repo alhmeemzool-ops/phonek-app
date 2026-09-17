@@ -122,6 +122,17 @@ class _UpdateDialogState extends State<_UpdateDialog> {
     }
   }
 
+  Future<void> _openInstallPermissionSettings() async {
+    try {
+      await PhoneKUpdateService.openInstallPermissionSettings();
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _error = 'تعذر فتح إعدادات الصلاحية. افتح إعدادات Android ثم فعّل السماح لـ PhoneK بتثبيت التطبيقات.';
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return PopScope(
@@ -146,6 +157,14 @@ class _UpdateDialogState extends State<_UpdateDialog> {
             if (_error != null) ...[
               const SizedBox(height: 12),
               Text(_error!, style: const TextStyle(color: Colors.redAccent)),
+              if (_error == 'تم تنزيل التحديث. اسمح للتطبيق بتثبيت التطبيقات من هذا المصدر ثم اضغط «تحديث الآن» مرة أخرى.') ...[
+                const SizedBox(height: 10),
+                OutlinedButton.icon(
+                  onPressed: _openInstallPermissionSettings,
+                  icon: const Icon(Icons.security_outlined),
+                  label: const Text('السماح بالتثبيت من هذا المصدر'),
+                ),
+              ],
             ],
           ],
         ),

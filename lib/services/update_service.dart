@@ -44,6 +44,13 @@ class PhoneKUpdate {
 }
 
 class PhoneKUpdateService {
+  static const _platform = MethodChannel('phonek/update_permissions');
+
+  static Future<void> openInstallPermissionSettings() async {
+    if (!Platform.isAndroid) return;
+    await _platform.invokeMethod<void>('openInstallPermissionSettings');
+  }
+
   static Future<PhoneKUpdate?> check() async {
     if (!Platform.isAndroid) return null;
 
