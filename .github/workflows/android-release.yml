@@ -122,8 +122,11 @@ jobs:
           EOF
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          cp update.json /tmp/phonek-update.json
+          git reset --hard HEAD
           git fetch origin main
-          git rebase origin/main
+          git reset --hard origin/main
+          cp /tmp/phonek-update.json update.json
           git add update.json
           if ! git diff --cached --quiet; then
             git commit -m "Update PhoneK update manifest to 1.0.${{ github.run_number }}"
