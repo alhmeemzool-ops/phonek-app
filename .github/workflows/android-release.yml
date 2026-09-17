@@ -122,9 +122,13 @@ jobs:
           EOF
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          git rebase origin/main
           git add update.json
-          git commit -m "Update PhoneK update manifest to 1.0.${{ github.run_number }}"
-          git push
+          if ! git diff --cached --quiet; then
+            git commit -m "Update PhoneK update manifest to 1.0.${{ github.run_number }}"
+            git push origin HEAD:main
+          fi
 
       - name: Upload AAB artifact
         uses: actions/upload-artifact@v4
