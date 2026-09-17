@@ -1,8 +1,8 @@
 {
-  "versionCode": 1,
-  "versionName": "1.0.0",
-  "apkUrl": "",
-  "sha256": "",
+  "versionCode": 21,
+  "versionName": "1.0.21",
+  "apkUrl": "https://github.com/alhmeemzool-ops/phonek-app/releases/download/v1.0.21/phonek.apk",
+  "sha256": "0ac7e82c61718c1f33a0887b5624a5180644663992b29b246ac7921ef49796b5",
   "mandatory": false,
-  "notes": ""
+  "notes": "تحديث جديد لتحسين PhoneK وإصلاح الأخطاء."
 }
