@@ -151,7 +151,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   return Padding(
                     padding: const EdgeInsets.fromLTRB(12, 6, 12, 10),
                     child: SizedBox(
-                      height: 360,
+                      // مساحة أكبر للصورة حتى تظهر صورة الهاتف كاملة داخل البطاقة.
+                      // PhoneCard يستخدم BoxFit.contain لذلك لا يتم قص أي جزء من الصورة.
+                      height: 430,
                       child: PhoneCard(
                         listing: phone,
                         isFavorite: appState.isFavorite(phone.id),

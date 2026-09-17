@@ -26,6 +26,7 @@ class PhoneCard extends StatelessWidget {
       Expanded(child:Stack(children:[Positioned.fill(child:ColoredBox(color:AppColors.surfaceLight,child:listing.imageUrls.isNotEmpty?CachedNetworkImage(
         imageUrl:_optimizedListingImageUrl(listing.imageUrls.first),
         fit:BoxFit.contain,
+        alignment:Alignment.center,
         memCacheWidth:700,
         memCacheHeight:700,
         maxWidthDiskCache:700,
