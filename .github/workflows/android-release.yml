@@ -68,7 +68,19 @@ jobs:
           storeFile=upload-keystore.jks
           EOF
           chmod 600 android/upload-keystore.jks android/key.properties
-          keytool -list -keystore android/upload-keystore.jks -storepass "$KEYSTORE_PASSWORD" -alias "$KEY_ALIAS" >/dev/null
+          actual_sha256=$(sha256sum android/upload-keystore.jks | awk '{print $1}')
+          actual_size=$(stat -c '%s' android/upload-keystore.jks)
+          echo "keystore_size=$actual_size"
+          echo "keystore_sha256=$actual_sha256"
+          if [ "$actual_sha256" != "513d33a0148936e68fab5bec062f48fbb350d83182451fdf2443eddda31a3f60" ]; then
+            echo "Keystore bytes do not match the uploaded keystore file."
+            exit 1
+          fi
+          if ! keytool -list -keystore android/upload-keystore.jks -storepass "$KEYSTORE_PASSWORD" -alias "$KEY_ALIAS" >/dev/null 2>&1; then
+            echo "Keystore bytes match, but password or alias is incorrect."
+            exit 1
+          fi
+          echo "Keystore bytes and signing credentials verified."
 
       - name: Install dependencies
         run: flutter pub get
