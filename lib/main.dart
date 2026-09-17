@@ -105,11 +105,19 @@ class _UpdateDialogState extends State<_UpdateDialog> {
           if (mounted) setState(() => _progress = value);
         },
       );
+    } on PhoneKUpdateException catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _downloading = false;
+        _error = error.reason == 'install_permission'
+            ? 'تم تنزيل التحديث. اسمح للتطبيق بتثبيت التطبيقات من هذا المصدر ثم اضغط «تحديث الآن» مرة أخرى.'
+            : 'تعذر بدء تثبيت التحديث. حاول مرة أخرى.';
+      });
     } catch (_) {
       if (!mounted) return;
       setState(() {
         _downloading = false;
-        _error = 'تعذر تنزيل التحديث. تأكد من اتصال الإنترنت وحاول مرة أخرى.';
+        _error = 'تعذر تنزيل التحديث. تأكد من اتصال الإنترنت والرابط ثم حاول مرة أخرى.';
       });
     }
   }

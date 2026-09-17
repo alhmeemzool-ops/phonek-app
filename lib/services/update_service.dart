@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:apk_sideload/install_apk.dart';
 import 'package:crypto/crypto.dart';
 import 'package:http/http.dart' as http;
+import 'package:flutter/services.dart';
 
 const int phoneKBuildNumber = int.fromEnvironment(
   'PHONEK_BUILD_NUMBER',
@@ -80,6 +81,7 @@ class PhoneKUpdateService {
     final client = HttpClient();
     try {
       final request = await client.getUrl(Uri.parse(update.apkUrl));
+      request.followRedirects = true;
       final response = await request.close();
 
       if (response.statusCode != HttpStatus.ok) {
@@ -89,17 +91,18 @@ class PhoneKUpdateService {
       final total = response.contentLength;
       var received = 0;
       final sink = file.openWrite();
-
-      await for (final chunk in response) {
-        sink.add(chunk);
-        received += chunk.length;
-        if (total > 0) {
-          onProgress?.call((received / total).clamp(0.0, 1.0));
+      try {
+        await for (final chunk in response) {
+          sink.add(chunk);
+          received += chunk.length;
+          if (total > 0) {
+            onProgress?.call((received / total).clamp(0.0, 1.0));
+          }
         }
+      } finally {
+        await sink.flush();
+        await sink.close();
       }
-
-      await sink.flush();
-      await sink.close();
 
       final digest = sha256.convert(await file.readAsBytes()).toString();
       if (digest.toLowerCase() != update.sha256) {
@@ -108,9 +111,24 @@ class PhoneKUpdateService {
       }
 
       onProgress?.call(1.0);
-      await InstallApk().installApk(file.path);
+      try {
+        await InstallApk().installApk(file.path);
+      } on PlatformException catch (error) {
+        if (error.code == 'INSTALL_ERROR') {
+          throw const PhoneKUpdateException(
+            'install_permission',
+          );
+        }
+        throw const PhoneKUpdateException('install');
+      }
     } finally {
       client.close(force: true);
     }
   }
+}
+
+class PhoneKUpdateException implements Exception {
+  final String reason;
+
+  const PhoneKUpdateException(this.reason);
 }
