@@ -129,8 +129,66 @@ class _ListingSettingsScreenState extends State<ListingSettingsScreen> {
             const SizedBox(height: 12),
             TextField(controller: _description, maxLines: 5, decoration: const InputDecoration(labelText: 'الوصف')),
             const SizedBox(height: 18),
-            Row(children: [const Expanded(child: Text('صور الإعلان', style: TextStyle(fontWeight: FontWeight.bold))), IconButton(onPressed: _addImages, icon: const Icon(Icons.add_photo_alternate, color: AppColors.gold), tooltip: 'إضافة صور')]),
-            if (_images.isEmpty) const Text('لا توجد صور', style: TextStyle(color: AppColors.textSecondary)) else SizedBox(height: 92, child: ReorderableListView.builder(scrollDirection: Axis.horizontal, itemCount: _images.length, onReorder: (oldIndex, newIndex) { setState(() { if (newIndex > oldIndex) newIndex--; final image = _images.removeAt(oldIndex); _images.insert(newIndex, image); }); }, itemBuilder: (_, index) => Padding(key: ValueKey('${_images[index]}-$index'), padding: const EdgeInsets.only(left: 8), child: Stack(children: [ClipRRect(borderRadius: BorderRadius.circular(8), child: Image.network(_images[index], width: 86, height: 86, fit: BoxFit.cover)), Positioned(top: 2, right: 2, child: GestureDetector(onTap: () => setState(() => _images.removeAt(index)), child: const CircleAvatar(radius: 11, backgroundColor: Colors.black87, child: Icon(Icons.close, size: 14, color: Colors.white))))]))),
+            Row(
+              children: [
+                const Expanded(
+                  child: Text('صور الإعلان', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+                IconButton(
+                  onPressed: _addImages,
+                  icon: const Icon(Icons.add_photo_alternate, color: AppColors.gold),
+                  tooltip: 'إضافة صور',
+                ),
+              ],
+            ),
+            if (_images.isEmpty)
+              const Text('لا توجد صور', style: TextStyle(color: AppColors.textSecondary))
+            else
+              SizedBox(
+                height: 92,
+                child: ReorderableListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _images.length,
+                  onReorder: (oldIndex, newIndex) {
+                    setState(() {
+                      if (newIndex > oldIndex) newIndex--;
+                      final image = _images.removeAt(oldIndex);
+                      _images.insert(newIndex, image);
+                    });
+                  },
+                  itemBuilder: (_, index) {
+                    return Padding(
+                      key: ValueKey('${_images[index]}-$index'),
+                      padding: const EdgeInsets.only(left: 8),
+                      child: Stack(
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.network(
+                              _images[index],
+                              width: 86,
+                              height: 86,
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                          Positioned(
+                            top: 2,
+                            right: 2,
+                            child: GestureDetector(
+                              onTap: () => setState(() => _images.removeAt(index)),
+                              child: const CircleAvatar(
+                                radius: 11,
+                                backgroundColor: Colors.black87,
+                                child: Icon(Icons.close, size: 14, color: Colors.white),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
             const SizedBox(height: 6),
             const Text('اسحب الصور لترتيبها، واضغط × لحذف صورة.', style: TextStyle(color: AppColors.textSecondary, fontSize: 11)),
             const SizedBox(height: 18),
