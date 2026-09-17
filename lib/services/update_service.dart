@@ -143,8 +143,11 @@ class PhoneKUpdateService {
         await InstallApk().installApk(file.path);
       } on PlatformException catch (error) {
         if (error.code == 'INSTALL_ERROR') {
-          throw const PhoneKUpdateException(
-            'install_permission',
+          // بعض إصدارات مُثبت APK تعيد INSTALL_ERROR لأسباب أخرى غير الصلاحية.
+          // افحص حالة Android مرة ثانية قبل عرض زر الإعدادات للمستخدم.
+          final permissionStillMissing = !(await canInstallPackages());
+          throw PhoneKUpdateException(
+            permissionStillMissing ? 'install_permission' : 'install',
           );
         }
         throw const PhoneKUpdateException('install');
