@@ -93,6 +93,15 @@ class _UpdateDialogState extends State<_UpdateDialog> {
   String? _error;
 
   Future<void> _install() async {
+    final canInstall = await PhoneKUpdateService.canInstallPackages();
+    if (!canInstall) {
+      if (!mounted) return;
+      setState(() {
+        _error = 'يجب السماح لـ PhoneK بتثبيت التطبيقات من هذا المصدر قبل بدء التحديث.';
+      });
+      return;
+    }
+
     setState(() {
       _downloading = true;
       _error = null;
@@ -152,12 +161,13 @@ class _UpdateDialogState extends State<_UpdateDialog> {
               const SizedBox(height: 18),
               LinearProgressIndicator(value: _progress),
               const SizedBox(height: 8),
-              Text('${(_progress * 100).round()}%'),
+              Text('جاري تنزيل النسخة الأحدث... ${(_progress * 100).round()}%'),
             ],
             if (_error != null) ...[
               const SizedBox(height: 12),
               Text(_error!, style: const TextStyle(color: Colors.redAccent)),
-              if (_error == 'تم تنزيل التحديث. اسمح للتطبيق بتثبيت التطبيقات من هذا المصدر ثم اضغط «تحديث الآن» مرة أخرى.') ...[
+              if (_error == 'يجب السماح لـ PhoneK بتثبيت التطبيقات من هذا المصدر قبل بدء التحديث.' ||
+                  _error == 'تم تنزيل التحديث. اسمح للتطبيق بتثبيت التطبيقات من هذا المصدر ثم اضغط «تحديث الآن» مرة أخرى.') ...[
                 const SizedBox(height: 10),
                 OutlinedButton.icon(
                   onPressed: _openInstallPermissionSettings,

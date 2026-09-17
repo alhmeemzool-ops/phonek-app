@@ -14,6 +14,11 @@ class MainActivity : FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, channelName).setMethodCallHandler { call, result ->
+            if (call.method == "canInstallPackages") {
+                result.success(Build.VERSION.SDK_INT < Build.VERSION_CODES.O || packageManager.canRequestPackageInstalls())
+                return@setMethodCallHandler
+            }
+
             if (call.method != "openInstallPermissionSettings") {
                 result.notImplemented()
                 return@setMethodCallHandler

@@ -46,9 +46,25 @@ class PhoneKUpdate {
 class PhoneKUpdateService {
   static const _platform = MethodChannel('phonek/update_permissions');
 
+  static Future<void> _deleteOldUpdateApks() async {
+    final tempDir = Directory.systemTemp;
+    await for (final entity in tempDir.list()) {
+      if (entity is File &&
+          entity.path.contains('/phonek-update-') &&
+          entity.path.endsWith('.apk')) {
+        await entity.delete().catchError((_) => entity);
+      }
+    }
+  }
+
   static Future<void> openInstallPermissionSettings() async {
     if (!Platform.isAndroid) return;
     await _platform.invokeMethod<void>('openInstallPermissionSettings');
+  }
+
+  static Future<bool> canInstallPackages() async {
+    if (!Platform.isAndroid) return true;
+    return await _platform.invokeMethod<bool>('canInstallPackages') ?? false;
   }
 
   static Future<PhoneKUpdate?> check() async {
@@ -56,7 +72,9 @@ class PhoneKUpdateService {
 
     try {
       final response = await http.get(
-        Uri.parse(phoneKUpdateManifestUrl),
+        Uri.parse(phoneKUpdateManifestUrl).replace(
+          queryParameters: {'t': DateTime.now().millisecondsSinceEpoch.toString()},
+        ),
         headers: const {'Cache-Control': 'no-cache'},
       ).timeout(const Duration(seconds: 8));
 
@@ -78,16 +96,19 @@ class PhoneKUpdateService {
     PhoneKUpdate update, {
     void Function(double progress)? onProgress,
   }) async {
+    // لا نستخدم أي APK قديم: احذفه ثم نزّل الملف الحالي من المصدر.
+    await _deleteOldUpdateApks();
     final tempDir = Directory.systemTemp;
     final file = File('${tempDir.path}/phonek-update-${update.versionCode}.apk');
 
-    if (await file.exists()) {
-      await file.delete();
-    }
-
     final client = HttpClient();
     try {
-      final request = await client.getUrl(Uri.parse(update.apkUrl));
+      final request = await client.getUrl(Uri.parse(update.apkUrl).replace(
+        queryParameters: {
+          ...Uri.parse(update.apkUrl).queryParameters,
+          't': DateTime.now().millisecondsSinceEpoch.toString(),
+        },
+      ));
       request.followRedirects = true;
       final response = await request.close();
 
