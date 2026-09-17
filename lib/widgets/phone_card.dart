@@ -23,9 +23,9 @@ class PhoneCard extends StatelessWidget {
     final hasDiscount=listing.oldPrice!=null&&listing.oldPrice!>listing.price;
     final merchantLevel=listing.seller.isShop&&listing.seller.isVerifiedStore?levelForSales(listing.seller.completedSales):0;
     return GestureDetector(onTap:onTap,child:Card(clipBehavior:Clip.antiAlias,child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-      Expanded(child:Stack(children:[Positioned.fill(child:listing.imageUrls.isNotEmpty?CachedNetworkImage(
+      Expanded(child:Stack(children:[Positioned.fill(child:ColoredBox(color:AppColors.surfaceLight,child:listing.imageUrls.isNotEmpty?CachedNetworkImage(
         imageUrl:_optimizedListingImageUrl(listing.imageUrls.first),
-        fit:BoxFit.cover,
+        fit:BoxFit.contain,
         memCacheWidth:700,
         memCacheHeight:700,
         maxWidthDiskCache:700,
@@ -33,7 +33,7 @@ class PhoneCard extends StatelessWidget {
         fadeInDuration:const Duration(milliseconds:140),
         placeholder:(_,__)=>const _ImagePlaceholder(),
         errorWidget:(_,__,___)=>const _ImagePlaceholder(),
-      ):const _ImagePlaceholder()),
+      ):const _ImagePlaceholder())),
         Positioned(bottom:6,right:6,child:Container(padding:const EdgeInsets.symmetric(horizontal:6,vertical:2),decoration:BoxDecoration(color:Colors.black.withValues(alpha:.55),borderRadius:BorderRadius.circular(4)),child:const Text('PhoneK',style:TextStyle(color:AppColors.gold,fontSize:9)))),
         if(listing.isFeatured)const Positioned(top:6,right:6,child:_Badge(text:'مميز',color:AppColors.gold,textColor:Colors.black)),
         if(listing.status==ListingStatus.sold)const Positioned(top:6,left:6,child:_Badge(text:'تم البيع',color:AppColors.danger,textColor:Colors.white)),
