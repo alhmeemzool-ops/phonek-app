@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'badge_3d_viewer.dart';
 import 'badge_model.dart';
 import 'merchant_badge_art.dart';
@@ -54,21 +55,37 @@ class MerchantBadgeGallery extends StatelessWidget {
 }
 
 void showMerchantBadgeDetails(BuildContext context, MerchantBadge badge, {required bool current, bool unlocked = true}) {
-  showModalBottomSheet<void>(
+  showDialog<void>(
     context: context,
-    backgroundColor: const Color(0xFF1E1E1E),
-    isScrollControlled: true,
-    builder: (sheetContext) => SafeArea(child: Padding(padding: const EdgeInsets.fromLTRB(20, 16, 20, 24), child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Row(children: [Expanded(child: Text(badge.nameAr, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: Colors.white))), IconButton(onPressed: () => Navigator.pop(sheetContext), icon: const Icon(Icons.close, color: Colors.white))]),
-      Text('المستوى ${badge.level}', style: const TextStyle(color: Color(0xFFFFD700), fontWeight: FontWeight.bold)),
-      const SizedBox(height: 12),
-      Center(child: MerchantBadgeArt(level: badge.level, size: 100, locked: !unlocked)),
-      const SizedBox(height: 12),
-      Text(badge.descriptionAr, style: const TextStyle(color: Colors.white70, height: 1.5)),
-      const SizedBox(height: 14),
-      Container(width: double.infinity, padding: const EdgeInsets.all(14), decoration: BoxDecoration(color: const Color(0xFF2A2A2A), borderRadius: BorderRadius.circular(12), border: Border.all(color: current ? const Color(0xFFFFD700) : Colors.white12)), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(current ? 'المستوى الحالي' : 'شروط الحصول على الشارة', style: const TextStyle(color: Colors.white60, fontSize: 12)), const SizedBox(height: 6), Text(badge.requiredSales == 0 ? 'تفعيل المتجر والتحقق من الهوية' : '${badge.requiredSales} عملية بيع ناجحة${badge.requiresLicense ? ' + توثيق رخصة المتجر' : ''}${badge.minRating != null ? ' + تقييم أعلى من ${badge.minRating!.toStringAsFixed(1)}' : ''}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold))])),
-      const SizedBox(height: 16),
-      SizedBox(width: double.infinity, child: FilledButton.icon(onPressed: () { Navigator.pop(sheetContext); Navigator.of(context).push(MaterialPageRoute(builder: (_) => MerchantBadge3DViewer(badge: badge, unlocked: unlocked))); }, icon: const Icon(Icons.threed_rotation_rounded), label: const Text('عرض الشارة 360°'))),
-    ]))),
+    barrierColor: Colors.black87,
+    builder: (dialogContext) => _BadgeCelebrationDialog(badge: badge, current: current, unlocked: unlocked),
+  );
+}
+
+class _BadgeCelebrationDialog extends StatefulWidget {
+  const _BadgeCelebrationDialog({required this.badge, required this.current, required this.unlocked});
+  final MerchantBadge badge; final bool current; final bool unlocked;
+  @override State<_BadgeCelebrationDialog> createState() => _BadgeCelebrationDialogState();
+}
+
+class _BadgeCelebrationDialogState extends State<_BadgeCelebrationDialog> {
+  @override
+  void initState() { super.initState(); SystemSound.play(SystemSoundType.alert); }
+  @override
+  Widget build(BuildContext context) => Dialog.fullscreen(
+    backgroundColor: const Color(0xFF111827),
+    child: SafeArea(child: Stack(children: [
+      Center(child: SingleChildScrollView(padding: const EdgeInsets.all(24), child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+        Icon(widget.unlocked ? Icons.auto_awesome : Icons.lock_outline, color: const Color(0xFFFFD700), size: 42),
+        const SizedBox(height: 12),
+        Text(widget.badge.nameAr, textAlign: TextAlign.center, style: const TextStyle(fontSize: 30, fontWeight: FontWeight.w900, color: Colors.white)),
+        const SizedBox(height: 8), Text('المستوى ${widget.badge.level}', style: const TextStyle(color: Color(0xFFFFD700), fontSize: 18, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 24), MerchantBadgeArt(level: widget.badge.level, size: 240, locked: !widget.unlocked),
+        const SizedBox(height: 24), Text(widget.current ? 'هذه شارتك الحالية' : widget.unlocked ? 'مبروك! هذه الشارة مفتوحة' : 'شارة قادمة', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 12), Text(widget.badge.descriptionAr, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white70, height: 1.5)),
+        const SizedBox(height: 20), SizedBox(width: double.infinity, child: FilledButton(onPressed: () => Navigator.pop(context), child: const Text('إغلاق'))),
+      ]))),
+      Positioned(top: 8, right: 8, child: IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close, color: Colors.white, size: 30))),
+    ])),
   );
 }

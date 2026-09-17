@@ -23,15 +23,14 @@ class ProfileScreen extends StatelessWidget {
       const SizedBox(height: 8), Center(child: Text(appState.userName ?? '', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
       if (appState.userEmail != null) ...[const SizedBox(height: 4), Center(child: Text(appState.userEmail!, style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)))],
       const SizedBox(height: 20),
-      _tile(context, Icons.list_alt, 'إعلاناتي', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MyListingsScreen()))),
-      _tile(context, Icons.storefront, merchant ? 'لوحة المتجر: ${appState.shopName ?? 'PhoneK'}' : 'إنشاء حساب صاحب متجر', () async {
+      if (!merchant) _tile(context, Icons.list_alt, 'إعلاناتي', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MyListingsScreen()))),
+      _tile(context, Icons.storefront, merchant ? 'متجري' : 'إنشاء حساب صاحب متجر', () async {
         if (appState.isAdmin) {
           try { await AdminStoreProvisioner.ensure(); await appState.loadListings(); } catch (e) { if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذر تجهيز متجر الأدمن: $e'))); }
         }
         if (context.mounted) Navigator.push(context, MaterialPageRoute(builder: (_) => const ShopAccountScreen()));
       }),
       if (merchant) ...[
-        _tile(context, Icons.inventory_2_outlined, 'كتالوج المتجر', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MerchantCatalogScreen()))),
         _tile(context, Icons.workspace_premium, 'شارات المتجر', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MerchantBadgesScreen()))),
       ],
       if (appState.isAdmin) _tile(context, Icons.admin_panel_settings, 'لوحة الإدارة', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminDashboardScreen()))),

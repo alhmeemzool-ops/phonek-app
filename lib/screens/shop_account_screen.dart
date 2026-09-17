@@ -21,7 +21,7 @@ class ShopAccountScreen extends StatelessWidget {
     if (state.isShopOwner || state.isAdmin) {
       return Scaffold(
         appBar: AppBar(
-          title: Text('لوحة متجر ${state.shopName ?? 'PhoneK'}'),
+          title: const Text('متجري'),
           actions: [
             MerchantVisitorPreviewButton(
               onPressed: userId == null ? () {} : () => Navigator.push(context, MaterialPageRoute(builder: (_) => ShopProfileScreen(shopId: userId))),

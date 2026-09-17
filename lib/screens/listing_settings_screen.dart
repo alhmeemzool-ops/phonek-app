@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../data/app_state.dart';
 import '../models/phone_model.dart';
 import '../theme/app_theme.dart';
-import 'my_listings_screen.dart';
 
 class ListingSettingsScreen extends StatefulWidget {
   const ListingSettingsScreen({super.key, required this.listing});
@@ -19,6 +20,8 @@ class _ListingSettingsScreenState extends State<ListingSettingsScreen> {
   late final TextEditingController _city;
   late final TextEditingController _description;
   bool _saving = false;
+  late List<String> _images;
+  final ImagePicker _picker = ImagePicker();
 
   @override
   void initState() {
@@ -27,6 +30,7 @@ class _ListingSettingsScreenState extends State<ListingSettingsScreen> {
     _price = TextEditingController(text: widget.listing.price.toString());
     _city = TextEditingController(text: widget.listing.city);
     _description = TextEditingController(text: widget.listing.description);
+    _images = [...widget.listing.imageUrls];
   }
 
   @override
@@ -52,6 +56,7 @@ class _ListingSettingsScreenState extends State<ListingSettingsScreen> {
         price: price,
         city: _city.text,
         description: _description.text,
+        imageUrls: _images,
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم حفظ تعديلات الإعلان')));
@@ -83,6 +88,23 @@ class _ListingSettingsScreenState extends State<ListingSettingsScreen> {
     }
   }
 
+  Future<void> _addImages() async {
+    final user = context.read<AppState>().currentUser;
+    if (user == null || _images.length >= 6) return;
+    final selected = await _picker.pickMultiImage(imageQuality: 82, maxWidth: 1600);
+    if (!mounted || selected.isEmpty) return;
+    try {
+      for (final image in selected.take(6 - _images.length)) {
+        final path = '${user.id}/${DateTime.now().microsecondsSinceEpoch}_${image.name}';
+        await Supabase.instance.client.storage.from('listing-images').uploadBinary(path, await image.readAsBytes(), fileOptions: const FileOptions(upsert: false));
+        _images.add(Supabase.instance.client.storage.from('listing-images').getPublicUrl(path));
+      }
+      if (mounted) setState(() {});
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذر إضافة الصور: $e')));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final owner = context.watch<AppState>().currentUser?.id == widget.listing.seller.id;
@@ -107,20 +129,15 @@ class _ListingSettingsScreenState extends State<ListingSettingsScreen> {
             const SizedBox(height: 12),
             TextField(controller: _description, maxLines: 5, decoration: const InputDecoration(labelText: 'الوصف')),
             const SizedBox(height: 18),
+            Row(children: [const Expanded(child: Text('صور الإعلان', style: TextStyle(fontWeight: FontWeight.bold))), IconButton(onPressed: _addImages, icon: const Icon(Icons.add_photo_alternate, color: AppColors.gold), tooltip: 'إضافة صور')]),
+            if (_images.isEmpty) const Text('لا توجد صور', style: TextStyle(color: AppColors.textSecondary)) else SizedBox(height: 92, child: ReorderableListView.builder(scrollDirection: Axis.horizontal, itemCount: _images.length, onReorder: (oldIndex, newIndex) { setState(() { if (newIndex > oldIndex) newIndex--; final image = _images.removeAt(oldIndex); _images.insert(newIndex, image); }); }, itemBuilder: (_, index) => Padding(key: ValueKey('${_images[index]}-$index'), padding: const EdgeInsets.only(left: 8), child: Stack(children: [ClipRRect(borderRadius: BorderRadius.circular(8), child: Image.network(_images[index], width: 86, height: 86, fit: BoxFit.cover)), Positioned(top: 2, right: 2, child: GestureDetector(onTap: () => setState(() => _images.removeAt(index)), child: const CircleAvatar(radius: 11, backgroundColor: Colors.black87, child: Icon(Icons.close, size: 14, color: Colors.white))))]))),
+            const SizedBox(height: 6),
+            const Text('اسحب الصور لترتيبها، واضغط × لحذف صورة.', style: TextStyle(color: AppColors.textSecondary, fontSize: 11)),
+            const SizedBox(height: 18),
             SizedBox(width: double.infinity, child: FilledButton.icon(onPressed: _saving ? null : _save, icon: const Icon(Icons.save_outlined), label: Text(_saving ? 'جارٍ الحفظ...' : 'حفظ التعديلات'))),
             const SizedBox(height: 8),
             SizedBox(width: double.infinity, child: OutlinedButton.icon(onPressed: _delete, icon: const Icon(Icons.visibility_off_outlined), label: const Text('إخفاء الإعلان'))),
           ]))),
-          const SizedBox(height: 16),
-          Card(child: ListTile(
-            leading: const Icon(Icons.list_alt, color: AppColors.gold),
-            title: const Text('إعلاناتي', style: TextStyle(fontWeight: FontWeight.bold)),
-            subtitle: const Text('فتح صفحة إعلاناتي من القائمة الرئيسية لإدارة كل إعلاناتك'),
-            trailing: const Icon(Icons.chevron_left),
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MyListingsScreen())),
-          )),
-          const SizedBox(height: 10),
-          Card(color: AppColors.surfaceLight, child: const Padding(padding: EdgeInsets.all(14), child: Row(children: [Icon(Icons.lock_outline, size: 18, color: AppColors.gold), SizedBox(width: 8), Expanded(child: Text('زر الإعدادات لا يظهر إلا لصاحب الإعلان نفسه.'))]))),
         ],
       ),
     );

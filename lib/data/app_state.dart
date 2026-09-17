@@ -277,15 +277,17 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  Future<void> updateListing({required String id, required String title, required int price, required String city, required String description}) async {
+  Future<void> updateListing({required String id, required String title, required int price, required String city, required String description, List<String>? imageUrls}) async {
     final userId = _session?.user.id;
     if (userId == null) throw const AuthException('سجّل الدخول لتعديل الإعلان');
-    await Supabase.instance.client.from('listings').update({
+    final updates = <String, dynamic>{
       'title': title.trim(),
       'price': price,
       'city': city.trim(),
       'description': description.trim(),
-    }).eq('id', id).eq('seller_id', userId);
+    };
+    if (imageUrls != null) updates['image_urls'] = imageUrls;
+    await Supabase.instance.client.from('listings').update(updates).eq('id', id).eq('seller_id', userId);
     await loadListings();
   }
 

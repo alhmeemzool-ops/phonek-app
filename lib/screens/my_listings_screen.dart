@@ -6,6 +6,7 @@ import '../models/phone_model.dart';
 import '../theme/app_theme.dart';
 import '../widgets/phone_card.dart';
 import 'phone_details_screen.dart';
+import 'listing_settings_screen.dart';
 
 class MyListingsScreen extends StatelessWidget {
   const MyListingsScreen({super.key});
@@ -47,18 +48,7 @@ class MyListingsScreen extends StatelessWidget {
   Widget _empty() => ListView(physics: const AlwaysScrollableScrollPhysics(), children: const [SizedBox(height: 160), Icon(Icons.inventory_2_outlined, size: 52, color: AppColors.textSecondary), SizedBox(height: 12), Center(child: Text('لا توجد لديك إعلانات نشطة حالياً')), SizedBox(height: 6), Center(child: Text('يمكنك نشر إعلان جديد من زر إضافة إعلان.', style: TextStyle(color: AppColors.textSecondary)))]);
 
   Future<void> _edit(BuildContext context, PhoneListing listing) async {
-    final title = TextEditingController(text: listing.title);
-    final price = TextEditingController(text: listing.price.toString());
-    final city = TextEditingController(text: listing.city);
-    final description = TextEditingController(text: listing.description);
-    final saved = await showDialog<bool>(context: context, builder: (dialogContext) => AlertDialog(title: const Text('تعديل الإعلان'), content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [TextField(controller: title, decoration: const InputDecoration(labelText: 'العنوان')), TextField(controller: price, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'السعر')), TextField(controller: city, decoration: const InputDecoration(labelText: 'الولاية / المدينة')), TextField(controller: description, maxLines: 4, decoration: const InputDecoration(labelText: 'الوصف'))])), actions: [TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('إلغاء')), FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('حفظ'))]));
-    if (saved != true || !context.mounted) return;
-    try {
-      await context.read<AppState>().updateListing(id: listing.id, title: title.text, price: int.tryParse(price.text.replaceAll(',', '')) ?? listing.price, city: city.text, description: description.text);
-      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم تحديث الإعلان.')));
-    } catch (error) {
-      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذر تعديل الإعلان: $error')));
-    }
+    await Navigator.push(context, MaterialPageRoute(builder: (_) => ListingSettingsScreen(listing: listing)));
   }
 
   Future<void> _delete(BuildContext context, PhoneListing listing) async {

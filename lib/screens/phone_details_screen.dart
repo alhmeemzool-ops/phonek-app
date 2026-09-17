@@ -71,7 +71,7 @@ class PhoneDetailsScreen extends StatelessWidget {
                 ],
                 const SizedBox(height: 18), _section('الوصف'),
                 Text(listing.description.isEmpty ? 'لا يوجد وصف إضافي.' : listing.description, style: const TextStyle(height: 1.5)),
-                const SizedBox(height: 18), _section(listing.seller.isShop ? 'متجر التاجر' : 'البائع'), _seller(context),
+                const SizedBox(height: 18), _section(listing.seller.isShop ? 'المتجر' : 'البائع'), _seller(context),
                 if (similar.isNotEmpty) ...[
                   const SizedBox(height: 22), _section('هواتف مشابهة'),
                   SizedBox(height: 220, child: ListView.separated(
@@ -156,7 +156,9 @@ class PhoneDetailsScreen extends StatelessWidget {
   Future<void> _tel(String phone) async { if (phone.trim().isEmpty) return; final uri = Uri(scheme: 'tel', path: phone.trim()); if (await canLaunchUrl(uri)) await launchUrl(uri); }
 
   Future<void> _whatsapp(BuildContext context) async {
-    final number = (listing.seller.whatsapp ?? '').replaceAll(RegExp(r'[^0-9]'), '');
+    var number = (listing.seller.whatsapp ?? listing.seller.phone).replaceAll(RegExp(r'[^0-9]'), '');
+    if (number.startsWith('0')) number = '249${number.substring(1)}';
+    if (number.startsWith('9') && number.length == 9) number = '249$number';
     if (number.isEmpty) { if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('رقم واتساب غير متوفر'))); return; }
     final uri = Uri.parse('https://wa.me/$number?text=${Uri.encodeComponent('مرحباً، أنا مهتم بهاتف ${listing.title}')}');
     if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
@@ -180,9 +182,10 @@ class PhoneDetailsScreen extends StatelessWidget {
   }
 
   void _share(BuildContext context) {
+    final deepLink = 'https://phonek.app/listing/${Uri.encodeComponent(listing.id)}';
     showModalBottomSheet<void>(context: context, builder: (sheetContext) => SafeArea(child: Wrap(children: [
       ListTile(leading: const Icon(Icons.copy, color: AppColors.gold), title: const Text('نسخ رقم الإعلان'), onTap: () async { await Clipboard.setData(ClipboardData(text: listing.id)); if (sheetContext.mounted) Navigator.pop(sheetContext); }),
-      ListTile(leading: const Icon(Icons.share, color: AppColors.gold), title: const Text('مشاركة الإعلان'), onTap: () async { Navigator.pop(sheetContext); await Share.share('${listing.title}\n${listing.city}\nرقم الإعلان: ${listing.id}'); }),
+      ListTile(leading: const Icon(Icons.share, color: AppColors.gold), title: const Text('مشاركة الإعلان'), onTap: () async { Navigator.pop(sheetContext); await Share.share('${listing.title}\n${listing.city}\n$deepLink'); }),
     ])));
   }
 }

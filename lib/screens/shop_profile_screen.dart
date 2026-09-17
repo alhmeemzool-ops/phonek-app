@@ -97,9 +97,24 @@ class _ShopProfileScreenState extends State<ShopProfileScreen> {
 
   Widget _metric(String label, String value) => Column(children: [Text(value, style: const TextStyle(color: AppColors.gold, fontSize: 18, fontWeight: FontWeight.w800)), const SizedBox(height: 3), Text(label, style: const TextStyle(color: AppColors.textSecondary, fontSize: 11))]);
   Widget _info(IconData icon, String title, String value) => ListTile(contentPadding: EdgeInsets.zero, leading: Icon(icon, color: AppColors.gold), title: Text(title, style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)), subtitle: Text(value, style: const TextStyle(fontWeight: FontWeight.w600)));
-  String _hours(dynamic value) { if (value is Map) return value.entries.map((e) => '${e.key}: ${e.value}').join(' • '); if (value is List) return value.join(' • '); return value?.toString().trim().isNotEmpty == true ? value.toString() : 'غير محددة'; }
-  Future<void> _open(String value) async { final uri = Uri.tryParse(value); if (uri != null && await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication); }
+  String _hours(dynamic value) {
+    if (value is Map) {
+      final entries = value.entries.where((e) => '${e.value}'.trim().isNotEmpty).toList();
+      if (entries.isEmpty) return 'غير محددة';
+      final first = '${entries.first.value}';
+      final same = entries.every((e) => '${e.value}' == first);
+      return same ? 'من $first' : entries.map((e) => '${e.key}: ${e.value}').join(' • ');
+    }
+    if (value is List) return value.join(' • ');
+    return value?.toString().trim().isNotEmpty == true ? value.toString() : 'غير محددة';
+  }
+  Future<void> _open(String value) async {
+    final trimmed = value.trim();
+    final uri = Uri.tryParse(trimmed) ?? Uri.parse('https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(trimmed)}');
+    final target = uri.hasScheme ? uri : Uri.parse('https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(trimmed)}');
+    if (await canLaunchUrl(target)) await launchUrl(target, mode: LaunchMode.externalApplication);
+  }
   Future<void> _call(String phone) async { if (phone.trim().isEmpty) return; final uri = Uri(scheme: 'tel', path: phone.trim()); if (await canLaunchUrl(uri)) await launchUrl(uri); }
-  Future<void> _whatsapp(String? phone) async { final digits = (phone ?? '').replaceAll(RegExp(r'[^0-9]'), ''); if (digits.isEmpty) return; final uri = Uri.parse('https://wa.me/$digits'); if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication); }
+  Future<void> _whatsapp(String? phone) async { var digits = (phone ?? '').replaceAll(RegExp(r'[^0-9]'), ''); if (digits.startsWith('0')) digits = '249${digits.substring(1)}'; if (digits.startsWith('9') && digits.length == 9) digits = '249$digits'; if (digits.isEmpty) return; final uri = Uri.parse('https://wa.me/$digits'); if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication); }
   void _chat(BuildContext context, SellerInfo seller, List<PhoneListing> listings) { if (listings.isEmpty) return; if (context.read<AppState>().currentUser?.id == seller.id) return; Navigator.push(context, MaterialPageRoute(builder: (_) => ChatScreen(listing: listings.first))); }
 }
