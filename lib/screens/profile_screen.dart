@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import '../data/app_state.dart';
 import '../theme/app_theme.dart';
 import '../utils/formatters.dart';
-import '../features/merchant_badges/merchant_badges_screen.dart';
 import '../features/merchant_store/merchant_catalog_screen.dart';
 import '../services/admin_store_provisioner.dart';
 import 'login_screen.dart';
@@ -31,7 +30,6 @@ class ProfileScreen extends StatelessWidget {
         if (context.mounted) Navigator.push(context, MaterialPageRoute(builder: (_) => const ShopAccountScreen()));
       }),
       if (merchant) ...[
-        _tile(context, Icons.workspace_premium, 'شارات المتجر', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MerchantBadgesScreen()))),
       ],
       if (appState.isAdmin) _tile(context, Icons.admin_panel_settings, 'لوحة الإدارة', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminDashboardScreen()))),
       _tile(context, Icons.bookmark, 'عمليات البحث المحفوظة', () => _showComingSoon(context, 'عمليات البحث المحفوظة')),
