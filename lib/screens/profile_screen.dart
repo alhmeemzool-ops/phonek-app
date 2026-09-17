@@ -23,11 +23,19 @@ class ProfileScreen extends StatelessWidget {
       if (appState.userEmail != null) ...[const SizedBox(height: 4), Center(child: Text(appState.userEmail!, style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)))],
       const SizedBox(height: 20),
       if (!merchant) _tile(context, Icons.list_alt, 'إعلاناتي', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MyListingsScreen()))),
-      _tile(context, Icons.storefront, merchant ? 'متجري' : 'إنشاء حساب صاحب متجر', () async {
+      _tile(context, Icons.storefront, merchant ? 'متجري' : 'إنشاء حساب صاحب متجر', () {
+        Navigator.push(context, MaterialPageRoute(builder: (_) => const ShopAccountScreen()));
         if (appState.isAdmin) {
-          try { await AdminStoreProvisioner.ensure(); await appState.loadListings(); } catch (e) { if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذر تجهيز متجر الأدمن: $e'))); }
+          AdminStoreProvisioner.ensure().then((_) {
+            if (context.mounted) appState.loadListings();
+          }).catchError((error) {
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('تعذر تجهيز متجر الأدمن: $error')),
+              );
+            }
+          });
         }
-        if (context.mounted) Navigator.push(context, MaterialPageRoute(builder: (_) => const ShopAccountScreen()));
       }),
       if (merchant) ...[
       ],
