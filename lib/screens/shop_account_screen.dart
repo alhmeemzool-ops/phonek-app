@@ -60,7 +60,7 @@ class _ShopAccountScreenState extends State<ShopAccountScreen> {
   @override
   Widget build(BuildContext context) {
     if (_loadingShop) {
-      return const Scaffold(
+      return Scaffold(
         appBar: AppBar(title: const Text('متجري')),
         body: Center(child: CircularProgressIndicator(color: AppColors.gold)),
       );
