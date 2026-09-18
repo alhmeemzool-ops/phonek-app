@@ -5,6 +5,7 @@ import 'package:apk_sideload/install_apk.dart';
 import 'package:crypto/crypto.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 const int phoneKBuildNumber = int.fromEnvironment(
   'PHONEK_BUILD_NUMBER',
@@ -45,11 +46,14 @@ class PhoneKUpdate {
 
 class PhoneKUpdateService {
   static const _platform = MethodChannel('phonek/update_permissions');
+  static const _lastCheckKey = 'phonek_update_last_check_ms';
+  static const _checkInterval = Duration(hours: 6);
 
-  static Future<void> _deleteOldUpdateApks() async {
+  static Future<void> _deleteOldUpdateApks(String keepPath) async {
     final tempDir = Directory.systemTemp;
     await for (final entity in tempDir.list()) {
       if (entity is File &&
+          entity.path != keepPath &&
           entity.path.contains('/phonek-update-') &&
           entity.path.endsWith('.apk')) {
         await entity.delete().catchError((_) => entity);
@@ -71,9 +75,18 @@ class PhoneKUpdateService {
     if (!Platform.isAndroid) return null;
 
     try {
+      final prefs = await SharedPreferences.getInstance();
+      final lastCheck = prefs.getInt(_lastCheckKey);
+      final now = DateTime.now().millisecondsSinceEpoch;
+      if (lastCheck != null &&
+          now - lastCheck < _checkInterval.inMilliseconds) {
+        return null;
+      }
+      await prefs.setInt(_lastCheckKey, now);
+
       final response = await http.get(
         Uri.parse(phoneKUpdateManifestUrl).replace(
-          queryParameters: {'t': DateTime.now().millisecondsSinceEpoch.toString()},
+          queryParameters: {'t': now.toString()},
         ),
         headers: const {'Cache-Control': 'no-cache'},
       ).timeout(const Duration(seconds: 8));
@@ -96,49 +109,53 @@ class PhoneKUpdateService {
     PhoneKUpdate update, {
     void Function(double progress)? onProgress,
   }) async {
-    // لا نستخدم أي APK قديم: احذفه ثم نزّل الملف الحالي من المصدر.
-    await _deleteOldUpdateApks();
     final tempDir = Directory.systemTemp;
     final file = File('${tempDir.path}/phonek-update-${update.versionCode}.apk');
+    await _deleteOldUpdateApks(file.path);
 
     final client = HttpClient();
     try {
-      final request = await client.getUrl(Uri.parse(update.apkUrl).replace(
-        queryParameters: {
-          ...Uri.parse(update.apkUrl).queryParameters,
-          't': DateTime.now().millisecondsSinceEpoch.toString(),
-        },
-      ));
-      request.followRedirects = true;
-      final response = await request.close();
-
-      if (response.statusCode != HttpStatus.ok) {
-        throw HttpException('Download failed: ${response.statusCode}');
+      var cachedApkIsValid = false;
+      if (await file.exists() && await file.length() > 0) {
+        final cachedDigest = sha256.convert(await file.readAsBytes()).toString();
+        cachedApkIsValid = cachedDigest.toLowerCase() == update.sha256;
+        if (cachedApkIsValid) onProgress?.call(1.0);
       }
 
-      final total = response.contentLength;
-      var received = 0;
-      final sink = file.openWrite();
-      try {
-        await for (final chunk in response) {
-          sink.add(chunk);
-          received += chunk.length;
-          if (total > 0) {
-            onProgress?.call((received / total).clamp(0.0, 1.0));
-          }
-        }
-      } finally {
-        await sink.flush();
-        await sink.close();
-      }
-
-      final digest = sha256.convert(await file.readAsBytes()).toString();
-      if (digest.toLowerCase() != update.sha256) {
+      if (!cachedApkIsValid) {
         await file.delete().catchError((_) => file);
-        throw const FormatException('APK checksum mismatch');
-      }
+        final request = await client.getUrl(Uri.parse(update.apkUrl));
+        request.followRedirects = true;
+        final response = await request.close();
 
-      onProgress?.call(1.0);
+        if (response.statusCode != HttpStatus.ok) {
+          throw HttpException('Download failed: ${response.statusCode}');
+        }
+
+        final total = response.contentLength;
+        var received = 0;
+        final sink = file.openWrite();
+        try {
+          await for (final chunk in response) {
+            sink.add(chunk);
+            received += chunk.length;
+            if (total > 0) {
+              onProgress?.call((received / total).clamp(0.0, 1.0));
+            }
+          }
+        } finally {
+          await sink.flush();
+          await sink.close();
+        }
+
+        final digest = sha256.convert(await file.readAsBytes()).toString();
+        if (digest.toLowerCase() != update.sha256) {
+          await file.delete().catchError((_) => file);
+          throw const FormatException('APK checksum mismatch');
+        }
+
+        onProgress?.call(1.0);
+      }
       try {
         await InstallApk().installApk(file.path);
       } on PlatformException catch (error) {
