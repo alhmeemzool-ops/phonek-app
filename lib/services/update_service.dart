@@ -46,8 +46,8 @@ class PhoneKUpdate {
 
 class PhoneKUpdateService {
   static const _platform = MethodChannel('phonek/update_permissions');
-  static const _lastCheckKey = 'phonek_update_last_check_ms';
-  static const _checkInterval = Duration(hours: 6);
+  static const _lastCheckKey = 'phonek_update_last_successful_check_ms_v2';
+  static const _checkInterval = Duration(hours: 1);
 
   static Future<void> _deleteOldUpdateApks(String keepPath) async {
     final tempDir = Directory.systemTemp;
@@ -82,8 +82,6 @@ class PhoneKUpdateService {
           now - lastCheck < _checkInterval.inMilliseconds) {
         return null;
       }
-      await prefs.setInt(_lastCheckKey, now);
-
       final response = await http.get(
         Uri.parse(phoneKUpdateManifestUrl).replace(
           queryParameters: {'t': now.toString()},
@@ -96,8 +94,13 @@ class PhoneKUpdateService {
       final data = jsonDecode(response.body) as Map<String, dynamic>;
       final update = PhoneKUpdate.fromJson(data);
 
-      if (update.versionCode <= phoneKBuildNumber) return null;
       if (update.apkUrl.isEmpty || update.sha256.length != 64) return null;
+
+      // لا نؤجل الفحص القادم إذا فشل الاتصال أو كان الخادم غير متاح.
+      // نحفظ وقت الفحص بعد وصول manifest صالح فقط.
+      await prefs.setInt(_lastCheckKey, now);
+
+      if (update.versionCode <= phoneKBuildNumber) return null;
 
       return update;
     } catch (_) {

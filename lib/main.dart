@@ -48,21 +48,45 @@ class PhoneKUpdateGate extends StatefulWidget {
   State<PhoneKUpdateGate> createState() => _PhoneKUpdateGateState();
 }
 
-class _PhoneKUpdateGateState extends State<PhoneKUpdateGate> {
+class _PhoneKUpdateGateState extends State<PhoneKUpdateGate>
+    with WidgetsBindingObserver {
   bool _dialogShown = false;
+  bool _checking = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) => _checkForUpdate());
   }
 
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && !_dialogShown) {
+      _checkForUpdate();
+    }
+  }
+
   Future<void> _checkForUpdate() async {
+    if (_checking) return;
+    _checking = true;
     await Future<void>.delayed(const Duration(seconds: 2));
-    if (!mounted || _dialogShown) return;
+    if (!mounted || _dialogShown) {
+      _checking = false;
+      return;
+    }
 
     final update = await PhoneKUpdateService.check();
-    if (!mounted || update == null) return;
+    if (!mounted || update == null) {
+      _checking = false;
+      return;
+    }
 
     _dialogShown = true;
     await showDialog<void>(
@@ -72,6 +96,7 @@ class _PhoneKUpdateGateState extends State<PhoneKUpdateGate> {
         return _UpdateDialog(update: update);
       },
     );
+    _checking = false;
   }
 
   @override
