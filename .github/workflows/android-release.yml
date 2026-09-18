@@ -63,8 +63,6 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
         run: |
-          # Normalize copied secret values (line breaks/Markdown whitespace) before decoding.
-          # --ignore-garbage tolerates harmless formatting characters without exposing the secret.
           printf '%s' "$ANDROID_KEYSTORE_BASE64" | tr -d '[:space:]' | base64 --decode --ignore-garbage > android/upload-keystore.jks
           cat > android/key.properties <<EOF
           storePassword=$KEYSTORE_PASSWORD
@@ -100,9 +98,6 @@ jobs:
           test -n "$version_name" && test -n "$version_code"
           echo "version_name=$version_name" >> "$GITHUB_OUTPUT"
           echo "version_code=$version_code" >> "$GITHUB_OUTPUT"
-
-      - name: Build release AAB
-        run: flutter build appbundle --release --build-name=${{ steps.version.outputs.version_name }} --build-number=${{ steps.version.outputs.version_code }}
 
       - name: Build release APK
         run: flutter build apk --release --build-name=${{ steps.version.outputs.version_name }} --build-number=${{ steps.version.outputs.version_code }} --dart-define=PHONEK_BUILD_NUMBER=${{ steps.version.outputs.version_code }}
@@ -153,14 +148,6 @@ jobs:
             git commit -m "Update PhoneK update manifest to ${{ steps.version.outputs.version_name }}"
             git push origin HEAD:main
           fi
-
-      - name: Upload AAB artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: phonek-aab-${{ steps.version.outputs.version_name }}
-          path: build/app/outputs/bundle/release/app-release.aab
-          if-no-files-found: error
-          retention-days: 30
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
