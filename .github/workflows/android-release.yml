@@ -2,6 +2,11 @@ name: PhoneK Android Release
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - update.json
 
 permissions:
   contents: write
