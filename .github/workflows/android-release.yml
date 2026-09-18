@@ -90,11 +90,22 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      - name: Read app version
+        id: version
+        shell: bash
+        run: |
+          version_line=$(grep '^version:' pubspec.yaml)
+          version_name=$(echo "$version_line" | sed -E 's/version: ([^+]+)\+.*/\1/')
+          version_code=$(echo "$version_line" | sed -E 's/version: [^+]+\+([0-9]+)/\1/')
+          test -n "$version_name" && test -n "$version_code"
+          echo "version_name=$version_name" >> "$GITHUB_OUTPUT"
+          echo "version_code=$version_code" >> "$GITHUB_OUTPUT"
+
       - name: Build release AAB
-        run: flutter build appbundle --release --build-name=1.0.${{ github.run_number }} --build-number=${{ github.run_number }}
+        run: flutter build appbundle --release --build-name=${{ steps.version.outputs.version_name }} --build-number=${{ steps.version.outputs.version_code }}
 
       - name: Build release APK
-        run: flutter build apk --release --build-name=1.0.${{ github.run_number }} --build-number=${{ github.run_number }} --dart-define=PHONEK_BUILD_NUMBER=${{ github.run_number }}
+        run: flutter build apk --release --build-name=${{ steps.version.outputs.version_name }} --build-number=${{ steps.version.outputs.version_code }} --dart-define=PHONEK_BUILD_NUMBER=${{ steps.version.outputs.version_code }}
 
       - name: Calculate APK SHA-256
         id: checksum
@@ -105,10 +116,15 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "v1.0.${{ github.run_number }}" \
-            build/app/outputs/flutter-apk/app-release.apk#phonek.apk \
-            --title "PhoneK 1.0.${{ github.run_number }}" \
-            --notes "تحديث PhoneK رقم ${{ github.run_number }}"
+          tag="v${{ steps.version.outputs.version_name }}"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "Release $tag already exists; reusing it."
+          else
+            gh release create "$tag" \
+              build/app/outputs/flutter-apk/app-release.apk#app-release.apk \
+              --title "PhoneK ${{ steps.version.outputs.version_name }}" \
+              --notes "تحديث PhoneK رقم ${{ steps.version.outputs.version_code }}"
+          fi
 
       - name: Update PhoneK update manifest
         shell: bash
@@ -117,9 +133,9 @@ jobs:
         run: |
           cat > update.json <<EOF
           {
-            "versionCode": ${{ github.run_number }},
-            "versionName": "1.0.${{ github.run_number }}",
-            "apkUrl": "https://github.com/alhmeemzool-ops/phonek-app/releases/download/v1.0.${{ github.run_number }}/app-release.apk",
+            "versionCode": ${{ steps.version.outputs.version_code }},
+            "versionName": "${{ steps.version.outputs.version_name }}",
+            "apkUrl": "https://github.com/alhmeemzool-ops/phonek-app/releases/download/v${{ steps.version.outputs.version_name }}/app-release.apk",
             "sha256": "$APK_SHA256",
             "mandatory": false,
             "notes": "تحديث جديد لتحسين PhoneK وإصلاح الأخطاء."
@@ -134,14 +150,14 @@ jobs:
           cp /tmp/phonek-update.json update.json
           git add update.json
           if ! git diff --cached --quiet; then
-            git commit -m "Update PhoneK update manifest to 1.0.${{ github.run_number }}"
+            git commit -m "Update PhoneK update manifest to ${{ steps.version.outputs.version_name }}"
             git push origin HEAD:main
           fi
 
       - name: Upload AAB artifact
         uses: actions/upload-artifact@v4
         with:
-          name: phonek-aab-${{ github.run_number }}
+          name: phonek-aab-${{ steps.version.outputs.version_name }}
           path: build/app/outputs/bundle/release/app-release.aab
           if-no-files-found: error
           retention-days: 30
@@ -149,7 +165,7 @@ jobs:
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: phonek-apk-${{ github.run_number }}
+          name: phonek-apk-${{ steps.version.outputs.version_name }}
           path: build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
           retention-days: 30
