@@ -116,7 +116,7 @@ class _ShopApplicationScreenState extends State<ShopApplicationScreen> {
       final videoPath = '$prefix/liveness.mp4';
       await bucket.uploadBinary(identityPath, await _identityPhoto!.readAsBytes(), fileOptions: const FileOptions(contentType: 'image/jpeg'));
       await bucket.uploadBinary(videoPath, await _livenessVideo!.readAsBytes(), fileOptions: const FileOptions(contentType: 'video/mp4'));
-      await client.from('shop_verification_requests').insert({
+      await client.from('shop_applications').insert({
         'user_id': user.id,
         'shop_name': _shopName.text.trim(),
         'phone': _phone.text.trim(),
@@ -124,9 +124,14 @@ class _ShopApplicationScreenState extends State<ShopApplicationScreen> {
         'latitude': _latitude,
         'longitude': _longitude,
         'address': _address ?? '',
-        'identity_image_path': identityPath,
-        'identity_video_path': videoPath,
-        'status': 'pending',
+        'verification_status': 'pending',
+        'liveness_status': 'pending_provider',
+        'identity_match_status': 'pending_provider',
+        'location_accuracy_m': _locationAccuracy,
+        'consented_at': DateTime.now().toUtc().toIso8601String(),
+        'face_photo_path': null,
+        'liveness_video_path': videoPath,
+        'identity_photo_path': identityPath,
       });
 
       // Do not upsert profiles here. Profile RLS/schema rules must not turn a
