@@ -23,6 +23,12 @@ class AppState extends ChangeNotifier {
         _favoriteIds.clear();
         _chatThreads.clear();
       } else {
+        // Reset account-specific shop/admin state before loading the new session.
+        // This prevents the previous account's merchant status from leaking into
+        // the next account while _loadProfile() is still running.
+        _isShopOwner = false;
+        _isAdmin = false;
+        _shopName = null;
         _userName = data.session?.user.userMetadata?['full_name'] as String? ??
             data.session?.user.email ??
             'مستخدم PhoneK';
