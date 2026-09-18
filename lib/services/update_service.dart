@@ -5,11 +5,7 @@ import 'package:apk_sideload/install_apk.dart';
 import 'package:crypto/crypto.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/services.dart';
-
-const int phoneKBuildNumber = int.fromEnvironment(
-  'PHONEK_BUILD_NUMBER',
-  defaultValue: 1,
-);
+import 'package:package_info_plus/package_info_plus.dart';
 
 const String phoneKUpdateManifestUrl =
     'https://raw.githubusercontent.com/alhmeemzool-ops/phonek-app/main/update.json';
@@ -71,6 +67,8 @@ class PhoneKUpdateService {
     if (!Platform.isAndroid) return null;
 
     try {
+      final packageInfo = await PackageInfo.fromPlatform();
+      final currentBuildNumber = int.tryParse(packageInfo.buildNumber) ?? 0;
       final now = DateTime.now().millisecondsSinceEpoch;
       final response = await http.get(
         Uri.parse(phoneKUpdateManifestUrl).replace(
@@ -86,7 +84,7 @@ class PhoneKUpdateService {
 
       if (update.apkUrl.isEmpty || update.sha256.length != 64) return null;
 
-      if (update.versionCode <= phoneKBuildNumber) return null;
+      if (update.versionCode <= currentBuildNumber) return null;
 
       return update;
     } catch (_) {
