@@ -5,7 +5,6 @@ import 'package:apk_sideload/install_apk.dart';
 import 'package:crypto/crypto.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/services.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 const int phoneKBuildNumber = int.fromEnvironment(
   'PHONEK_BUILD_NUMBER',
@@ -46,9 +45,6 @@ class PhoneKUpdate {
 
 class PhoneKUpdateService {
   static const _platform = MethodChannel('phonek/update_permissions');
-  static const _lastCheckKey = 'phonek_update_last_successful_check_ms_v2';
-  static const _checkInterval = Duration(hours: 1);
-
   static Future<void> _deleteOldUpdateApks(String keepPath) async {
     final tempDir = Directory.systemTemp;
     await for (final entity in tempDir.list()) {
@@ -75,13 +71,7 @@ class PhoneKUpdateService {
     if (!Platform.isAndroid) return null;
 
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final lastCheck = prefs.getInt(_lastCheckKey);
       final now = DateTime.now().millisecondsSinceEpoch;
-      if (lastCheck != null &&
-          now - lastCheck < _checkInterval.inMilliseconds) {
-        return null;
-      }
       final response = await http.get(
         Uri.parse(phoneKUpdateManifestUrl).replace(
           queryParameters: {'t': now.toString()},
@@ -95,10 +85,6 @@ class PhoneKUpdateService {
       final update = PhoneKUpdate.fromJson(data);
 
       if (update.apkUrl.isEmpty || update.sha256.length != 64) return null;
-
-      // لا نؤجل الفحص القادم إذا فشل الاتصال أو كان الخادم غير متاح.
-      // نحفظ وقت الفحص بعد وصول manifest صالح فقط.
-      await prefs.setInt(_lastCheckKey, now);
 
       if (update.versionCode <= phoneKBuildNumber) return null;
 
