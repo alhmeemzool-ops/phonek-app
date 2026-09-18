@@ -8,6 +8,7 @@ import '../services/admin_store_provisioner.dart';
 import 'login_screen.dart';
 import 'my_listings_screen.dart';
 import 'shop_account_screen.dart';
+import 'shop_application_screen.dart';
 import 'admin_dashboard_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -23,18 +24,28 @@ class ProfileScreen extends StatelessWidget {
       if (appState.userEmail != null) ...[const SizedBox(height: 4), Center(child: Text(appState.userEmail!, style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)))],
       const SizedBox(height: 20),
       if (!merchant) _tile(context, Icons.list_alt, 'إعلاناتي', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MyListingsScreen()))),
-      _tile(context, Icons.storefront, merchant ? 'متجري' : 'إنشاء حساب صاحب متجر', () {
-        Navigator.push(context, MaterialPageRoute(builder: (_) => const ShopAccountScreen()));
-        if (appState.isAdmin) {
-          AdminStoreProvisioner.ensure().then((_) {
-            if (context.mounted) appState.loadListings();
-          }).catchError((error) {
-            if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('تعذر تجهيز متجر الأدمن: $error')),
-              );
-            }
-          });
+      _tile(context, Icons.storefront, merchant ? 'متجري' : 'افتح متجرك', () {
+        if (merchant) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const ShopAccountScreen()),
+          );
+          if (appState.isAdmin) {
+            AdminStoreProvisioner.ensure().then((_) {
+              if (context.mounted) appState.loadListings();
+            }).catchError((error) {
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('تعذر تجهيز متجر الأدمن: $error')),
+                );
+              }
+            });
+          }
+        } else {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const ShopApplicationScreen()),
+          );
         }
       }),
       if (merchant) ...[
