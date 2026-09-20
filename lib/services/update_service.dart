@@ -209,8 +209,7 @@ class PhoneKUpdateService {
         }
 
         onProgress?.call(1.0);
-      }
-    } finally { client.close(force: true); }
+      } finally { client.close(force: true); }
   }
 
   static Future<void> _installApk(File file) async {
