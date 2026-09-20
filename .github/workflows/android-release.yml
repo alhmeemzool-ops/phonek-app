@@ -108,7 +108,7 @@ jobs:
         id: previous
         shell: bash
         run: |
-          python3 - <<'PY'
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
           import json
           try: d=json.load(open("update.json"))
           except Exception: d={}
