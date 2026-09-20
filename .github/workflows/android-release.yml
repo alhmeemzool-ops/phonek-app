@@ -116,6 +116,7 @@ jobs:
           print("apk_url="+str(d.get("apkUrl","")))
           print("sha256="+str(d.get("sha256","")))
           PY
+
       - name: Build release APK
         run: flutter build apk --release --build-name=${{ steps.version.outputs.version_name }} --build-number=${{ steps.version.outputs.version_code }}
 
@@ -124,7 +125,7 @@ jobs:
         shell: bash
         run: echo "sha256=$(sha256sum build/app/outputs/flutter-apk/app-release.apk | awk '{print $1}')" >> "$GITHUB_OUTPUT"
 
-      - name: Build incremental patch
+      - name: Build and validate incremental patch
         id: patch
         shell: bash
         run: |
@@ -132,12 +133,48 @@ jobs:
           base_code="${{ steps.previous.outputs.version_code }}"
           old_url="${{ steps.previous.outputs.apk_url }}"
           new_code="${{ steps.version.outputs.version_code }}"
-          if [ -z "$base_code" ] || [ -z "$old_url" ] || [ "$base_code" = "$new_code" ]; then exit 0; fi
+          new_apk="build/app/outputs/flutter-apk/app-release.apk"
+
+          if [ -z "$base_code" ] || [ -z "$old_url" ] || [ "$base_code" = "$new_code" ]; then
+            echo "No compatible previous release was found; full APK fallback will be used."
+            exit 0
+          fi
+
           curl -fL --retry 3 -o old-release.apk "$old_url" || exit 0
+
           old_sha="${{ steps.previous.outputs.sha256 }}"
-          if [ -n "$old_sha" ] && [ "$(sha256sum old-release.apk | awk '{print $1}')" != "$old_sha" ]; then exit 0; fi
-          dart run tool/build_patch.dart old-release.apk build/app/outputs/flutter-apk/app-release.apk patch.bin || exit 0
+          if [ -n "$old_sha" ] && [ "$(sha256sum old-release.apk | awk '{print $1}')" != "$old_sha" ]; then
+            echo "Previous APK checksum mismatch; patch disabled."
+            exit 0
+          fi
+
+          dart run tool/build_patch.dart old-release.apk "$new_apk" patch.bin || exit 0
           [ -s patch.bin ] || exit 0
+
+          # A patch is only publishable if applying it reconstructs the new APK byte-for-byte.
+          dart run binary_patch apply old-release.apk patch.bin reconstructed.apk
+
+          new_sha="$(sha256sum "$new_apk" | awk '{print $1}')"
+          reconstructed_sha="$(sha256sum reconstructed.apk | awk '{print $1}')"
+          if [ "$new_sha" != "$reconstructed_sha" ]; then
+            echo "Patch validation failed: reconstructed APK SHA-256 differs."
+            rm -f patch.bin reconstructed.apk
+            exit 0
+          fi
+
+          patch_size=$(stat -c '%s' patch.bin)
+          apk_size=$(stat -c '%s' "$new_apk")
+          echo "new_apk_size=$apk_size"
+          echo "patch_size=$patch_size"
+
+          # Never ship a patch larger than the APK it replaces.
+          if [ "$patch_size" -ge "$apk_size" ]; then
+            echo "Patch is not smaller than the APK; full APK fallback will be used."
+            rm -f patch.bin reconstructed.apk
+            exit 0
+          fi
+
+          echo "Patch validated successfully: SHA-256 matches the new APK."
           echo "ok=true" >> "$GITHUB_OUTPUT"
           echo "sha256=$(sha256sum patch.bin | awk '{print $1}')" >> "$GITHUB_OUTPUT"
           echo "base_version_code=$base_code" >> "$GITHUB_OUTPUT"
@@ -152,9 +189,8 @@ jobs:
           else
             assets="build/app/outputs/flutter-apk/app-release.apk"
             if [ "${{ steps.patch.outputs.ok }}" = "true" ]; then assets="$assets patch.bin"; fi
-            gh release create "$tag" $assets \
-              --title "PhoneK ${{ steps.version.outputs.version_name }}" \
-              --notes "تحديث PhoneK رقم ${{ steps.version.outputs.version_code }}"
+            gh release create "$tag" $assets               --title "PhoneK ${{ steps.version.outputs.version_name }}"               --notes "تحديث PhoneK رقم ${{ steps.version.outputs.version_code }}"
+          fi
 
       - name: Update PhoneK update manifest
         shell: bash
