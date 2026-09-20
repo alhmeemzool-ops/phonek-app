@@ -135,7 +135,7 @@ class PhoneKUpdateService {
         }
       }
       await _installApk(file);
-    }
+  }
 
   static Future<bool> _tryBuildFromPatch(PhoneKUpdate update, File outputFile, {void Function(double progress)? onProgress}) async {
     File? patchFile;
