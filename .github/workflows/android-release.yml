@@ -104,6 +104,18 @@ jobs:
           echo "version_name=$version_name" >> "$GITHUB_OUTPUT"
           echo "version_code=$version_code" >> "$GITHUB_OUTPUT"
 
+      - name: Read previous manifest
+        id: previous
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json
+          try: d=json.load(open("update.json"))
+          except Exception: d={}
+          print("version_code="+str(d.get("versionCode","")))
+          print("apk_url="+str(d.get("apkUrl","")))
+          print("sha256="+str(d.get("sha256","")))
+          PY
       - name: Build release APK
         run: flutter build apk --release --build-name=${{ steps.version.outputs.version_name }} --build-number=${{ steps.version.outputs.version_code }}
 
@@ -111,6 +123,24 @@ jobs:
         id: checksum
         shell: bash
         run: echo "sha256=$(sha256sum build/app/outputs/flutter-apk/app-release.apk | awk '{print $1}')" >> "$GITHUB_OUTPUT"
+
+      - name: Build incremental patch
+        id: patch
+        shell: bash
+        run: |
+          echo "ok=false" >> "$GITHUB_OUTPUT"
+          base_code="${{ steps.version.outputs.version_code }}"
+          old_url="${{ steps.previous.outputs.apk_url }}"
+          new_code="${{ steps.version.outputs.version_code }}"
+          if [ -z "$base_code" ] || [ -z "$old_url" ] || [ "$base_code" = "$new_code" ]; then exit 0; fi
+          curl -fL --retry 3 -o old-release.apk "$old_url" || exit 0
+          old_sha="${{ steps.previous.outputs.sha256 }}"
+          if [ -n "$old_sha" ] && [ "$(sha256sum old-release.apk | awk '{print $1}')" != "$old_sha" ]; then exit 0; fi
+          dart run tool/build_patch.dart old-release.apk build/app/outputs/flutter-apk/app-release.apk patch.bin || exit 0
+          [ -s patch.bin ] || exit 0
+          echo "ok=true" >> "$GITHUB_OUTPUT"
+          echo "sha256=$(sha256sum patch.bin | awk '{print $1}')" >> "$GITHUB_OUTPUT"
+          echo "base_version_code=$base_code" >> "$GITHUB_OUTPUT"
 
       - name: Publish PhoneK APK release
         env:
@@ -130,29 +160,31 @@ jobs:
         shell: bash
         env:
           APK_SHA256: ${{ steps.checksum.outputs.sha256 }}
+          PATCH_OK: ${{ steps.patch.outputs.ok }}
+          PATCH_SHA256: ${{ steps.patch.outputs.sha256 }}
+          PATCH_BASE: ${{ steps.patch.outputs.base_version_code }}
         run: |
-          cat > update.json <<EOF
-          {
-            "versionCode": ${{ steps.version.outputs.version_code }},
-            "versionName": "${{ steps.version.outputs.version_name }}",
-            "apkUrl": "https://github.com/alhmeemzool-ops/phonek-app/releases/download/v${{ steps.version.outputs.version_name }}/app-release.apk",
-            "sha256": "$APK_SHA256",
-            "mandatory": false,
-            "notes": "تحديث جديد لتحسين PhoneK وإصلاح الأخطاء."
+          python3 - <<PY
+          import json
+          ok="${{ steps.patch.outputs.ok }}"=="true"
+          d={
+            "versionCode":int("${{ steps.version.outputs.version_code }}"),
+            "versionName":"${{ steps.version.outputs.version_name }}",
+            "apkUrl":"https://github.com/alhmeemzool-ops/phonek-app/releases/download/v${{ steps.version.outputs.version_name }}/app-release.apk",
+            "sha256":"$APK_SHA256",
+            "patchUrl":"https://github.com/alhmeemzool-ops/phonek-app/releases/download/v${{ steps.version.outputs.version_name }}/patch.bin" if ok else None,
+            "patchSha256":"$PATCH_SHA256" if ok else None,
+            "patchBaseVersionCode":int("$PATCH_BASE") if ok else None,
+            "mandatory":False,
+            "notes":"تحديث جديد لتحسين PhoneK وإصلاح الأخطاء."
           }
-          EOF
+          with open("update.json","w",encoding="utf-8") as f:
+              json.dump(d,f,ensure_ascii=False,indent=2); f.write("\n")
+          PY
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          cp update.json /tmp/phonek-update.json
-          git reset --hard HEAD
-          git fetch origin main
-          git reset --hard origin/main
-          cp /tmp/phonek-update.json update.json
           git add update.json
-          if ! git diff --cached --quiet; then
-            git commit -m "Update PhoneK update manifest to ${{ steps.version.outputs.version_name }}"
-            git push origin HEAD:main
-          fi
+          if ! git diff --cached --quiet; then git commit -m "Update PhoneK update manifest"; git push origin HEAD:main; fi
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
