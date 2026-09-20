@@ -129,7 +129,7 @@ jobs:
         shell: bash
         run: |
           echo "ok=false" >> "$GITHUB_OUTPUT"
-          base_code="${{ steps.version.outputs.version_code }}"
+          base_code="${{ steps.previous.outputs.version_code }}"
           old_url="${{ steps.previous.outputs.apk_url }}"
           new_code="${{ steps.version.outputs.version_code }}"
           if [ -z "$base_code" ] || [ -z "$old_url" ] || [ "$base_code" = "$new_code" ]; then exit 0; fi
@@ -150,11 +150,11 @@ jobs:
           if gh release view "$tag" >/dev/null 2>&1; then
             echo "Release $tag already exists; reusing it."
           else
-            gh release create "$tag" \
-              build/app/outputs/flutter-apk/app-release.apk#app-release.apk \
+            assets="build/app/outputs/flutter-apk/app-release.apk"
+            if [ "${{ steps.patch.outputs.ok }}" = "true" ]; then assets="$assets patch.bin"; fi
+            gh release create "$tag" $assets \
               --title "PhoneK ${{ steps.version.outputs.version_name }}" \
               --notes "تحديث PhoneK رقم ${{ steps.version.outputs.version_code }}"
-          fi
 
       - name: Update PhoneK update manifest
         shell: bash
