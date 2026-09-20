@@ -14,9 +14,8 @@ dependencies:
   url_launcher: ^6.2.5
   share_plus: ^10.1.4
   image_picker: ^1.0.7
-  # 4.5.1 is the last image release compatible with archive 3.x,
-  # which binary_patch 1.0.0 currently requires.
-  image: '>=4.5.1 <4.5.2'
+  # Keep image on the archive-3-compatible line required by binary_patch.
+  image: ^4.3.0
   cached_network_image: ^3.3.1
   shared_preferences: ^2.2.2
   provider: ^6.1.2
