@@ -19,6 +19,18 @@ class MainActivity : FlutterActivity() {
                 return@setMethodCallHandler
             }
 
+            if (call.method == "getInstalledApkPath") {
+                // مسار ملف الـ APK الحالي المُثبَّت فعلياً على الجهاز (base.apk).
+                // نستخدمه كأساس لتطبيق التحديث التزايدي (patch) دون إعادة تحميله.
+                try {
+                    val path = applicationInfo.sourceDir
+                    result.success(path)
+                } catch (error: Exception) {
+                    result.success(null)
+                }
+                return@setMethodCallHandler
+            }
+
             if (call.method != "openInstallPermissionSettings") {
                 result.notImplemented()
                 return@setMethodCallHandler
