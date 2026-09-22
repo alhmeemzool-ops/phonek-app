@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'data/app_state.dart';
 import 'screens/home_screen.dart';
 import 'services/update_service.dart';
+import 'features/merchant_badges/level_up_celebration.dart';
 import 'theme/app_theme.dart';
 
 Future<void> main() async {
@@ -33,7 +34,7 @@ class PhoneKApp extends StatelessWidget {
         builder: (context, child) {
           return Directionality(textDirection: TextDirection.rtl, child: child!);
         },
-        home: const PhoneKUpdateGate(child: HomeScreen()),
+        home: const PhoneKUpdateGate(child: MerchantLevelUpGate(child: HomeScreen())),
       ),
     );
   }

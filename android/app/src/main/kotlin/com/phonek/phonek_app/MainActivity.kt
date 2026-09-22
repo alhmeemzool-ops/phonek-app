@@ -10,9 +10,19 @@ import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
     private val channelName = "phonek/update_permissions"
+    private val levelUpChannelName = "phonek/level_up"
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, levelUpChannelName).setMethodCallHandler { call, result ->
+            if (call.method == "playLevelUpSound") {
+                val level = (call.argument<Int>("level") ?: 1).coerceIn(1, 10)
+                playLevelUpSound(level)
+                result.success(null)
+                return@setMethodCallHandler
+            }
+            result.notImplemented()
+        }
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, channelName).setMethodCallHandler { call, result ->
             if (call.method == "canInstallPackages") {
                 result.success(Build.VERSION.SDK_INT < Build.VERSION_CODES.O || packageManager.canRequestPackageInstalls())
@@ -48,4 +58,52 @@ class MainActivity : FlutterActivity() {
             result.success(null)
         }
     }
+    private fun playLevelUpSound(level: Int) {
+        Thread {
+            val sampleRate = 44100
+            val durationMs = when {
+                level >= 10 -> 1800
+                level >= 7 -> 1450
+                level >= 4 -> 1100
+                else -> 750
+            }
+            val sampleCount = sampleRate * durationMs / 1000
+            val buffer = ShortArray(sampleCount)
+            val notes = when {
+                level >= 10 -> doubleArrayOf(392.0, 523.25, 659.25, 783.99, 1046.5)
+                level >= 7 -> doubleArrayOf(392.0, 493.88, 587.33, 783.99)
+                level >= 4 -> doubleArrayOf(440.0, 554.37, 659.25)
+                else -> doubleArrayOf(523.25, 659.25)
+            }
+            for (i in 0 until sampleCount) {
+                val t = i.toDouble() / sampleRate
+                val total = durationMs / 1000.0
+                val segment = ((t / total) * notes.size).toInt().coerceAtMost(notes.size - 1)
+                val localT = t - segment * (total / notes.size)
+                val freq = notes[segment]
+                val attack = (localT / 0.035).coerceAtMost(1.0)
+                val release = if (t > total - 0.12) ((total - t) / 0.12).coerceIn(0.0, 1.0) else 1.0
+                val envelope = attack * release
+                val wave = kotlin.math.sin(2.0 * Math.PI * freq * t) * 0.72 + kotlin.math.sin(2.0 * Math.PI * freq * 2.0 * t) * 0.20
+                buffer[i] = (wave * envelope * 11000.0).toInt().toShort()
+            }
+            val minBuffer = android.media.AudioTrack.getMinBufferSize(sampleRate, android.media.AudioFormat.CHANNEL_OUT_MONO, android.media.AudioFormat.ENCODING_PCM_16BIT)
+            if (minBuffer <= 0) return@Thread
+            val track = android.media.AudioTrack.Builder()
+                .setAudioAttributes(android.media.AudioAttributes.Builder().setUsage(android.media.AudioAttributes.USAGE_NOTIFICATION).setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION).build())
+                .setAudioFormat(android.media.AudioFormat.Builder().setSampleRate(sampleRate).setEncoding(android.media.AudioFormat.ENCODING_PCM_16BIT).setChannelMask(android.media.AudioFormat.CHANNEL_OUT_MONO).build())
+                .setBufferSizeInBytes(maxOf(minBuffer, buffer.size * 2))
+                .setTransferMode(android.media.AudioTrack.MODE_STATIC)
+                .build()
+            try {
+                track.write(buffer, 0, buffer.size)
+                track.play()
+                Thread.sleep(durationMs.toLong() + 80L)
+            } finally {
+                track.stop()
+                track.release()
+            }
+        }.start()
+    }
+
 }
