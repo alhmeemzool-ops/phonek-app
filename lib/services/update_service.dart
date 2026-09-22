@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:apk_sideload/install_apk.dart';
 import 'package:binary_patch/binary_patch.dart';
 import 'package:crypto/crypto.dart';
 import 'package:http/http.dart' as http;
@@ -226,7 +225,7 @@ class PhoneKUpdateService {
 
   static Future<void> _installApk(File file) async {
     try {
-        await InstallApk().installApk(file.path);
+        await _platform.invokeMethod<void>('installApk', {'filePath': file.path});
       } on PlatformException catch (error) {
         if (error.code == 'INSTALL_ERROR') {
           // بعض إصدارات مُثبت APK تعيد INSTALL_ERROR لأسباب أخرى غير الصلاحية.
