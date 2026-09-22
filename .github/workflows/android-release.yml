@@ -152,7 +152,7 @@ jobs:
           [ -s patch.bin ] || exit 0
 
           # A patch is only publishable if applying it reconstructs the new APK byte-for-byte.
-          dart run binary_patch apply old-release.apk patch.bin reconstructed.apk
+          dart run tool/validate_patch.dart old-release.apk patch.bin reconstructed.apk
 
           new_sha="$(sha256sum "$new_apk" | awk '{print $1}')"
           reconstructed_sha="$(sha256sum reconstructed.apk | awk '{print $1}')"
