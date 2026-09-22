@@ -122,6 +122,7 @@ class PhoneKUpdateService {
     await _deleteOldUpdateApks(file.path);
 
     var cachedApkIsValid = false;
+    var builtFromPatch = false;
       if (await file.exists() && await file.length() > 0) {
         final cachedDigest = sha256.convert(await file.readAsBytes()).toString();
         cachedApkIsValid = cachedDigest.toLowerCase() == update.sha256;
@@ -129,12 +130,23 @@ class PhoneKUpdateService {
       }
 
       if (!cachedApkIsValid) {
-        final builtFromPatch = await _tryBuildFromPatch(update, file, onProgress: onProgress);
+        builtFromPatch = await _tryBuildFromPatch(update, file, onProgress: onProgress);
         if (!builtFromPatch) {
           await _downloadFullApk(update, file, onProgress: onProgress);
         }
       }
-      await _installApk(file);
+
+      try {
+        await _installApk(file);
+      } on PhoneKUpdateException {
+        // لا نجعل فشل التحديث التزايدي يمنع التحديث الكامل. بعض الأجهزة أو
+        // نسخ Android/PackageInstaller ترفض APK أعيد بناؤه من patch رغم أن
+        // checksum صحيح؛ في هذه الحالة أعد تنزيل الـAPK الأصلي من Release.
+        if (!builtFromPatch) rethrow;
+        await file.delete().catchError((_) => file);
+        await _downloadFullApk(update, file, onProgress: onProgress);
+        await _installApk(file);
+      }
   }
 
   static Future<bool> _tryBuildFromPatch(PhoneKUpdate update, File outputFile, {void Function(double progress)? onProgress}) async {
@@ -221,12 +233,14 @@ class PhoneKUpdateService {
           // افحص حالة Android مرة ثانية قبل عرض زر الإعدادات للمستخدم.
           final permissionStillMissing = !(await canInstallPackages());
           throw PhoneKUpdateException(
-            permissionStillMissing ? 'install_permission' : 'install',
+            permissionStillMissing
+                ? 'install_permission'
+                : 'install:${error.message ?? 'unknown_error'}',
           );
         }
-        throw const PhoneKUpdateException('install');
+        throw PhoneKUpdateException('install:${error.message ?? 'unknown_error'}');
       }
-    }
+  }
 }
 
 class PhoneKUpdateException implements Exception {

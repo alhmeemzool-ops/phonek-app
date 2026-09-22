@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'data/app_state.dart';
@@ -141,12 +142,13 @@ class _UpdateDialogState extends State<_UpdateDialog> {
         },
       );
     } on PhoneKUpdateException catch (error) {
+      debugPrint('PhoneK update install failed: ${error.reason}');
       if (!mounted) return;
       setState(() {
         _downloading = false;
         _error = error.reason == 'install_permission'
             ? 'تم تنزيل التحديث. اسمح للتطبيق بتثبيت التطبيقات من هذا المصدر ثم اضغط «تحديث الآن» مرة أخرى.'
-            : 'تعذر بدء تثبيت التحديث. حاول مرة أخرى.';
+            : 'تعذر تثبيت التحديث تلقائياً. أعد المحاولة، أو نزّل النسخة الجديدة من صفحة GitHub الخاصة بالتطبيق.';
       });
     } catch (_) {
       if (!mounted) return;
