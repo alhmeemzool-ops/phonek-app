@@ -3,12 +3,10 @@ import 'package:provider/provider.dart';
 import '../data/app_state.dart';
 import '../theme/app_theme.dart';
 import '../utils/formatters.dart';
-import '../features/merchant_store/merchant_catalog_screen.dart';
 import '../services/admin_store_provisioner.dart';
 import 'login_screen.dart';
 import 'my_listings_screen.dart';
 import 'shop_account_screen.dart';
-import 'shop_application_screen.dart';
 import 'admin_dashboard_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -24,28 +22,24 @@ class ProfileScreen extends StatelessWidget {
       if (appState.userEmail != null) ...[const SizedBox(height: 4), Center(child: Text(appState.userEmail!, style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)))],
       const SizedBox(height: 20),
       if (!merchant) _tile(context, Icons.list_alt, 'إعلاناتي', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MyListingsScreen()))),
-      _tile(context, Icons.storefront, merchant ? 'متجري' : 'افتح متجرك', () {
-        if (merchant) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const ShopAccountScreen()),
-          );
-          if (appState.isAdmin) {
-            AdminStoreProvisioner.ensure().then((_) {
-              if (context.mounted) appState.loadListings();
-            }).catchError((error) {
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('تعذر تجهيز متجر الأدمن: $error')),
-                );
-              }
-            });
-          }
-        } else {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const ShopApplicationScreen()),
-          );
+      _tile(context, Icons.storefront, 'متجري', () {
+        // لا نعتمد على isShopOwner هنا؛ يتم تحميلها بشكل غير متزامن وقد تكون
+        // ما زالت تخص الحساب السابق بعد تبديل الحساب. شاشة متجري تتحقق من
+        // الحساب الحالي مباشرة وتعرض لوحة المتجر أو طلب فتح متجر.
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const ShopAccountScreen()),
+        );
+        if (appState.isAdmin) {
+          AdminStoreProvisioner.ensure().then((_) {
+            if (context.mounted) appState.loadListings();
+          }).catchError((error) {
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('تعذر تجهيز متجر الأدمن: $error')),
+              );
+            }
+          });
         }
       }),
       if (merchant) ...[

@@ -41,6 +41,7 @@ class _ShopAccountScreenState extends State<ShopAccountScreen> {
           .select('id, name, is_shop')
           .eq('id', userId)
           .maybeSingle();
+      if (Supabase.instance.client.auth.currentUser?.id != userId) return;
       if (!mounted) return;
       setState(() {
         _isShop = row?['is_shop'] == true;

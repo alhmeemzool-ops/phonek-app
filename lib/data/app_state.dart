@@ -428,6 +428,7 @@ class AppState extends ChangeNotifier {
           .select('name, is_shop')
           .eq('id', userId)
           .maybeSingle();
+      if (_session?.user.id != userId) return;
       if (row != null) {
         _userName = (row['name'] as String?)?.trim().isNotEmpty == true
             ? row['name'] as String
@@ -442,9 +443,11 @@ class AppState extends ChangeNotifier {
 
     try {
       final adminResult = await Supabase.instance.client.rpc('is_admin');
+      if (_session?.user.id != userId) return;
       _isAdmin = adminResult == true || userId == adminUserId;
       notifyListeners();
     } catch (_) {
+      if (_session?.user.id != userId) return;
       _isAdmin = userId == adminUserId;
       // The admin RPC may be unavailable during an initial setup.
       notifyListeners();
