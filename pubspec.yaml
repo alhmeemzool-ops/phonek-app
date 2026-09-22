@@ -26,7 +26,6 @@ dependencies:
   http: ^1.1.2
   package_info_plus: ^8.0.2
   crypto: ^3.0.6
-  apk_sideload: ^0.0.2
   binary_patch: ^1.0.0
 
 dev_dependencies:
