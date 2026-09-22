@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'badge_model.dart';
 import 'badge_widgets.dart';
+import 'merchant_badge_art.dart';
 
 class MerchantLevelUpGate extends StatefulWidget {
   const MerchantLevelUpGate({super.key, required this.child});
