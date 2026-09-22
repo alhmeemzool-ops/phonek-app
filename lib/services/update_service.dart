@@ -227,7 +227,6 @@ class PhoneKUpdateService {
         throw const PhoneKUpdateException('install');
       }
     }
-  }
 }
 
 class PhoneKUpdateException implements Exception {
