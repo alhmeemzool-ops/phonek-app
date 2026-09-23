@@ -1,5 +1,37 @@
 enum MessageStatus { sent, delivered, read }
 
+extension MessageStatusValue on MessageStatus {
+  /// نص مطابق لاسم القيمة، بدون الاعتماد على getter المدمج name.
+  String get value {
+    switch (this) {
+      case MessageStatus.sent:
+        return 'sent';
+      case MessageStatus.delivered:
+        return 'delivered';
+      case MessageStatus.read:
+        return 'read';
+    }
+  }
+}
+
+extension MessageTypeValue on MessageType {
+  String get value {
+    switch (this) {
+      case MessageType.text:
+        return 'text';
+      case MessageType.image:
+        return 'image';
+      case MessageType.location:
+        return 'location';
+      case MessageType.priceOffer:
+        return 'priceOffer';
+      case MessageType.offer:
+        return 'offer';
+    }
+  }
+}
+
+
 enum MessageType { text, image, location, priceOffer, offer }
 
 class ChatMessage {
