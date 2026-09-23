@@ -22,6 +22,54 @@ enum WarrantyType { none, storeWarranty, agentWarranty }
 /// حالة الإعلان
 enum ListingStatus { active, sold, frozen, expired, pendingReview }
 
+extension ListingStatusValue on ListingStatus {
+  /// نص مطابق لاسم القيمة، بدون الاعتماد على getter المدمج name
+  /// (بعض بيئات التشغيل تفشل عند استدعائه على هذا التعداد تحديدًا).
+  String get value {
+    switch (this) {
+      case ListingStatus.active:
+        return 'active';
+      case ListingStatus.sold:
+        return 'sold';
+      case ListingStatus.frozen:
+        return 'frozen';
+      case ListingStatus.expired:
+        return 'expired';
+      case ListingStatus.pendingReview:
+        return 'pendingReview';
+    }
+  }
+}
+
+extension WarrantyTypeValue on WarrantyType {
+  String get value {
+    switch (this) {
+      case WarrantyType.none:
+        return 'none';
+      case WarrantyType.storeWarranty:
+        return 'storeWarranty';
+      case WarrantyType.agentWarranty:
+        return 'agentWarranty';
+    }
+  }
+}
+
+extension DeviceConditionValue on DeviceCondition {
+  String get value {
+    switch (this) {
+      case DeviceCondition.newDevice:
+        return 'newDevice';
+      case DeviceCondition.excellent:
+        return 'excellent';
+      case DeviceCondition.minorScratches:
+        return 'minorScratches';
+      case DeviceCondition.cracked:
+        return 'cracked';
+    }
+  }
+}
+
+
 class SellerInfo {
   final String id;
   final String name;
