@@ -17,6 +17,7 @@ android {
     compileSdk = 36
     ndkVersion = flutter.ndkVersion
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
+
     defaultConfig {
         applicationId = "com.phonek.phonek_app"
         minSdk = flutter.minSdkVersion
@@ -24,6 +25,13 @@ android {
         versionCode = flutter.versionCode
         versionName = flutter.versionName
         manifestPlaceholders["GOOGLE_MAPS_API_KEY"] = project.findProperty("GOOGLE_MAPS_API_KEY")?.toString() ?: ""
+
+        // PhoneK is distributed directly as an APK (not through Google Play).
+        // Keep the release APK focused on the dominant 64-bit ARM architecture
+        // so the custom incremental-update system works with a single APK.
+        ndk {
+            abiFilters += setOf("arm64-v8a")
+        }
     }
 
     signingConfigs {
