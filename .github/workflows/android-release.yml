@@ -117,8 +117,8 @@ jobs:
           print("sha256="+str(d.get("sha256","")))
           PY
 
-      - name: Build release APK
-        run: flutter build apk --release --build-name=${{ steps.version.outputs.version_name }} --build-number=${{ steps.version.outputs.version_code }}
+      - name: Build release APK (arm64-v8a only)
+        run: flutter build apk --release --target-platform android-arm64 --build-name=${{ steps.version.outputs.version_name }} --build-number=${{ steps.version.outputs.version_code }}
 
       - name: Calculate APK SHA-256
         id: checksum
@@ -154,7 +154,6 @@ jobs:
           }
           [ -s patch.bin ] || exit 0
 
-          # A patch is only publishable if applying it reconstructs the new APK byte-for-byte.
           timeout 900 dart run tool/validate_patch.dart old-release.apk patch.bin reconstructed.apk || {
             echo "Patch validation timed out or failed; full APK fallback will be used."
             rm -f patch.bin reconstructed.apk
@@ -174,7 +173,6 @@ jobs:
           echo "new_apk_size=$apk_size"
           echo "patch_size=$patch_size"
 
-          # Never ship a patch larger than the APK it replaces.
           if [ "$patch_size" -ge "$apk_size" ]; then
             echo "Patch is not smaller than the APK; full APK fallback will be used."
             rm -f patch.bin reconstructed.apk
@@ -196,7 +194,7 @@ jobs:
           else
             assets="build/app/outputs/flutter-apk/app-release.apk"
             if [ "${{ steps.patch.outputs.ok }}" = "true" ]; then assets="$assets patch.bin"; fi
-            gh release create "$tag" $assets               --title "PhoneK ${{ steps.version.outputs.version_name }}"               --notes "تحديث PhoneK رقم ${{ steps.version.outputs.version_code }}"
+            gh release create "$tag" $assets               --title "PhoneK ${{ steps.version.outputs.version_name }}"               --notes "تحديث PhoneK رقم ${{ steps.version.outputs.version_code }} - arm64-v8a"
           fi
 
       - name: Update PhoneK update manifest
@@ -232,7 +230,7 @@ jobs:
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: phonek-apk-${{ steps.version.outputs.version_name }}
+          name: phonek-apk-${{ steps.version.outputs.version_name }}-arm64
           path: build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
           retention-days: 30
