@@ -8,6 +8,7 @@ import '../data/app_state.dart';
 import '../features/merchant_badges/merchant_badges_screen.dart';
 import '../features/merchant_store/merchant_catalog_screen.dart';
 import '../features/merchant_store/visitor_preview_button.dart';
+import '../models/phone_model.dart';
 import '../theme/app_theme.dart';
 import 'shop_application_screen.dart';
 import 'shop_profile_screen.dart';
@@ -174,7 +175,7 @@ class _ShopAccountScreenState extends State<ShopAccountScreen> {
                         Expanded(
                           child: _metric(
                             'إعلانات نشطة',
-                            '${myListings.where((item) => item.status.name == 'active').length}',
+                            '${myListings.where((item) => item.status == ListingStatus.active).length}',
                           ),
                         ),
                       ],
