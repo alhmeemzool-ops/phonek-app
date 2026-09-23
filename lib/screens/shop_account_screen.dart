@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -22,6 +24,7 @@ class _ShopAccountScreenState extends State<ShopAccountScreen> {
   bool _isShop = false;
   String? _shopName;
   String? _error;
+  int _loadGeneration = 0;
 
   @override
   void initState() {
@@ -30,30 +33,47 @@ class _ShopAccountScreenState extends State<ShopAccountScreen> {
   }
 
   Future<void> _loadShopStatus() async {
+    final generation = ++_loadGeneration;
     final userId = Supabase.instance.client.auth.currentUser?.id;
     if (userId == null) {
-      if (mounted) setState(() => _loadingShop = false);
+      if (mounted && generation == _loadGeneration) {
+        setState(() {
+          _loadingShop = false;
+          _isShop = false;
+          _shopName = null;
+          _error = 'يجب تسجيل الدخول لفتح متجري.';
+        });
+      }
       return;
+    }
+    if (mounted) {
+      setState(() {
+        _loadingShop = true;
+        _error = null;
+      });
     }
     try {
       final row = await Supabase.instance.client
           .from('public_shop_profiles')
           .select('id, name, is_shop')
           .eq('id', userId)
-          .maybeSingle();
+          .maybeSingle()
+          .timeout(const Duration(seconds: 12));
+      if (!mounted || generation != _loadGeneration) return;
       if (Supabase.instance.client.auth.currentUser?.id != userId) return;
-      if (!mounted) return;
       setState(() {
         _isShop = row?['is_shop'] == true;
         _shopName = row?['name']?.toString();
         _loadingShop = false;
         _error = null;
       });
-    } catch (_) {
-      if (!mounted) return;
+    } catch (error) {
+      if (!mounted || generation != _loadGeneration) return;
       setState(() {
         _loadingShop = false;
-        _error = 'تعذر التحقق من حالة المتجر. اسحب لإعادة المحاولة.';
+        _error = error is TimeoutException
+            ? 'انتهت مهلة الاتصال بالخادم. اسحب لإعادة المحاولة.'
+            : 'تعذر التحقق من حالة المتجر. اسحب لإعادة المحاولة.';
       });
     }
   }

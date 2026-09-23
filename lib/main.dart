@@ -11,6 +11,25 @@ import 'theme/app_theme.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Flutter's default release ErrorWidget is a silent gray rectangle. Keep
+  // production build errors visible instead of making the page look frozen.
+  ErrorWidget.builder = (details) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: ColoredBox(
+          color: const Color(0xFF121212),
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Text(
+                'تعذر عرض الصفحة. أغلق التطبيق وافتحه من جديد.\n\n${details.exception}',
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.white70, fontSize: 14),
+              ),
+            ),
+          ),
+        ),
+      );
+
   await Supabase.initialize(
     url: 'https://hnuzqjotgmdgqjpbrqlb.supabase.co',
     publishableKey: 'sb_publishable_3XRVtwMyK5nNOvNpNDT7Mg_4nyH7FC1',
@@ -33,7 +52,10 @@ class PhoneKApp extends StatelessWidget {
         darkTheme: AppTheme.dark,
         themeMode: ThemeMode.dark,
         builder: (context, child) {
-          return Directionality(textDirection: TextDirection.rtl, child: child!);
+          return Directionality(
+            textDirection: TextDirection.rtl,
+            child: child ?? const SizedBox.shrink(),
+          );
         },
         home: const PhoneKUpdateGate(child: MerchantLevelUpGate(child: HomeScreen())),
       ),
