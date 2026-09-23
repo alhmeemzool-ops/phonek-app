@@ -148,14 +148,14 @@ jobs:
             exit 0
           fi
 
-          timeout 300 dart run tool/build_patch.dart old-release.apk "$new_apk" patch.bin || {
+          timeout 900 dart run tool/build_patch.dart old-release.apk "$new_apk" patch.bin || {
             echo "Patch generation timed out or failed; full APK fallback will be used."
             exit 0
           }
           [ -s patch.bin ] || exit 0
 
           # A patch is only publishable if applying it reconstructs the new APK byte-for-byte.
-          timeout 300 dart run tool/validate_patch.dart old-release.apk patch.bin reconstructed.apk || {
+          timeout 900 dart run tool/validate_patch.dart old-release.apk patch.bin reconstructed.apk || {
             echo "Patch validation timed out or failed; full APK fallback will be used."
             rm -f patch.bin reconstructed.apk
             exit 0
