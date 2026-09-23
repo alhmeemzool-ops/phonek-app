@@ -191,8 +191,8 @@ class AppState extends ChangeNotifier {
       'thread_id': threadId,
       'sender_id': userId,
       'text': cleanText,
-      'type': MessageType.text.name,
-      'status': MessageStatus.sent.name,
+      'type': MessageType.text.value,
+      'status': MessageStatus.sent.value,
     });
   }
 
@@ -210,9 +210,9 @@ class AppState extends ChangeNotifier {
       'thread_id': threadId,
       'sender_id': userId,
       'text': 'عرض سعر: $amount ج.س',
-      'type': MessageType.offer.name,
+      'type': MessageType.offer.value,
       'offer_amount': amount,
-      'status': MessageStatus.sent.name,
+      'status': MessageStatus.sent.value,
     });
   }
 
@@ -239,12 +239,12 @@ class AppState extends ChangeNotifier {
       senderId: row['sender_id'] as String? ?? '',
       text: row['text'] as String? ?? '',
       type: MessageType.values.firstWhere(
-        (item) => item.name == row['type'],
+        (item) => item.value == row['type'],
         orElse: () => MessageType.text,
       ),
       timestamp: DateTime.tryParse(row['created_at'] as String? ?? '') ?? DateTime.now(),
       status: MessageStatus.values.firstWhere(
-        (item) => item.name == row['status'],
+        (item) => item.value == row['status'],
         orElse: () => MessageStatus.sent,
       ),
       offerAmount: (row['offer_amount'] as num?)?.toInt(),
