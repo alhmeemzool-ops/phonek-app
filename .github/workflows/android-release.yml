@@ -34,7 +34,7 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          channel: stable
+          flutter-version: '3.47.2'
           cache: true
 
       - name: Cache Gradle
@@ -127,8 +127,8 @@ jobs:
           print("sha256="+str(d.get("sha256","")))
           PY
 
-      - name: Build release APK (arm64-v8a only)
-        run: flutter build apk --release --target-platform android-arm64 --build-name=${{ steps.version.outputs.version_name }} --build-number=${{ steps.version.outputs.version_code }}
+      - name: Build release APK (ARM32 + ARM64)
+        run: flutter build apk --release --build-name=${{ steps.version.outputs.version_name }} --build-number=${{ steps.version.outputs.version_code }}
 
       - name: Calculate APK SHA-256
         id: checksum
@@ -203,7 +203,7 @@ jobs:
           if [ "${{ steps.patch.outputs.ok }}" = "true" ]; then assets="$assets patch.bin"; fi
           gh release create "$tag" $assets \
             --title "PhoneK ${{ steps.version.outputs.version_name }}" \
-            --notes "تحديث PhoneK رقم ${{ steps.version.outputs.version_code }} - arm64-v8a"
+            --notes "تحديث PhoneK رقم ${{ steps.version.outputs.version_code }} - ARM32 + ARM64"
 
       - name: Verify published release assets
         id: published
@@ -284,7 +284,7 @@ jobs:
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: phonek-apk-${{ steps.version.outputs.version_name }}-arm64
+          name: phonek-apk-${{ steps.version.outputs.version_name }}-arm
           path: build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
           retention-days: 30
