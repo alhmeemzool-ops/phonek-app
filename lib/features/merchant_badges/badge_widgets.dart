@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'badge_3d_viewer.dart';
 import 'badge_model.dart';
 import 'merchant_badge_art.dart';
 
