@@ -176,11 +176,21 @@ class PhoneDetailsScreen extends StatelessWidget {
       final contact = await context.read<AppState>().getSellerContact(listing.seller.id);
       var number = (contact['whatsapp']?.trim().isNotEmpty == true ? contact['whatsapp']! : contact['phone'] ?? '')
           .replaceAll(RegExp(r'[^0-9]'), '');
-    if (number.startsWith('0')) number = '249${number.substring(1)}';
-    if (number.startsWith('9') && number.length == 9) number = '249$number';
-    if (number.isEmpty) { if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('رقم واتساب غير متوفر'))); return; }
-    final uri = Uri.parse('https://wa.me/$number?text=${Uri.encodeComponent('مرحباً، أنا مهتم بهاتف ${listing.title}')}');
-    if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (number.startsWith('0')) number = '249' + number.substring(1);
+      if (number.startsWith('9') && number.length == 9) number = '249' + number;
+      if (number.isEmpty) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('رقم واتساب غير متوفر')));
+        }
+        return;
+      }
+      final uri = Uri.parse('https://wa.me/' + number + '?text=' + Uri.encodeComponent('مرحباً، أنا مهتم بهاتف ' + listing.title));
+      if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذر الحصول على رقم البائع: ' + e.toString())));
+      }
+    }
   }
 
   void _offer(BuildContext context) {
