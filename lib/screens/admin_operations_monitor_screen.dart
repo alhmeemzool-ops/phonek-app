@@ -178,30 +178,6 @@ class _AdminOperationsMonitorScreenState extends State<AdminOperationsMonitorScr
 
   Widget _auditRow(String label, String value) => Padding(padding: const EdgeInsets.symmetric(vertical: 6), child: Row(children: [Expanded(child: Text(label)), Text(value, style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.gold))]));
 
-  /* Legacy aggregate view retained for compatibility with older routes. */
-  Widget _legacyBody() => RefreshIndicator(
-                      onRefresh: _load,
-                      child: ListView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.all(16),
-                    children: [
-                      _summary(),
-                      const SizedBox(height: 8),
-                      Text('تحديث تلقائي كل 20 ثانية • الإعلانات المعروضة خلال آخر 24 ساعة', style: TextStyle(color: AppColors.textSecondary, fontSize: 11)),
-                      if (_warnings.isNotEmpty) ...[
-                        const SizedBox(height: 8),
-                        Card(child: Padding(padding: const EdgeInsets.all(12), child: Text('بعض مصادر المراقبة غير متاحة حالياً؛ تم عرض المصادر التي تعمل بدلاً من جعل اللوحة فارغة.\n${_warnings.join('\n')}', style: const TextStyle(color: Colors.orangeAccent, fontSize: 11)))),
-                      ],
-                      const SizedBox(height: 20),
-                      _section('تسجيلات الدخول', Icons.login, _loginList()),
-                      const SizedBox(height: 20),
-                      _section('الإعلانات الجديدة — آخر 24 ساعة', Icons.phone_android, _listingList()),
-                      const SizedBox(height: 20),
-                      _section('المراسلات الجارية', Icons.forum_outlined, _chatList()),
-                    ],
-                  ),
-                );
-
   Widget _summary() {
     final failed = _logins.where((r) => r['success'] != true).length;
     final activeThreads = _threads.where((t) {
