@@ -74,6 +74,12 @@ class MainActivity : FlutterActivity() {
                 // مسار ملف الـ APK الحالي المُثبَّت فعلياً على الجهاز (base.apk).
                 // نستخدمه كأساس لتطبيق التحديث التزايدي (patch) دون إعادة تحميله.
                 try {
+                    if (!applicationInfo.splitSourceDirs.isNullOrEmpty()) {
+                        // Split APK installations are not a valid byte-for-byte base
+                        // for the incremental patch format used by PhoneK.
+                        result.success(null)
+                        return@setMethodCallHandler
+                    }
                     val path = applicationInfo.sourceDir
                     result.success(path)
                 } catch (error: Exception) {
