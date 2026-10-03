@@ -44,9 +44,6 @@ class MainActivity : FlutterActivity() {
                         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                         clipData = ClipData.newRawUri("APK", uri)
                     }
-                    if (packageManager.queryIntentActivities(intent, 0).isEmpty()) {
-                        throw IllegalStateException("No APK installer found")
-                    }
                     startActivity(intent)
                     result.success(null)
                 } catch (error: Exception) {
