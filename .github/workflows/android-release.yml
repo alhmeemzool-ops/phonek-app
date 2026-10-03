@@ -13,7 +13,7 @@ permissions:
 
 concurrency:
   group: phonek-android-release
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build-android:
@@ -104,6 +104,16 @@ jobs:
           echo "version_name=$version_name" >> "$GITHUB_OUTPUT"
           echo "version_code=$version_code" >> "$GITHUB_OUTPUT"
 
+      - name: Fail if release tag already exists
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="v${{ steps.version.outputs.version_name }}"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "Release $tag already exists; bump version in pubspec.yaml instead of reusing an existing release."
+            exit 1
+          fi
+
       - name: Read previous manifest
         id: previous
         shell: bash
@@ -189,20 +199,46 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           tag="v${{ steps.version.outputs.version_name }}"
-          if gh release view "$tag" >/dev/null 2>&1; then
-            echo "Release $tag already exists; reusing it."
-          else
-            assets="build/app/outputs/flutter-apk/app-release.apk"
-            if [ "${{ steps.patch.outputs.ok }}" = "true" ]; then assets="$assets patch.bin"; fi
-            gh release create "$tag" $assets               --title "PhoneK ${{ steps.version.outputs.version_name }}"               --notes "تحديث PhoneK رقم ${{ steps.version.outputs.version_code }} - arm64-v8a"
+          assets="build/app/outputs/flutter-apk/app-release.apk"
+          if [ "${{ steps.patch.outputs.ok }}" = "true" ]; then assets="$assets patch.bin"; fi
+          gh release create "$tag" $assets \
+            --title "PhoneK ${{ steps.version.outputs.version_name }}" \
+            --notes "تحديث PhoneK رقم ${{ steps.version.outputs.version_code }} - arm64-v8a"
+
+      - name: Verify published release assets
+        id: published
+        shell: bash
+        env:
+          APK_URL: https://github.com/alhmeemzool-ops/phonek-app/releases/download/v${{ steps.version.outputs.version_name }}/app-release.apk
+          PATCH_URL: https://github.com/alhmeemzool-ops/phonek-app/releases/download/v${{ steps.version.outputs.version_name }}/patch.bin
+          BUILT_APK_SHA256: ${{ steps.checksum.outputs.sha256 }}
+          BUILT_PATCH_SHA256: ${{ steps.patch.outputs.sha256 }}
+          PATCH_OK: ${{ steps.patch.outputs.ok }}
+        run: |
+          curl -fL --retry 3 --retry-all-errors -o published-app-release.apk "$APK_URL"
+          published_apk_sha256=$(sha256sum published-app-release.apk | awk '{print $1}')
+          if [ "$published_apk_sha256" != "$BUILT_APK_SHA256" ]; then
+            echo "Published APK checksum does not match the built APK."
+            exit 1
+          fi
+          echo "apk_sha256=$published_apk_sha256" >> "$GITHUB_OUTPUT"
+
+          if [ "$PATCH_OK" = "true" ]; then
+            curl -fL --retry 3 --retry-all-errors -o published-patch.bin "$PATCH_URL"
+            published_patch_sha256=$(sha256sum published-patch.bin | awk '{print $1}')
+            if [ "$published_patch_sha256" != "$BUILT_PATCH_SHA256" ]; then
+              echo "Published patch checksum does not match the built patch."
+              exit 1
+            fi
+            echo "patch_sha256=$published_patch_sha256" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Update PhoneK update manifest
         shell: bash
         env:
-          APK_SHA256: ${{ steps.checksum.outputs.sha256 }}
+          APK_SHA256: ${{ steps.published.outputs.apk_sha256 }}
           PATCH_OK: ${{ steps.patch.outputs.ok }}
-          PATCH_SHA256: ${{ steps.patch.outputs.sha256 }}
+          PATCH_SHA256: ${{ steps.published.outputs.patch_sha256 }}
           PATCH_BASE: ${{ steps.patch.outputs.base_version_code }}
         run: |
           python3 - <<PY
@@ -225,7 +261,18 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add update.json
-          if ! git diff --cached --quiet; then git commit -m "Update PhoneK update manifest"; git push origin HEAD:main; fi
+          if ! git diff --cached --quiet; then
+            git commit -m "Update PhoneK update manifest"
+            for attempt in 1 2 3; do
+              if git pull --rebase origin main && git push origin HEAD:main; then
+                exit 0
+              fi
+              git rebase --abort 2>/dev/null || true
+              if [ "$attempt" -lt 3 ]; then sleep $((attempt * 2)); fi
+            done
+            echo "Failed to push update manifest after 3 attempts."
+            exit 1
+          fi
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4

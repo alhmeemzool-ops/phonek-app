@@ -1,14 +1,19 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:binary_patch/binary_patch.dart';
 import 'package:crypto/crypto.dart';
-import 'package:http/http.dart' as http;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
 
 const String phoneKUpdateManifestUrl =
     'https://raw.githubusercontent.com/alhmeemzool-ops/phonek-app/main/update.json';
+const String _releaseAssetPrefix =
+    'https://github.com/alhmeemzool-ops/phonek-app/releases/download/';
 
 class PhoneKUpdate {
   final int versionCode;
@@ -44,18 +49,43 @@ class PhoneKUpdate {
       sha256: (json['sha256'] as String).toLowerCase(),
       mandatory: json['mandatory'] == true,
       notes: (json['notes'] as String?) ?? '',
-      patchUrl: (patchUrl != null && patchUrl.isNotEmpty) ? patchUrl : null,
-      patchSha256: (patchSha256 != null && patchSha256.length == 64) ? patchSha256.toLowerCase() : null,
-      patchBaseVersionCode: patchBase == null ? null : (patchBase as num).toInt(),
+      patchUrl: patchUrl != null && patchUrl.isNotEmpty ? patchUrl : null,
+      patchSha256: patchSha256 != null && patchSha256.length == 64
+          ? patchSha256.toLowerCase()
+          : null,
+      patchBaseVersionCode:
+          patchBase == null ? null : (patchBase as num).toInt(),
     );
   }
 
   bool hasUsablePatch(int currentBuildNumber) =>
-      patchUrl != null && patchSha256 != null && patchBaseVersionCode == currentBuildNumber;
+      patchUrl != null &&
+      patchSha256 != null &&
+      patchBaseVersionCode == currentBuildNumber;
+}
+
+enum PhoneKUpdateCheckStatus { updateAvailable, upToDate, failed }
+
+class PhoneKUpdateCheckResult {
+  final PhoneKUpdateCheckStatus status;
+  final PhoneKUpdate? update;
+  final String? error;
+
+  const PhoneKUpdateCheckResult._(this.status, {this.update, this.error});
+
+  const PhoneKUpdateCheckResult.updateAvailable(PhoneKUpdate update)
+      : this._(PhoneKUpdateCheckStatus.updateAvailable, update: update);
+
+  const PhoneKUpdateCheckResult.upToDate()
+      : this._(PhoneKUpdateCheckStatus.upToDate);
+
+  const PhoneKUpdateCheckResult.failed(String error)
+      : this._(PhoneKUpdateCheckStatus.failed, error: error);
 }
 
 class PhoneKUpdateService {
   static const _platform = MethodChannel('phonek/update_permissions');
+
   static Future<void> _deleteOldUpdateApks(String keepPath) async {
     final tempDir = Directory.systemTemp;
     await for (final entity in tempDir.list()) {
@@ -80,11 +110,19 @@ class PhoneKUpdateService {
 
   static Future<String?> _installedApkPath() async {
     if (!Platform.isAndroid) return null;
-    try { return await _platform.invokeMethod<String>('getInstalledApkPath'); } catch (_) { return null; }
+    try {
+      return await _platform.invokeMethod<String>('getInstalledApkPath');
+    } catch (error) {
+      debugPrint('PhoneK update: cannot get installed APK path: $error');
+      return null;
+    }
   }
 
-  static Future<PhoneKUpdate?> check() async {
-    if (!Platform.isAndroid) return null;
+  static Future<PhoneKUpdateCheckResult> check() async {
+    if (!Platform.isAndroid) {
+      debugPrint('PhoneK update check skipped: platform is not Android.');
+      return const PhoneKUpdateCheckResult.upToDate();
+    }
 
     try {
       final packageInfo = await PackageInfo.fromPlatform();
@@ -97,58 +135,99 @@ class PhoneKUpdateService {
         headers: const {'Cache-Control': 'no-cache'},
       ).timeout(const Duration(seconds: 8));
 
-      if (response.statusCode != 200) return null;
+      if (response.statusCode != 200) {
+        final reason = 'manifest HTTP ${response.statusCode}';
+        debugPrint('PhoneK update check failed: $reason');
+        return PhoneKUpdateCheckResult.failed(reason);
+      }
 
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
-      final update = PhoneKUpdate.fromJson(data);
+      final decoded = jsonDecode(response.body);
+      if (decoded is! Map<String, dynamic>) {
+        const reason = 'manifest is not a JSON object';
+        debugPrint('PhoneK update check failed: $reason');
+        return const PhoneKUpdateCheckResult.failed(reason);
+      }
+      final update = PhoneKUpdate.fromJson(decoded);
 
-      if (update.apkUrl.isEmpty || update.sha256.length != 64) return null;
+      if (update.apkUrl.isEmpty || !_isReleaseAssetUrl(update.apkUrl)) {
+        const reason = 'manifest contains an invalid apkUrl';
+        debugPrint('PhoneK update check failed: $reason');
+        return const PhoneKUpdateCheckResult.failed(reason);
+      }
+      if (update.sha256.length != 64 || !_isHexSha256(update.sha256)) {
+        const reason = 'manifest contains an invalid APK SHA-256';
+        debugPrint('PhoneK update check failed: $reason');
+        return const PhoneKUpdateCheckResult.failed(reason);
+      }
+      if (update.patchUrl != null && !_isReleaseAssetUrl(update.patchUrl!)) {
+        const reason = 'manifest contains an invalid patchUrl';
+        debugPrint('PhoneK update check failed: $reason');
+        return const PhoneKUpdateCheckResult.failed(reason);
+      }
+      if (update.patchUrl != null &&
+          (update.patchSha256 == null || !_isHexSha256(update.patchSha256!))) {
+        const reason = 'manifest contains an invalid patch SHA-256';
+        debugPrint('PhoneK update check failed: $reason');
+        return const PhoneKUpdateCheckResult.failed(reason);
+      }
 
-      if (update.versionCode <= currentBuildNumber) return null;
+      if (update.versionCode <= currentBuildNumber) {
+        debugPrint('PhoneK update check: no update available.');
+        return const PhoneKUpdateCheckResult.upToDate();
+      }
 
-      return update;
-    } catch (_) {
-      return null;
+      return PhoneKUpdateCheckResult.updateAvailable(update);
+    } catch (error, stackTrace) {
+      debugPrint('PhoneK update check failed: $error');
+      debugPrint('$stackTrace');
+      return PhoneKUpdateCheckResult.failed(error.toString());
     }
   }
+
+  static bool _isReleaseAssetUrl(String value) =>
+      value.startsWith(_releaseAssetPrefix);
+
+  static bool _isHexSha256(String value) =>
+      RegExp(r'^[0-9a-f]{64}$', caseSensitive: false).hasMatch(value);
+
+  static Future<String> _sha256File(File file) async =>
+      (await sha256.bind(file.openRead()).first).toString();
 
   static Future<void> downloadAndInstall(
     PhoneKUpdate update, {
     void Function(double progress)? onProgress,
   }) async {
     final tempDir = Directory.systemTemp;
-    final file = File('${tempDir.path}/phonek-update-${update.versionCode}.apk');
+    final file =
+        File('${tempDir.path}/phonek-update-${update.versionCode}.apk');
     await _deleteOldUpdateApks(file.path);
 
     var cachedApkIsValid = false;
-    var builtFromPatch = false;
-      if (await file.exists() && await file.length() > 0) {
-        final cachedDigest = sha256.convert(await file.readAsBytes()).toString();
-        cachedApkIsValid = cachedDigest.toLowerCase() == update.sha256;
-        if (cachedApkIsValid) onProgress?.call(1.0);
-      }
+    if (await file.exists() && await file.length() > 0) {
+      final cachedDigest = await _sha256File(file);
+      cachedApkIsValid = cachedDigest.toLowerCase() == update.sha256;
+      if (cachedApkIsValid) onProgress?.call(1.0);
+    }
 
-      if (!cachedApkIsValid) {
-        builtFromPatch = await _tryBuildFromPatch(update, file, onProgress: onProgress);
-        if (!builtFromPatch) {
-          await _downloadFullApk(update, file, onProgress: onProgress);
-        }
-      }
-
-      try {
-        await _installApk(file);
-      } on PhoneKUpdateException {
-        // لا نجعل فشل التحديث التزايدي يمنع التحديث الكامل. بعض الأجهزة أو
-        // نسخ Android/PackageInstaller ترفض APK أعيد بناؤه من patch رغم أن
-        // checksum صحيح؛ في هذه الحالة أعد تنزيل الـAPK الأصلي من Release.
-        if (!builtFromPatch) rethrow;
-        await file.delete().catchError((_) => file);
+    if (!cachedApkIsValid) {
+      final builtFromPatch = await _tryBuildFromPatch(
+        update,
+        file,
+        onProgress: onProgress,
+      );
+      if (!builtFromPatch) {
         await _downloadFullApk(update, file, onProgress: onProgress);
-        await _installApk(file);
       }
+    }
+
+    await _installApk(file);
   }
 
-  static Future<bool> _tryBuildFromPatch(PhoneKUpdate update, File outputFile, {void Function(double progress)? onProgress}) async {
+  static Future<bool> _tryBuildFromPatch(
+    PhoneKUpdate update,
+    File outputFile, {
+    void Function(double progress)? onProgress,
+  }) async {
     File? patchFile;
     try {
       final info = await PackageInfo.fromPlatform();
@@ -158,87 +237,161 @@ class PhoneKUpdateService {
       if (path == null) return false;
       final oldFile = File(path);
       if (!await oldFile.exists()) return false;
-      final patch = File('${outputFile.path}.patch');
-      patchFile = patch;
-      if (await patch.exists()) await patch.delete();
-      final client = HttpClient();
-      try {
-        final req = await client.getUrl(Uri.parse(update.patchUrl!));
-        req.followRedirects = true;
-        final resp = await req.close();
-        if (resp.statusCode != HttpStatus.ok) return false;
-        final sink = patch.openWrite();
-        final total = resp.contentLength;
-        var received = 0;
-        try { await for (final chunk in resp) { sink.add(chunk); received += chunk.length; if (total > 0) onProgress?.call((received / total * 0.6).clamp(0.0,0.6)); } }
-        finally { await sink.flush(); await sink.close(); }
-      } finally { client.close(force: true); }
-      final patchBytes = await patch.readAsBytes();
-      if (sha256.convert(patchBytes).toString().toLowerCase() != update.patchSha256) return false;
+
+      patchFile = File('${outputFile.path}.patch');
+      await _downloadWithResume(
+        Uri.parse(update.patchUrl!),
+        patchFile,
+        onProgress: (value) => onProgress?.call(value * 0.6),
+      );
+      if (await _sha256File(patchFile) != update.patchSha256) return false;
       onProgress?.call(0.7);
-      final rebuilt = await BinaryPatch.applyBytes(oldData: await oldFile.readAsBytes(), patchData: patchBytes);
-      if (sha256.convert(rebuilt).toString().toLowerCase() != update.sha256) return false;
+
+      final oldPath = oldFile.path;
+      final patchPath = patchFile.path;
+      final rebuilt = await Isolate.run(() async {
+        final oldData = await File(oldPath).readAsBytes();
+        final patchData = await File(patchPath).readAsBytes();
+        return BinaryPatch.applyBytes(oldData: oldData, patchData: patchData);
+      });
       await outputFile.writeAsBytes(rebuilt, flush: true);
+      if (await _sha256File(outputFile) != update.sha256) {
+        await outputFile.delete().catchError((_) => outputFile);
+        return false;
+      }
       onProgress?.call(1.0);
       return true;
-    } catch (_) { return false; }
-    finally { if (patchFile != null && await patchFile.exists()) await patchFile.delete().catchError((_) => patchFile!); }
+    } catch (error) {
+      debugPrint('PhoneK update patch failed; using full APK: $error');
+      return false;
+    } finally {
+      if (patchFile != null && await patchFile.exists()) {
+        await patchFile.delete().catchError((_) => patchFile!);
+      }
+    }
   }
 
-  static Future<void> _downloadFullApk(PhoneKUpdate update, File file, {void Function(double progress)? onProgress}) async {
-    final client = HttpClient();
-    try {
+  static Future<void> _downloadFullApk(
+    PhoneKUpdate update,
+    File file, {
+    void Function(double progress)? onProgress,
+  }) async {
+    await _downloadWithResume(
+      Uri.parse(update.apkUrl),
+      file,
+      onProgress: onProgress,
+    );
+    final digest = await _sha256File(file);
+    if (digest.toLowerCase() != update.sha256) {
       await file.delete().catchError((_) => file);
-        final request = await client.getUrl(Uri.parse(update.apkUrl));
+      throw const FormatException('APK checksum mismatch');
+    }
+    onProgress?.call(1.0);
+  }
+
+  static Future<void> _downloadWithResume(
+    Uri url,
+    File destination, {
+    void Function(double progress)? onProgress,
+  }) async {
+    final partial = File('${destination.path}.part');
+    Object? lastError;
+
+    for (var attempt = 1; attempt <= 3; attempt++) {
+      final client = HttpClient()
+        ..connectionTimeout = const Duration(seconds: 15);
+      try {
+        var offset = await partial.exists() ? await partial.length() : 0;
+        final request = await client.getUrl(url);
         request.followRedirects = true;
+        if (offset > 0) {
+          request.headers.set(HttpHeaders.rangeHeader, 'bytes=$offset-');
+        }
         final response = await request.close();
 
-        if (response.statusCode != HttpStatus.ok) {
-          throw HttpException('Download failed: ${response.statusCode}');
-        }
-
-        final total = response.contentLength;
-        var received = 0;
-        final sink = file.openWrite();
-        try {
-          await for (final chunk in response) {
-            sink.add(chunk);
-            received += chunk.length;
-            if (total > 0) {
-              onProgress?.call((received / total).clamp(0.0, 1.0));
-            }
+        if (offset > 0 && response.statusCode != HttpStatus.partialContent) {
+          await response.drain<void>();
+          await partial.delete().catchError((_) => partial);
+          offset = 0;
+          final restartRequest = await client.getUrl(url);
+          restartRequest.followRedirects = true;
+          final restartResponse = await restartRequest.close();
+          if (restartResponse.statusCode != HttpStatus.ok) {
+            throw HttpException(
+                'Download failed: ${restartResponse.statusCode}');
           }
-        } finally {
-          await sink.flush();
-          await sink.close();
+          await _consumeResponse(restartResponse, partial, 0, onProgress);
+        } else {
+          if (response.statusCode != HttpStatus.ok &&
+              response.statusCode != HttpStatus.partialContent) {
+            throw HttpException('Download failed: ${response.statusCode}');
+          }
+          await _consumeResponse(
+            response,
+            partial,
+            response.statusCode == HttpStatus.partialContent ? offset : 0,
+            onProgress,
+          );
         }
 
-        final digest = sha256.convert(await file.readAsBytes()).toString();
-        if (digest.toLowerCase() != update.sha256) {
-          await file.delete().catchError((_) => file);
-          throw const FormatException('APK checksum mismatch');
+        await destination.delete().catchError((_) => destination);
+        await partial.rename(destination.path);
+        return;
+      } catch (error) {
+        lastError = error;
+        if (attempt < 3) {
+          await Future<void>.delayed(Duration(seconds: attempt * 2));
         }
+      } finally {
+        client.close(force: true);
+      }
+    }
 
-        onProgress?.call(1.0);
-      } finally { client.close(force: true); }
+    throw HttpException('Download failed after 3 attempts: $lastError');
+  }
+
+  static Future<void> _consumeResponse(
+    HttpClientResponse response,
+    File partial,
+    int alreadyReceived,
+    void Function(double progress)? onProgress,
+  ) async {
+    final total = response.contentLength > 0
+        ? response.contentLength + alreadyReceived
+        : -1;
+    var received = alreadyReceived;
+    final sink = partial.openWrite(
+      mode: alreadyReceived > 0 ? FileMode.append : FileMode.write,
+    );
+    try {
+      await for (final chunk in response.timeout(const Duration(seconds: 30))) {
+        sink.add(chunk);
+        received += chunk.length;
+        if (total > 0) {
+          onProgress?.call((received / total).clamp(0.0, 1.0));
+        }
+      }
+    } finally {
+      await sink.flush();
+      await sink.close();
+    }
   }
 
   static Future<void> _installApk(File file) async {
     try {
-        await _platform.invokeMethod<void>('installApk', {'filePath': file.path});
-      } on PlatformException catch (error) {
-        if (error.code == 'INSTALL_ERROR') {
-          // بعض إصدارات مُثبت APK تعيد INSTALL_ERROR لأسباب أخرى غير الصلاحية.
-          // افحص حالة Android مرة ثانية قبل عرض زر الإعدادات للمستخدم.
-          final permissionStillMissing = !(await canInstallPackages());
-          throw PhoneKUpdateException(
-            permissionStillMissing
-                ? 'install_permission'
-                : 'install:${error.message ?? 'unknown_error'}',
-          );
-        }
-        throw PhoneKUpdateException('install:${error.message ?? 'unknown_error'}');
+      await _platform.invokeMethod<void>('installApk', {'filePath': file.path});
+    } on PlatformException catch (error) {
+      if (error.code == 'INSTALL_ERROR') {
+        final permissionStillMissing = !(await canInstallPackages());
+        throw PhoneKUpdateException(
+          permissionStillMissing
+              ? 'install_permission'
+              : 'install:${error.message ?? 'unknown_error'}',
+        );
       }
+      throw PhoneKUpdateException(
+          'install:${error.message ?? 'unknown_error'}');
+    }
   }
 }
 

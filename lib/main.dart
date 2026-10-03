@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'data/app_state.dart';
@@ -57,7 +56,8 @@ class PhoneKApp extends StatelessWidget {
             child: child ?? const SizedBox.shrink(),
           );
         },
-        home: const PhoneKUpdateGate(child: MerchantLevelUpGate(child: HomeScreen())),
+        home: const PhoneKUpdateGate(
+            child: MerchantLevelUpGate(child: HomeScreen())),
       ),
     );
   }
@@ -106,11 +106,13 @@ class _PhoneKUpdateGateState extends State<PhoneKUpdateGate>
       return;
     }
 
-    final update = await PhoneKUpdateService.check();
-    if (!mounted || update == null) {
+    final checkResult = await PhoneKUpdateService.check();
+    if (!mounted ||
+        checkResult.status != PhoneKUpdateCheckStatus.updateAvailable) {
       _checking = false;
       return;
     }
+    final update = checkResult.update!;
 
     _dialogShown = true;
     await showDialog<void>(
@@ -146,7 +148,8 @@ class _UpdateDialogState extends State<_UpdateDialog> {
     if (!canInstall) {
       if (!mounted) return;
       setState(() {
-        _error = 'يجب السماح لـ PhoneK بتثبيت التطبيقات من هذا المصدر قبل بدء التحديث.';
+        _error =
+            'يجب السماح لـ PhoneK بتثبيت التطبيقات من هذا المصدر قبل بدء التحديث.';
       });
       return;
     }
@@ -176,7 +179,8 @@ class _UpdateDialogState extends State<_UpdateDialog> {
       if (!mounted) return;
       setState(() {
         _downloading = false;
-        _error = 'تعذر تنزيل التحديث. تأكد من اتصال الإنترنت والرابط ثم حاول مرة أخرى.';
+        _error =
+            'تعذر تنزيل التحديث. تأكد من اتصال الإنترنت والرابط ثم حاول مرة أخرى.';
       });
     }
   }
@@ -187,7 +191,8 @@ class _UpdateDialogState extends State<_UpdateDialog> {
     } catch (_) {
       if (!mounted) return;
       setState(() {
-        _error = 'تعذر فتح إعدادات الصلاحية. افتح إعدادات Android ثم فعّل السماح لـ PhoneK بتثبيت التطبيقات.';
+        _error =
+            'تعذر فتح إعدادات الصلاحية. افتح إعدادات Android ثم فعّل السماح لـ PhoneK بتثبيت التطبيقات.';
       });
     }
   }
@@ -216,8 +221,10 @@ class _UpdateDialogState extends State<_UpdateDialog> {
             if (_error != null) ...[
               const SizedBox(height: 12),
               Text(_error!, style: const TextStyle(color: Colors.redAccent)),
-              if (_error == 'يجب السماح لـ PhoneK بتثبيت التطبيقات من هذا المصدر قبل بدء التحديث.' ||
-                  _error == 'تم تنزيل التحديث. اسمح للتطبيق بتثبيت التطبيقات من هذا المصدر ثم اضغط «تحديث الآن» مرة أخرى.') ...[
+              if (_error ==
+                      'يجب السماح لـ PhoneK بتثبيت التطبيقات من هذا المصدر قبل بدء التحديث.' ||
+                  _error ==
+                      'تم تنزيل التحديث. اسمح للتطبيق بتثبيت التطبيقات من هذا المصدر ثم اضغط «تحديث الآن» مرة أخرى.') ...[
                 const SizedBox(height: 10),
                 OutlinedButton.icon(
                   onPressed: _openInstallPermissionSettings,

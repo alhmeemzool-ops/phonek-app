@@ -71,8 +71,8 @@ jobs:
         shell: bash
         run: |
           version_line=$(grep '^version:' pubspec.yaml)
-          version_name=$(echo "$version_line" | sed -E 's/version: ([^+]+)\\+.*/\\1/')
-          version_code=$(echo "$version_line" | sed -E 's/version: [^+]+\\+([0-9]+)/\\1/')
+          version_name=$(echo "$version_line" | sed -E 's/version: ([^+]+)\+.*/\1/')
+          version_code=$(echo "$version_line" | sed -E 's/version: [^+]+\+([0-9]+)/\1/')
           test -n "$version_name" && test -n "$version_code"
           echo "version_name=$version_name" >> "$GITHUB_OUTPUT"
           echo "version_code=$version_code" >> "$GITHUB_OUTPUT"

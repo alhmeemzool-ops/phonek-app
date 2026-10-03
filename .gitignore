@@ -6,6 +6,8 @@ build/
 *.iml
 .idea/
 android/local.properties
+android/key.properties
+*.jks
 ios/Flutter/Generated.xcconfig
 ios/Runner/GeneratedPluginRegistrant.*
 google-services.json
