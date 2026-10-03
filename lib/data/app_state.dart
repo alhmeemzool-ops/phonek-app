@@ -260,13 +260,30 @@ class AppState extends ChangeNotifier {
     try {
       final rows = await Supabase.instance.client
           .from('listings')
-          .select('*, profiles!listings_seller_id_fkey(*)')
+          .select('*')
           .eq('status', 'active')
           .order('created_at', ascending: false);
 
-      final loaded = (rows as List)
-          .whereType<Map<String, dynamic>>()
-          .map(_listingFromRow)
+      final rawRows = (rows as List).whereType<Map<String, dynamic>>().toList();
+      final sellerIds = rawRows
+          .map((row) => row['seller_id']?.toString())
+          .whereType<String>()
+          .where((id) => id.isNotEmpty)
+          .toSet()
+          .toList();
+      final sellerCards = <String, Map<String, dynamic>>{};
+      if (sellerIds.isNotEmpty) {
+        final cards = await Supabase.instance.client
+            .from('public_seller_cards')
+            .select('*')
+            .inFilter('id', sellerIds);
+        for (final card in (cards as List).whereType<Map<String, dynamic>>()) {
+          sellerCards[card['id'].toString()] = card;
+        }
+      }
+
+      final loaded = rawRows
+          .map((row) => _listingFromRow(row, sellerCards[row['seller_id']?.toString()]))
           .whereType<PhoneListing>()
           .toList();
       _listings
@@ -281,6 +298,19 @@ class AppState extends ChangeNotifier {
       _isLoadingListings = false;
       notifyListeners();
     }
+  }
+
+  Future<Map<String, String>> getSellerContact(String sellerId) async {
+    if (_session == null) throw const AuthException('سجّل الدخول لرؤية رقم البائع');
+    final result = await Supabase.instance.client.rpc(
+      'get_seller_contact',
+      params: {'seller_id': sellerId},
+    );
+    final row = result is Map ? Map<String, dynamic>.from(result) : <String, dynamic>{};
+    return {
+      'phone': row['phone']?.toString() ?? '',
+      'whatsapp': row['whatsapp']?.toString() ?? '',
+    };
   }
 
   Future<void> updateListing({required String id, required String title, required int price, required String city, required String description, List<String>? imageUrls}) async {
@@ -304,11 +334,9 @@ class AppState extends ChangeNotifier {
     await loadListings();
   }
 
-  PhoneListing? _listingFromRow(Map<String, dynamic> row) {
+  PhoneListing? _listingFromRow(Map<String, dynamic> row, [Map<String, dynamic>? sellerRow]) {
     try {
-      final sellerRow = row['profiles'] is Map<String, dynamic>
-          ? row['profiles'] as Map<String, dynamic>
-          : <String, dynamic>{};
+      final seller = sellerRow ?? const <String, dynamic>{};
       return PhoneListing(
         id: row['id'] as String,
         title: row['title'] as String? ?? '',
@@ -331,17 +359,17 @@ class AppState extends ChangeNotifier {
         imageUrls: (row['image_urls'] as List?)?.whereType<String>().toList() ?? const [],
         seller: SellerInfo(
           id: row['seller_id'] as String? ?? '',
-          name: sellerRow['name'] as String? ?? 'بائع PhoneK',
-          phone: sellerRow['phone'] as String? ?? '',
-          whatsapp: sellerRow['whatsapp'] as String?,
-          bio: sellerRow['bio'] as String?,
-          avatarUrl: sellerRow['avatar_url'] as String?,
-          isVerifiedStore: sellerRow['is_verified_store'] as bool? ?? false,
-          isShop: sellerRow['is_shop'] as bool? ?? false,
-          rating: (sellerRow['rating'] as num?)?.toDouble() ?? 0,
-          completedSales: (sellerRow['completed_sales'] as num?)?.toInt() ?? 0,
-          city: sellerRow['city'] as String? ?? row['city'] as String? ?? '',
-          replySpeedLabel: sellerRow['reply_speed_label'] as String? ?? 'يرد عادة خلال ساعات',
+          name: seller['name'] as String? ?? 'بائع PhoneK',
+          phone: seller['phone'] as String? ?? '',
+          whatsapp: seller['whatsapp'] as String?,
+          bio: seller['bio'] as String?,
+          avatarUrl: seller['avatar_url'] as String?,
+          isVerifiedStore: seller['is_verified_store'] as bool? ?? false,
+          isShop: seller['is_shop'] as bool? ?? false,
+          rating: (seller['rating'] as num?)?.toDouble() ?? 0,
+          completedSales: (seller['completed_sales'] as num?)?.toInt() ?? 0,
+          city: seller['city'] as String? ?? row['city'] as String? ?? '',
+          replySpeedLabel: seller['reply_speed_label'] as String? ?? 'يرد عادة خلال ساعات',
         ),
         status: _statusFromValue(row['status'] as String?),
         createdAt: DateTime.tryParse(row['created_at'] as String? ?? '') ?? DateTime.now(),
