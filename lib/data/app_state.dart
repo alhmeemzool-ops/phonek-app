@@ -53,6 +53,7 @@ class AppState extends ChangeNotifier {
   }
 
   final Set<String> _favoriteIds = {};
+  final Set<String> _viewedListingIds = {};
   final List<PhoneListing> _listings = [];
   final List<ChatThread> _chatThreads = [];
   final List<RealtimeChannel> _chatChannels = [];
@@ -90,12 +91,6 @@ class AppState extends ChangeNotifier {
   String? get shopName => _shopName;
   User? get currentUser => _session?.user;
 
-  /// Keeps the demo login API available for local previews and tests.
-  void login(String name) {
-    _userName = name;
-    notifyListeners();
-  }
-
   String get _favoriteStorageKey => 'phonek_favorites_${_session?.user.id ?? 'guest'}';
 
   Future<void> _loadFavorites() async {
@@ -128,20 +123,35 @@ class AppState extends ChangeNotifier {
           .select('id, listing_id, buyer_id, seller_id, created_at')
           .or('buyer_id.eq.$userId,seller_id.eq.$userId')
           .order('created_at', ascending: false);
+      final loadedThreads = <ChatThread>[];
+      for (final row in (rows as List).whereType<Map<String, dynamic>>()) {
+        final listing = _listings.cast<PhoneListing?>().firstWhere(
+              (item) => item?.id == row['listing_id'],
+              orElse: () => null,
+            );
+        String otherUserName = 'مستخدم PhoneK';
+        try {
+          final participant = await Supabase.instance.client.rpc(
+            'get_chat_participants',
+            params: {'p_thread_id': row['id']},
+          );
+          if (participant is Map && participant['other_user_name'] != null) {
+            otherUserName = participant['other_user_name'].toString();
+          }
+        } catch (error) {
+          debugPrint('PhoneK chat participant lookup failed: $error');
+          otherUserName = listing?.seller.name ?? otherUserName;
+        }
+        loadedThreads.add(ChatThread(
+          id: row['id'] as String,
+          phoneListingId: row['listing_id'] as String,
+          phoneTitle: listing?.title ?? 'إعلان PhoneK',
+          otherUserName: otherUserName,
+        ));
+      }
       _chatThreads
         ..clear()
-        ..addAll((rows as List).whereType<Map<String, dynamic>>().map((row) {
-          final listing = _listings.cast<PhoneListing?>().firstWhere(
-                (item) => item?.id == row['listing_id'],
-                orElse: () => null,
-              );
-          return ChatThread(
-            id: row['id'] as String,
-            phoneListingId: row['listing_id'] as String,
-            phoneTitle: listing?.title ?? 'إعلان PhoneK',
-            otherUserName: listing?.seller.name ?? 'مستخدم PhoneK',
-          );
-        }));
+        ..addAll(loadedThreads);
       notifyListeners();
     } catch (_) {
       // Chat is optional until a user opens a conversation.
@@ -161,16 +171,28 @@ class AppState extends ChangeNotifier {
         .or('buyer_id.eq.$userId,seller_id.eq.$userId')
         .limit(1);
     if ((existing as List).isNotEmpty) return existing.first['id'] as String;
-    final inserted = await Supabase.instance.client
-        .from('chat_threads')
-        .insert({
-          'listing_id': listing.id,
-          'buyer_id': userId,
-          'seller_id': listing.seller.id,
-        })
-        .select('id')
-        .single();
-    return inserted['id'] as String;
+    try {
+      final inserted = await Supabase.instance.client
+          .from('chat_threads')
+          .insert({
+            'listing_id': listing.id,
+            'buyer_id': userId,
+            'seller_id': listing.seller.id,
+          })
+          .select('id')
+          .single();
+      return inserted['id'] as String;
+    } on PostgrestException catch (error) {
+      if (error.code != '23505') rethrow;
+      final raced = await Supabase.instance.client
+          .from('chat_threads')
+          .select('id')
+          .eq('listing_id', listing.id)
+          .eq('buyer_id', userId)
+          .limit(1);
+      if ((raced as List).isEmpty) rethrow;
+      return raced.first['id'] as String;
+    }
   }
 
   Future<List<ChatMessage>> loadMessages(String threadId) async {
@@ -209,7 +231,7 @@ class AppState extends ChangeNotifier {
     await Supabase.instance.client.from('chat_messages').insert({
       'thread_id': threadId,
       'sender_id': userId,
-      'text': 'عرض سعر: $amount ج.س',
+      'text': '',
       'type': MessageType.offer.value,
       'offer_amount': amount,
       'status': MessageStatus.sent.value,
@@ -311,6 +333,20 @@ class AppState extends ChangeNotifier {
       'phone': row['phone']?.toString() ?? '',
       'whatsapp': row['whatsapp']?.toString() ?? '',
     };
+  }
+
+  Future<void> recordListingView(String listingId) async {
+    if (_viewedListingIds.contains(listingId)) return;
+    _viewedListingIds.add(listingId);
+    try {
+      await Supabase.instance.client.rpc(
+        'increment_listing_view',
+        params: {'p_listing_id': listingId},
+      );
+    } catch (error) {
+      debugPrint('PhoneK listing view increment failed: $error');
+      _viewedListingIds.remove(listingId);
+    }
   }
 
   Future<void> updateListing({required String id, required String title, required int price, required String city, required String description, List<String>? imageUrls}) async {
