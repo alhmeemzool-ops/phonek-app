@@ -26,11 +26,6 @@ android {
         versionName = flutter.versionName
         manifestPlaceholders["GOOGLE_MAPS_API_KEY"] = project.findProperty("GOOGLE_MAPS_API_KEY")?.toString() ?: ""
 
-        // Direct APK distribution: publish both 32-bit and 64-bit ARM variants.
-        // The release workflow builds a universal APK containing these ABIs.
-        ndk {
-            abiFilters += setOf("armeabi-v7a", "arm64-v8a")
-        }
     }
 
     signingConfigs {
