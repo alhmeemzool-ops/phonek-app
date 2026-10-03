@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:phonek_app/models/phone_model.dart';
-import 'package:phonek_app/data/mock_data.dart';
+import 'package:phonek_app/data/catalog_data.dart';
 
 void main() {
   group('PhoneListing', () {
@@ -27,8 +27,8 @@ void main() {
     });
 
     test('provides models for every supported brand', () {
-      for (final brand in MockData.brands) {
-        expect(MockData.phoneModelsByBrand[brand], isNotEmpty);
+      for (final brand in CatalogData.brands) {
+        expect(CatalogData.phoneModelsByBrand[brand], isNotEmpty);
       }
     });
 
