@@ -176,7 +176,7 @@ class PhoneKUpdateService {
       if (update.patchUrl != null && !_isReleaseAssetUrl(update.patchUrl!)) {
         const reason = 'manifest contains an invalid patchUrl';
         debugPrint('PhoneK update check failed: $reason');
-        return const PhoneKUpdateCheckResult.failed(reason);
+        return const PhoneKUpdateCheckResult.failed(PhoneKUpdateException('check_invalid', userMessage: 'بيانات التحديث غير صالحة حالياً. حاول لاحقاً.'));
       }
       if (update.patchUrl != null &&
           (update.patchSha256 == null || !_isHexSha256(update.patchSha256!))) {
