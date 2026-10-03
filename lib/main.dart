@@ -230,16 +230,15 @@ class PhoneKUpdateDialogState extends State<PhoneKUpdateDialog>
         _needsPermission = error.reason == 'install_permission';
         _error = _needsPermission
             ? 'تم تنزيل التحديث. اسمح للتطبيق بتثبيت التطبيقات من هذا المصدر ثم اضغط «تحديث الآن» مرة أخرى.'
-            : 'تعذر تثبيت التحديث تلقائياً. أعد المحاولة، أو نزّل النسخة الجديدة من صفحة GitHub الخاصة بالتطبيق.';
+            : error.userMessage;
         _errorDetail = null;
       });
     } catch (error) {
       if (!mounted) return;
+      debugPrint('PhoneK update error: ' + error.toString());
       setState(() {
         _downloading = false;
-        _error =
-            'تعذر تنزيل التحديث. تأكد من اتصال الإنترنت والرابط ثم حاول مرة أخرى.';
-        debugPrint('PhoneK update error: ' + error.toString());
+        _error = 'تعذر تنزيل التحديث. تحقق من الإنترنت وحاول مرة أخرى.';
         _errorDetail = null;
       });
     }
@@ -254,7 +253,7 @@ class PhoneKUpdateDialogState extends State<PhoneKUpdateDialog>
         _needsPermission = true;
         _error =
             'تعذر فتح إعدادات الصلاحية. افتح إعدادات Android ثم فعّل السماح لـ PhoneK بتثبيت التطبيقات.';
-        _errorDetail = error.toString();
+        _errorDetail = null;
       });
     }
   }
