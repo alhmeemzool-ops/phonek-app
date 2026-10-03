@@ -166,7 +166,7 @@ class PhoneKUpdateService {
       if (update.apkUrl.isEmpty || !_isReleaseAssetUrl(update.apkUrl)) {
         const reason = 'manifest contains an invalid apkUrl';
         debugPrint('PhoneK update check failed: $reason');
-        return const PhoneKUpdateCheckResult.failed(reason);
+        return const PhoneKUpdateCheckResult.failed(PhoneKUpdateException('check_invalid', userMessage: 'بيانات التحديث غير صالحة حالياً. حاول لاحقاً.'));
       }
       if (update.sha256.length != 64 || !_isHexSha256(update.sha256)) {
         const reason = 'manifest contains an invalid APK SHA-256';
