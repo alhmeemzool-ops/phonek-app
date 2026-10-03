@@ -143,7 +143,7 @@ class _ChatScreenState extends State<ChatScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(m.text, style: TextStyle(color: isMe ? Colors.black : Colors.white, fontSize: 15, height: 1.45)),
+            Text(m.displayText, style: TextStyle(color: isMe ? Colors.black : Colors.white, fontSize: 15, height: 1.45)),
             const SizedBox(height: 2),
             Row(
               mainAxisSize: MainAxisSize.min,
