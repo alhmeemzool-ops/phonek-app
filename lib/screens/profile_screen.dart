@@ -73,7 +73,7 @@ class ProfileScreen extends StatelessWidget {
         );
       case PhoneKUpdateCheckStatus.failed:
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('فشل التحقق من التحديثات: ' + (result.error ?? 'تعذر الاتصال'))),
+          SnackBar(content: Text(result.error?.userMessage ?? 'تعذر التحقق من التحديثات. حاول مرة أخرى.')),
         );
     }
   }
