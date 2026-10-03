@@ -1,3 +1,5 @@
+import 'package:intl/intl.dart';
+
 enum MessageStatus { sent, delivered, read }
 
 extension MessageStatusValue on MessageStatus {
@@ -52,6 +54,13 @@ class ChatMessage {
     this.status = MessageStatus.sent,
     this.offerAmount,
   });
+
+  String get displayText {
+    if (type == MessageType.offer && offerAmount != null) {
+      return 'عرض سعر: ' + NumberFormat.decimalPattern('en_US').format(offerAmount) + ' ج.س';
+    }
+    return text;
+  }
 }
 
 class ChatThread {
