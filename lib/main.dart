@@ -57,7 +57,8 @@ class PhoneKApp extends StatelessWidget {
           );
         },
         home: const PhoneKUpdateGate(
-            child: MerchantLevelUpGate(child: HomeScreen())),
+          child: MerchantLevelUpGate(child: HomeScreen()),
+        ),
       ),
     );
   }
@@ -138,49 +139,103 @@ class _UpdateDialog extends StatefulWidget {
   State<_UpdateDialog> createState() => _UpdateDialogState();
 }
 
-class _UpdateDialogState extends State<_UpdateDialog> {
+class _UpdateDialogState extends State<_UpdateDialog>
+    with WidgetsBindingObserver {
   double _progress = 0;
   bool _downloading = false;
+  bool _needsPermission = false;
+  bool _installerOpened = false;
   String? _error;
+  String? _errorDetail;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed &&
+        _needsPermission &&
+        !_downloading) {
+      _checkPermissionAndContinue();
+    }
+  }
+
+  Future<void> _checkPermissionAndContinue() async {
+    if (!mounted || !_needsPermission || _downloading) return;
+    final canInstall = await PhoneKUpdateService.canInstallPackages();
+    if (!mounted || !canInstall || _downloading) return;
+    setState(() {
+      _needsPermission = false;
+      _error = null;
+      _errorDetail = null;
+    });
+    await _install();
+  }
 
   Future<void> _install() async {
-    final canInstall = await PhoneKUpdateService.canInstallPackages();
-    if (!canInstall) {
-      if (!mounted) return;
-      setState(() {
-        _error =
-            'يجب السماح لـ PhoneK بتثبيت التطبيقات من هذا المصدر قبل بدء التحديث.';
-      });
-      return;
-    }
-
+    if (_downloading) return;
     setState(() {
       _downloading = true;
+      _needsPermission = false;
+      _installerOpened = false;
       _error = null;
+      _errorDetail = null;
     });
 
     try {
+      final canInstall = await PhoneKUpdateService.canInstallPackages();
+      if (!canInstall) {
+        if (!mounted) return;
+        setState(() {
+          _downloading = false;
+          _needsPermission = true;
+          _error =
+              'يجب السماح لـ PhoneK بتثبيت التطبيقات من هذا المصدر قبل بدء التحديث.';
+        });
+        return;
+      }
+
       await PhoneKUpdateService.downloadAndInstall(
         widget.update,
         onProgress: (value) {
           if (mounted) setState(() => _progress = value);
         },
       );
+      if (!mounted) return;
+      setState(() {
+        _downloading = false;
+        _installerOpened = true;
+        _progress = 1.0;
+        _error = null;
+        _errorDetail = null;
+      });
     } on PhoneKUpdateException catch (error) {
       debugPrint('PhoneK update install failed: ${error.reason}');
       if (!mounted) return;
       setState(() {
         _downloading = false;
-        _error = error.reason == 'install_permission'
+        _needsPermission = error.reason == 'install_permission';
+        _error = _needsPermission
             ? 'تم تنزيل التحديث. اسمح للتطبيق بتثبيت التطبيقات من هذا المصدر ثم اضغط «تحديث الآن» مرة أخرى.'
             : 'تعذر تثبيت التحديث تلقائياً. أعد المحاولة، أو نزّل النسخة الجديدة من صفحة GitHub الخاصة بالتطبيق.';
+        _errorDetail = error.reason;
       });
-    } catch (_) {
+    } catch (error) {
       if (!mounted) return;
       setState(() {
         _downloading = false;
         _error =
             'تعذر تنزيل التحديث. تأكد من اتصال الإنترنت والرابط ثم حاول مرة أخرى.';
+        _errorDetail = error.toString();
       });
     }
   }
@@ -188,11 +243,13 @@ class _UpdateDialogState extends State<_UpdateDialog> {
   Future<void> _openInstallPermissionSettings() async {
     try {
       await PhoneKUpdateService.openInstallPermissionSettings();
-    } catch (_) {
+    } catch (error) {
       if (!mounted) return;
       setState(() {
+        _needsPermission = true;
         _error =
             'تعذر فتح إعدادات الصلاحية. افتح إعدادات Android ثم فعّل السماح لـ PhoneK بتثبيت التطبيقات.';
+        _errorDetail = error.toString();
       });
     }
   }
@@ -214,17 +271,27 @@ class _UpdateDialogState extends State<_UpdateDialog> {
             ],
             if (_downloading) ...[
               const SizedBox(height: 18),
-              LinearProgressIndicator(value: _progress),
+              LinearProgressIndicator(value: _progress <= 0 ? null : _progress),
               const SizedBox(height: 8),
               Text('جاري تنزيل النسخة الأحدث... ${(_progress * 100).round()}%'),
+            ],
+            if (_installerOpened) ...[
+              const SizedBox(height: 12),
+              const Text(
+                'اضغط «تثبيت» في نافذة النظام وسيُغلق التطبيق ويُحدَّث تلقائياً',
+              ),
             ],
             if (_error != null) ...[
               const SizedBox(height: 12),
               Text(_error!, style: const TextStyle(color: Colors.redAccent)),
-              if (_error ==
-                      'يجب السماح لـ PhoneK بتثبيت التطبيقات من هذا المصدر قبل بدء التحديث.' ||
-                  _error ==
-                      'تم تنزيل التحديث. اسمح للتطبيق بتثبيت التطبيقات من هذا المصدر ثم اضغط «تحديث الآن» مرة أخرى.') ...[
+              if (_errorDetail != null) ...[
+                const SizedBox(height: 4),
+                Text(
+                  _errorDetail!,
+                  style: const TextStyle(color: Colors.grey, fontSize: 11),
+                ),
+              ],
+              if (_needsPermission) ...[
                 const SizedBox(height: 10),
                 OutlinedButton.icon(
                   onPressed: _openInstallPermissionSettings,

@@ -44,10 +44,24 @@ class MainActivity : FlutterActivity() {
                         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                         clipData = ClipData.newRawUri("APK", uri)
                     }
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+                        !packageManager.canRequestPackageInstalls()
+                    ) {
+                        result.error(
+                            "INSTALL_PERMISSION",
+                            "Unknown-source installation permission is not granted",
+                            null,
+                        )
+                        return@setMethodCallHandler
+                    }
                     startActivity(intent)
                     result.success(null)
                 } catch (error: Exception) {
-                    result.error("INSTALL_ERROR", error.message, null)
+                    result.error(
+                        "INSTALL_ERROR",
+                        "${error.javaClass.simpleName}: ${error.message}",
+                        null,
+                    )
                 }
                 return@setMethodCallHandler
             }
