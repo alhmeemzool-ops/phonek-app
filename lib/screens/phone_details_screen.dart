@@ -23,6 +23,9 @@ class PhoneDetailsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
     final isOwner = state.currentUser?.id == listing.seller.id;
+    if (!isOwner && listing.status == ListingStatus.active) {
+      state.recordListingView(listing.id);
+    }
     final similar = state.listings.where((p) => p.id != listing.id && p.brand == listing.brand).toList();
 
     return Scaffold(
