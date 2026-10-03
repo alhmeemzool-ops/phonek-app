@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../data/app_state.dart';
-import '../data/mock_data.dart';
+import '../data/catalog_data.dart';
 import '../models/phone_model.dart';
 import '../theme/app_theme.dart';
 import '../widgets/phone_card.dart';
@@ -181,7 +181,7 @@ class _HomeScreenState extends State<HomeScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 12),
         children: [
           _brandChip(null, 'الكل'),
-          ...MockData.brands.map((b) => _brandChip(b, b)),
+          ...CatalogData.brands.map((b) => _brandChip(b, b)),
         ],
       ),
     );
@@ -225,7 +225,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         selected: _selectedCity == null,
                         onSelected: (_) => setSheetState(() => _selectedCity = null),
                       ),
-                      ...MockData.cities.map((c) => ChoiceChip(
+                      ...CatalogData.cities.map((c) => ChoiceChip(
                             label: Text(c),
                             selected: _selectedCity == c,
                             onSelected: (_) => setSheetState(() => _selectedCity = c),
