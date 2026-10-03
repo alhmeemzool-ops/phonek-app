@@ -80,7 +80,7 @@ enum PhoneKUpdateCheckStatus { updateAvailable, upToDate, failed }
 class PhoneKUpdateCheckResult {
   final PhoneKUpdateCheckStatus status;
   final PhoneKUpdate? update;
-  final String? error;
+  final PhoneKUpdateException? error;
 
   const PhoneKUpdateCheckResult._(this.status, {this.update, this.error});
 
@@ -90,7 +90,7 @@ class PhoneKUpdateCheckResult {
   const PhoneKUpdateCheckResult.upToDate()
       : this._(PhoneKUpdateCheckStatus.upToDate);
 
-  const PhoneKUpdateCheckResult.failed(String error)
+  const PhoneKUpdateCheckResult.failed(PhoneKUpdateException error)
       : this._(PhoneKUpdateCheckStatus.failed, error: error);
 }
 
@@ -149,14 +149,14 @@ class PhoneKUpdateService {
       if (response.statusCode != 200) {
         final reason = 'manifest HTTP ${response.statusCode}';
         debugPrint('PhoneK update check failed: $reason');
-        return PhoneKUpdateCheckResult.failed(reason);
+        return PhoneKUpdateCheckResult.failed(const PhoneKUpdateException('check_http', userMessage: 'تعذر الوصول إلى خادم التحديث. تحقق من الإنترنت وحاول مرة أخرى.'));
       }
 
       final decoded = jsonDecode(response.body);
       if (decoded is! Map<String, dynamic>) {
         const reason = 'manifest is not a JSON object';
         debugPrint('PhoneK update check failed: $reason');
-        return const PhoneKUpdateCheckResult.failed(reason);
+        return const PhoneKUpdateCheckResult.failed(PhoneKUpdateException('check_manifest', userMessage: 'بيانات التحديث غير صحيحة حالياً. حاول لاحقاً.'));
       }
       final update = PhoneKUpdate.fromJson(
         decoded,
@@ -194,7 +194,7 @@ class PhoneKUpdateService {
     } catch (error, stackTrace) {
       debugPrint('PhoneK update check failed: $error');
       debugPrint('$stackTrace');
-      return PhoneKUpdateCheckResult.failed(error.toString());
+      return const PhoneKUpdateCheckResult.failed(PhoneKUpdateException('check_unknown', userMessage: 'تعذر التحقق من وجود تحديث حالياً. حاول مرة أخرى.'));
     }
   }
 
@@ -298,7 +298,7 @@ class PhoneKUpdateService {
     final digest = await _sha256File(file);
     if (digest.toLowerCase() != update.sha256) {
       await file.delete().catchError((_) => file);
-      throw const FormatException('APK checksum mismatch');
+      throw const PhoneKUpdateException('apk_checksum', userMessage: 'فشل التحقق من ملف التحديث. لن يتم تثبيت ملف غير موثوق.');
     }
     onProgress?.call(1.0);
   }
@@ -361,7 +361,7 @@ class PhoneKUpdateService {
       }
     }
 
-    throw HttpException('Download failed after 3 attempts: $lastError');
+    throw const PhoneKUpdateException('download', userMessage: 'تعذر تنزيل التحديث بعد عدة محاولات. تحقق من الإنترنت وحاول مرة أخرى.');
   }
 
   static Future<void> _consumeResponse(
@@ -398,13 +398,17 @@ class PhoneKUpdateService {
       if (error.code == 'INSTALL_PERMISSION') {
         throw const PhoneKUpdateException('install_permission');
       }
-      throw PhoneKUpdateException('install:${error.message ?? error.code}');
+      throw const PhoneKUpdateException('install', userMessage: 'تم تنزيل التحديث، لكن تعذر فتح شاشة التثبيت. حاول مرة أخرى.');
     }
   }
 }
 
 class PhoneKUpdateException implements Exception {
   final String reason;
+  final String userMessage;
 
-  const PhoneKUpdateException(this.reason);
+  const PhoneKUpdateException(this.reason, {this.userMessage = 'حدث خطأ أثناء التحديث. حاول مرة أخرى.'});
+
+  @override
+  String toString() => userMessage;
 }
