@@ -22,6 +22,7 @@ class PhoneKUpdate {
   final String sha256;
   final bool mandatory;
   final String notes;
+  final int? minSupportedVersionCode;
   final String? patchUrl;
   final String? patchSha256;
   final int? patchBaseVersionCode;
@@ -33,13 +34,20 @@ class PhoneKUpdate {
     required this.sha256,
     required this.mandatory,
     required this.notes,
+    this.minSupportedVersionCode,
     this.patchUrl,
     this.patchSha256,
     this.patchBaseVersionCode,
   });
 
-  factory PhoneKUpdate.fromJson(Map<String, dynamic> json) {
+  factory PhoneKUpdate.fromJson(
+    Map<String, dynamic> json, {
+    int currentBuildNumber = 0,
+  }) {
     final patchUrl = json['patchUrl'] as String?;
+    final minSupported = json['minSupportedVersionCode'];
+    final minSupportedVersionCode =
+        minSupported == null ? null : (minSupported as num).toInt();
     final patchSha256 = json['patchSha256'] as String?;
     final patchBase = json['patchBaseVersionCode'];
     return PhoneKUpdate(
@@ -47,8 +55,11 @@ class PhoneKUpdate {
       versionName: json['versionName'] as String,
       apkUrl: json['apkUrl'] as String,
       sha256: (json['sha256'] as String).toLowerCase(),
-      mandatory: json['mandatory'] == true,
+      mandatory: json['mandatory'] == true ||
+          (minSupportedVersionCode != null &&
+              minSupportedVersionCode > currentBuildNumber),
       notes: (json['notes'] as String?) ?? '',
+      minSupportedVersionCode: minSupportedVersionCode,
       patchUrl: patchUrl != null && patchUrl.isNotEmpty ? patchUrl : null,
       patchSha256: patchSha256 != null && patchSha256.length == 64
           ? patchSha256.toLowerCase()
@@ -147,7 +158,10 @@ class PhoneKUpdateService {
         debugPrint('PhoneK update check failed: $reason');
         return const PhoneKUpdateCheckResult.failed(reason);
       }
-      final update = PhoneKUpdate.fromJson(decoded);
+      final update = PhoneKUpdate.fromJson(
+        decoded,
+        currentBuildNumber: currentBuildNumber,
+      );
 
       if (update.apkUrl.isEmpty || !_isReleaseAssetUrl(update.apkUrl)) {
         const reason = 'manifest contains an invalid apkUrl';
