@@ -128,7 +128,7 @@ jobs:
           PY
 
       - name: Build release APK (ARM32 + ARM64)
-        run: flutter build apk --release --build-name=${{ steps.version.outputs.version_name }} --build-number=${{ steps.version.outputs.version_code }}
+        run: flutter build apk --release --target-platform android-arm,android-arm64 --build-name=${{ steps.version.outputs.version_name }} --build-number=${{ steps.version.outputs.version_code }}
 
       - name: Calculate APK SHA-256
         id: checksum
