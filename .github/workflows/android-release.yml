@@ -7,6 +7,8 @@ on:
       - main
     paths-ignore:
       - update.json
+      - '**.md'
+      - 'supabase/**'
 
 permissions:
   contents: write
@@ -104,6 +106,20 @@ jobs:
           echo "version_name=$version_name" >> "$GITHUB_OUTPUT"
           echo "version_code=$version_code" >> "$GITHUB_OUTPUT"
 
+      - name: Guard existing release tag
+        id: guard
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="v${{ steps.version.outputs.version_name }}"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "::warning::Release $tag already exists; bump version in pubspec.yaml."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Fail if release tag already exists
         env:
           GH_TOKEN: ${{ github.token }}
@@ -115,6 +131,7 @@ jobs:
           fi
 
       - name: Read previous manifest
+        if: steps.guard.outputs.skip != 'true'
         id: previous
         shell: bash
         run: |
@@ -128,14 +145,17 @@ jobs:
           PY
 
       - name: Build release APK (ARM32 + ARM64)
+        if: steps.guard.outputs.skip != 'true'
         run: flutter build apk --release --target-platform android-arm,android-arm64 --build-name=${{ steps.version.outputs.version_name }} --build-number=${{ steps.version.outputs.version_code }}
 
       - name: Calculate APK SHA-256
+        if: steps.guard.outputs.skip != 'true'
         id: checksum
         shell: bash
         run: echo "sha256=$(sha256sum build/app/outputs/flutter-apk/app-release.apk | awk '{print $1}')" >> "$GITHUB_OUTPUT"
 
       - name: Build and validate incremental patch
+        if: steps.guard.outputs.skip != 'true'
         id: patch
         shell: bash
         run: |
@@ -195,6 +215,7 @@ jobs:
           echo "base_version_code=$base_code" >> "$GITHUB_OUTPUT"
 
       - name: Publish PhoneK APK release
+        if: steps.guard.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -206,6 +227,7 @@ jobs:
             --notes "تحديث PhoneK رقم ${{ steps.version.outputs.version_code }} - ARM32 + ARM64"
 
       - name: Verify published release assets
+        if: steps.guard.outputs.skip != 'true'
         id: published
         shell: bash
         env:
@@ -234,6 +256,7 @@ jobs:
           fi
 
       - name: Update PhoneK update manifest
+        if: steps.guard.outputs.skip != 'true'
         shell: bash
         env:
           APK_SHA256: ${{ steps.published.outputs.apk_sha256 }}
@@ -282,6 +305,7 @@ jobs:
           exit 1
 
       - name: Upload APK artifact
+        if: steps.guard.outputs.skip != 'true'
         uses: actions/upload-artifact@v4
         with:
           name: phonek-apk-${{ steps.version.outputs.version_name }}-arm
