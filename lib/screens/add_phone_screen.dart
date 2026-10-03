@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import '../utils/friendly_error.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -398,7 +399,7 @@ class _AddPhoneScreenState extends State<AddPhoneScreen> {
     } on PostgrestException catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('تعذر حفظ الإعلان: ${error.message}')),
+          SnackBar(content: Text(friendlyError(error, fallback: 'تعذر حفظ الإعلان.'))),
         );
       }
     } finally {
