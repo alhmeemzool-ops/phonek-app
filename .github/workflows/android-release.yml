@@ -149,6 +149,21 @@ jobs:
         if: steps.guard.outputs.skip != 'true'
         run: flutter build apk --release --target-platform android-arm,android-arm64 --build-name=${{ steps.version.outputs.version_name }} --build-number=${{ steps.version.outputs.version_code }}
 
+      - name: Verify APK versionCode
+        if: steps.guard.outputs.skip != 'true'
+        shell: bash
+        run: |
+          apk="build/app/outputs/flutter-apk/app-release.apk"
+          aapt2_bin=$(find "$ANDROID_HOME/build-tools" -name aapt2 -type f | sort -V | tail -n 1)
+          test -x "$aapt2_bin" || { echo "aapt2 not found"; exit 1; }
+          apk_code=$("$aapt2_bin" dump badging "$apk" | sed -n "s/.*versionCode='\\([^']*\\)'.*/\\1/p" | head -n 1)
+          test -n "$apk_code" || { echo "Could not read APK versionCode"; exit 1; }
+          test "$apk_code" = "${{ steps.version.outputs.version_code }}" || {
+            echo "APK versionCode does not match pubspec versionCode."
+            exit 1
+          }
+          echo "APK versionCode verified: $apk_code"
+
       - name: Calculate APK SHA-256
         if: steps.guard.outputs.skip != 'true'
         id: checksum
@@ -171,7 +186,7 @@ jobs:
             exit 0
           fi
 
-          curl -fL --retry 3 -o old-release.apk "$old_url" || exit 0
+          curl -fL --retry 5 --retry-delay 3 --retry-all-errors -o old-release.apk "$old_url" || exit 0
 
           old_sha="${{ steps.previous.outputs.sha256 }}"
           if [ -n "$old_sha" ] && [ "$(sha256sum old-release.apk | awk '{print $1}')" != "$old_sha" ]; then
