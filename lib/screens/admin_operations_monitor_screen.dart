@@ -178,25 +178,6 @@ class _AdminOperationsMonitorScreenState extends State<AdminOperationsMonitorScr
 
   Widget _auditRow(String label, String value) => Padding(padding: const EdgeInsets.symmetric(vertical: 6), child: Row(children: [Expanded(child: Text(label)), Text(value, style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.gold))]));
 
-  Widget _summary() {
-    final failed = _logins.where((r) => r['success'] != true).length;
-    final activeThreads = _threads.where((t) {
-      final id = t['id']?.toString() ?? '';
-      return _messages.any((m) => m['thread_id']?.toString() == id && _within24h(m['created_at']));
-    }).length;
-    return Row(children: [
-      Expanded(child: _stat('الدخول', _logins.length, Icons.login)),
-      const SizedBox(width: 6),
-      Expanded(child: _stat('فشل', failed, Icons.warning_amber_outlined)),
-      const SizedBox(width: 6),
-      Expanded(child: _stat('إعلانات', _newListings.length, Icons.inventory_2_outlined)),
-      const SizedBox(width: 6),
-      Expanded(child: _stat('نشطة', activeThreads, Icons.forum_outlined)),
-    ]);
-  }
-
-  Widget _stat(String label, int value, IconData icon) => Card(child: Padding(padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 2), child: Column(children: [Icon(icon, color: AppColors.gold), const SizedBox(height: 4), Text('$value', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17)), Text(label, style: const TextStyle(fontSize: 10, color: AppColors.textSecondary))])));
-
   Widget _section(String title, IconData icon, Widget child) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
     Row(children: [Icon(icon, color: AppColors.gold), const SizedBox(width: 8), Text(title, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold))]),
     const SizedBox(height: 8),
