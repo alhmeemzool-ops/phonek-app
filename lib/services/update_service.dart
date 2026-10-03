@@ -171,7 +171,7 @@ class PhoneKUpdateService {
       if (update.sha256.length != 64 || !_isHexSha256(update.sha256)) {
         const reason = 'manifest contains an invalid APK SHA-256';
         debugPrint('PhoneK update check failed: $reason');
-        return const PhoneKUpdateCheckResult.failed(reason);
+        return const PhoneKUpdateCheckResult.failed(PhoneKUpdateException('check_invalid', userMessage: 'بيانات التحديث غير صالحة حالياً. حاول لاحقاً.'));
       }
       if (update.patchUrl != null && !_isReleaseAssetUrl(update.patchUrl!)) {
         const reason = 'manifest contains an invalid patchUrl';
@@ -309,8 +309,6 @@ class PhoneKUpdateService {
     void Function(double progress)? onProgress,
   }) async {
     final partial = File('${destination.path}.part');
-    Object? lastError;
-
     for (var attempt = 1; attempt <= 3; attempt++) {
       final client = HttpClient()
         ..connectionTimeout = const Duration(seconds: 15);
@@ -352,7 +350,6 @@ class PhoneKUpdateService {
         await partial.rename(destination.path);
         return;
       } catch (error) {
-        lastError = error;
         if (attempt < 3) {
           await Future<void>.delayed(Duration(seconds: attempt * 2));
         }
