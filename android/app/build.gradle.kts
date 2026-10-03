@@ -26,11 +26,10 @@ android {
         versionName = flutter.versionName
         manifestPlaceholders["GOOGLE_MAPS_API_KEY"] = project.findProperty("GOOGLE_MAPS_API_KEY")?.toString() ?: ""
 
-        // PhoneK is distributed directly as an APK (not through Google Play).
-        // Keep the release APK focused on the dominant 64-bit ARM architecture
-        // so the custom incremental-update system works with a single APK.
+        // Direct APK distribution: publish both 32-bit and 64-bit ARM variants.
+        // The release workflow builds a universal APK containing these ABIs.
         ndk {
-            abiFilters += setOf("arm64-v8a")
+            abiFilters += setOf("armeabi-v7a", "arm64-v8a")
         }
     }
 
