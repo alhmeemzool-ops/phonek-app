@@ -28,7 +28,7 @@ class _ShopProfileScreenState extends State<ShopProfileScreen> {
 
   Future<void> _load() async {
     try {
-      final row = await Supabase.instance.client.from('public_shop_profiles').select('*').eq('id', widget.shopId).maybeSingle();
+      final row = await Supabase.instance.client.from('public_seller_cards').select('*').eq('id', widget.shopId).maybeSingle();
       if (row == null) throw StateError('المتجر غير موجود');
       if (!mounted) return;
       setState(() { _profile = row; _loading = false; });
