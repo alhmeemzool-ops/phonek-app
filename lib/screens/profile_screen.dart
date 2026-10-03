@@ -4,6 +4,8 @@ import '../data/app_state.dart';
 import '../theme/app_theme.dart';
 import '../utils/formatters.dart';
 import '../services/admin_store_provisioner.dart';
+import '../services/update_service.dart';
+import '../main.dart';
 import 'login_screen.dart';
 import 'my_listings_screen.dart';
 import 'shop_account_screen.dart';
@@ -46,6 +48,7 @@ class ProfileScreen extends StatelessWidget {
       ],
       if (appState.isAdmin) _tile(context, Icons.admin_panel_settings, 'لوحة الإدارة', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminDashboardScreen()))),
       _tile(context, Icons.bookmark, 'عمليات البحث المحفوظة', () => _showComingSoon(context, 'عمليات البحث المحفوظة')),
+      _tile(context, Icons.system_update_outlined, 'التحقق من التحديثات', () => _checkForUpdates(context)),
       _tile(context, Icons.notifications, 'إعدادات الإشعارات', () => _showComingSoon(context, 'إعدادات الإشعارات')),
       _tile(context, Icons.help_outline, 'الأسئلة الشائعة', () => _showComingSoon(context, 'الأسئلة الشائعة')),
       _tile(context, Icons.description_outlined, 'الشروط والأحكام وسياسة الخصوصية', () => _showComingSoon(context, 'الشروط والأحكام وسياسة الخصوصية')),
@@ -54,5 +57,25 @@ class ProfileScreen extends StatelessWidget {
     ]));
   }
   Widget _tile(BuildContext context, IconData icon, String title, VoidCallback onTap, {Color? color}) => ListTile(leading: Icon(icon, color: color ?? AppColors.gold), title: Text(title, style: TextStyle(color: color)), trailing: const Icon(Icons.chevron_left, color: AppColors.textSecondary), onTap: onTap);
+  Future<void> _checkForUpdates(BuildContext context) async {
+    final result = await PhoneKUpdateService.check();
+    if (!context.mounted) return;
+    switch (result.status) {
+      case PhoneKUpdateCheckStatus.updateAvailable:
+        await showDialog<void>(
+          context: context,
+          builder: (_) => PhoneKUpdateDialog(update: result.update!),
+        );
+      case PhoneKUpdateCheckStatus.upToDate:
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('التطبيق محدّث إلى آخر إصدار متاح.')),
+        );
+      case PhoneKUpdateCheckStatus.failed:
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('فشل التحقق من التحديثات: ' + (result.error ?? 'تعذر الاتصال'))),
+        );
+    }
+  }
+
   void _showComingSoon(BuildContext context, String feature) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('ميزة $feature لم تُربط بعد بقاعدة البيانات.')));
 }
