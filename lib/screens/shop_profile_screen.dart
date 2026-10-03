@@ -79,9 +79,9 @@ class _ShopProfileScreenState extends State<ShopProfileScreen> {
           ]))),
           const SizedBox(height: 10),
           Row(children: [
-            Expanded(child: FilledButton.icon(onPressed: seller == null ? null : () => _call(seller.phone), icon: const Icon(Icons.call), label: const Text('اتصال'))),
+            Expanded(child: FilledButton.icon(onPressed: seller == null ? null : () => _call(context, seller.id), icon: const Icon(Icons.call), label: const Text('اتصال'))),
             const SizedBox(width: 7),
-            Expanded(child: OutlinedButton.icon(onPressed: seller == null ? null : () => _whatsapp(seller.whatsapp), icon: const Icon(Icons.chat), label: const Text('واتساب'))),
+            Expanded(child: OutlinedButton.icon(onPressed: seller == null ? null : () => _whatsapp(context, seller.id), icon: const Icon(Icons.chat), label: const Text('واتساب'))),
             const SizedBox(width: 7),
             Expanded(child: OutlinedButton.icon(onPressed: seller == null ? null : () => _chat(context, seller, listings), icon: const Icon(Icons.forum), label: const Text('دردشة'))),
           ]),
@@ -114,7 +114,30 @@ class _ShopProfileScreenState extends State<ShopProfileScreen> {
     final target = uri.hasScheme ? uri : Uri.parse('https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(trimmed)}');
     if (await canLaunchUrl(target)) await launchUrl(target, mode: LaunchMode.externalApplication);
   }
-  Future<void> _call(String phone) async { if (phone.trim().isEmpty) return; final uri = Uri(scheme: 'tel', path: phone.trim()); if (await canLaunchUrl(uri)) await launchUrl(uri); }
-  Future<void> _whatsapp(String? phone) async { var digits = (phone ?? '').replaceAll(RegExp(r'[^0-9]'), ''); if (digits.startsWith('0')) digits = '249${digits.substring(1)}'; if (digits.startsWith('9') && digits.length == 9) digits = '249$digits'; if (digits.isEmpty) return; final uri = Uri.parse('https://wa.me/$digits'); if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication); }
+  Future<void> _call(BuildContext context, String sellerId) async {
+    try {
+      final contact = await context.read<AppState>().getSellerContact(sellerId);
+      final phone = contact['phone'] ?? '';
+      if (phone.trim().isEmpty) return;
+      final uri = Uri(scheme: 'tel', path: phone.trim());
+      if (await canLaunchUrl(uri)) await launchUrl(uri);
+    } catch (e) {
+      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذر الحصول على رقم البائع: ' + e.toString())));
+    }
+  }
+
+  Future<void> _whatsapp(BuildContext context, String sellerId) async {
+    try {
+      final contact = await context.read<AppState>().getSellerContact(sellerId);
+      var digits = ((contact['whatsapp']?.trim().isNotEmpty == true ? contact['whatsapp']! : contact['phone'] ?? '')).replaceAll(RegExp(r'[^0-9]'), '');
+      if (digits.startsWith('0')) digits = '249' + digits.substring(1);
+      if (digits.startsWith('9') && digits.length == 9) digits = '249' + digits;
+      if (digits.isEmpty) return;
+      final uri = Uri.parse('https://wa.me/' + digits);
+      if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (e) {
+      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذر الحصول على رقم البائع: ' + e.toString())));
+    }
+  }
   void _chat(BuildContext context, SellerInfo seller, List<PhoneListing> listings) { if (listings.isEmpty) return; if (context.read<AppState>().currentUser?.id == seller.id) return; Navigator.push(context, MaterialPageRoute(builder: (_) => ChatScreen(listing: listings.first))); }
 }
