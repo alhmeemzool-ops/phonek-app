@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import '../data/app_state.dart';
 import '../data/catalog_data.dart';
 import '../models/phone_model.dart';
@@ -27,6 +28,19 @@ class _HomeScreenState extends State<HomeScreen> {
   String? _selectedBrand;
   SortOption _sortOption = SortOption.newest;
   final TextEditingController _searchController = TextEditingController();
+  String _appVersion = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAppVersion();
+  }
+
+  Future<void> _loadAppVersion() async {
+    final info = await PackageInfo.fromPlatform();
+    if (!mounted) return;
+    setState(() => _appVersion = info.version);
+  }
 
   List<PhoneListing> _filteredListings(List<PhoneListing> source) {
     var list = source.where((p) {
@@ -168,6 +182,21 @@ class _HomeScreenState extends State<HomeScreen> {
                 childCount: listings.length,
               ),
             ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(0, 8, 0, 18),
+              child: Center(
+                child: Text(
+                  _appVersion.isEmpty ? 'PhoneK' : 'PhoneK v$_appVersion',
+                  style: const TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );
