@@ -121,6 +121,7 @@ jobs:
           fi
 
       - name: Fail if release tag already exists
+        if: steps.guard.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -237,7 +238,7 @@ jobs:
           BUILT_PATCH_SHA256: ${{ steps.patch.outputs.sha256 }}
           PATCH_OK: ${{ steps.patch.outputs.ok }}
         run: |
-          curl -fL --retry 3 --retry-all-errors -o published-app-release.apk "$APK_URL"
+          curl -fL --retry 5 --retry-delay 3 --retry-all-errors -o published-app-release.apk "$APK_URL"
           published_apk_sha256=$(sha256sum published-app-release.apk | awk '{print $1}')
           if [ "$published_apk_sha256" != "$BUILT_APK_SHA256" ]; then
             echo "Published APK checksum does not match the built APK."
@@ -246,7 +247,7 @@ jobs:
           echo "apk_sha256=$published_apk_sha256" >> "$GITHUB_OUTPUT"
 
           if [ "$PATCH_OK" = "true" ]; then
-            curl -fL --retry 3 --retry-all-errors -o published-patch.bin "$PATCH_URL"
+            curl -fL --retry 5 --retry-delay 3 --retry-all-errors -o published-patch.bin "$PATCH_URL"
             published_patch_sha256=$(sha256sum published-patch.bin | awk '{print $1}')
             if [ "$published_patch_sha256" != "$BUILT_PATCH_SHA256" ]; then
               echo "Published patch checksum does not match the built patch."
@@ -275,6 +276,7 @@ jobs:
             "patchUrl":"https://github.com/alhmeemzool-ops/phonek-app/releases/download/v${{ steps.version.outputs.version_name }}/patch.bin" if ok else None,
             "patchSha256":"$PATCH_SHA256" if ok else None,
             "patchBaseVersionCode":int("$PATCH_BASE") if ok else None,
+            "minSupportedVersionCode":None,
             "mandatory":False,
             "notes":"تحديث جديد لتحسين PhoneK وإصلاح الأخطاء."
           }
