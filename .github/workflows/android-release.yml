@@ -291,7 +291,7 @@ jobs:
             "patchUrl":"https://github.com/alhmeemzool-ops/phonek-app/releases/download/v${{ steps.version.outputs.version_name }}/patch.bin" if ok else None,
             "patchSha256":"$PATCH_SHA256" if ok else None,
             "patchBaseVersionCode":int("$PATCH_BASE") if ok else None,
-            "minSupportedVersionCode":None,
+            "minSupportedVersionCode":58,
             "mandatory":False,
             "notes":"تحديث جديد لتحسين PhoneK وإصلاح الأخطاء."
           }
