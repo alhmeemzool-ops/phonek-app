@@ -145,7 +145,7 @@ class PhoneDetailsScreen extends StatelessWidget {
   Widget _contactBar(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9), decoration: const BoxDecoration(color: AppColors.surface, border: Border(top: BorderSide(color: Colors.white12))),
     child: SafeArea(top: false, child: Row(children: [
-      _action(Icons.call, 'اتصال', () => _tel(listing.seller.phone)), _action(Icons.chat, 'واتساب', () => _whatsapp(context)),
+      _action(Icons.call, 'اتصال', () => _tel(context)), _action(Icons.chat, 'واتساب', () => _whatsapp(context)),
       Expanded(child: ElevatedButton.icon(onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ChatScreen(listing: listing))), icon: const Icon(Icons.forum, size: 18), label: const Text('محادثة'))),
       if (!listing.priceOnCall) ...[const SizedBox(width: 7), Expanded(child: OutlinedButton(onPressed: () => _offer(context), child: const Text('تقديم عرض')))],
     ])),
@@ -153,10 +153,26 @@ class PhoneDetailsScreen extends StatelessWidget {
 
   Widget _action(IconData icon, String label, VoidCallback onTap) => Padding(padding: const EdgeInsets.only(left: 4), child: InkWell(onTap: onTap, child: Padding(padding: const EdgeInsets.all(5), child: Column(mainAxisSize: MainAxisSize.min, children: [Icon(icon, color: AppColors.gold), Text(label, style: const TextStyle(fontSize: 10))]))));
 
-  Future<void> _tel(String phone) async { if (phone.trim().isEmpty) return; final uri = Uri(scheme: 'tel', path: phone.trim()); if (await canLaunchUrl(uri)) await launchUrl(uri); }
+  Future<void> _tel(BuildContext context) async {
+    try {
+      final contact = await context.read<AppState>().getSellerContact(listing.seller.id);
+      final phone = contact['phone'] ?? '';
+      if (phone.trim().isEmpty) {
+        if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('رقم الهاتف غير متوفر')));
+        return;
+      }
+      final uri = Uri(scheme: 'tel', path: phone.trim());
+      if (await canLaunchUrl(uri)) await launchUrl(uri);
+    } catch (e) {
+      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذر الحصول على رقم البائع: $e')));
+    }
+  }
 
   Future<void> _whatsapp(BuildContext context) async {
-    var number = (listing.seller.whatsapp ?? listing.seller.phone).replaceAll(RegExp(r'[^0-9]'), '');
+    try {
+      final contact = await context.read<AppState>().getSellerContact(listing.seller.id);
+      var number = (contact['whatsapp']?.trim().isNotEmpty == true ? contact['whatsapp']! : contact['phone'] ?? '')
+          .replaceAll(RegExp(r'[^0-9]'), '');
     if (number.startsWith('0')) number = '249${number.substring(1)}';
     if (number.startsWith('9') && number.length == 9) number = '249$number';
     if (number.isEmpty) { if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('رقم واتساب غير متوفر'))); return; }
