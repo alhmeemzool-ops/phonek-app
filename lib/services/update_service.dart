@@ -381,16 +381,10 @@ class PhoneKUpdateService {
     try {
       await _platform.invokeMethod<void>('installApk', {'filePath': file.path});
     } on PlatformException catch (error) {
-      if (error.code == 'INSTALL_ERROR') {
-        final permissionStillMissing = !(await canInstallPackages());
-        throw PhoneKUpdateException(
-          permissionStillMissing
-              ? 'install_permission'
-              : 'install:${error.message ?? 'unknown_error'}',
-        );
+      if (error.code == 'INSTALL_PERMISSION') {
+        throw const PhoneKUpdateException('install_permission');
       }
-      throw PhoneKUpdateException(
-          'install:${error.message ?? 'unknown_error'}');
+      throw PhoneKUpdateException('install:${error.message ?? error.code}');
     }
   }
 }
