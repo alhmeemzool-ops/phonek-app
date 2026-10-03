@@ -5,7 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../data/app_state.dart';
-import '../data/mock_data.dart';
+import '../data/catalog_data.dart';
 import '../models/phone_model.dart';
 import '../theme/app_theme.dart';
 
@@ -61,7 +61,7 @@ class _AddPhoneScreenState extends State<AddPhoneScreen> {
             _label('الماركة'),
             DropdownButtonFormField<String>(
               value: _brand,
-              items: MockData.brands.map((b) => DropdownMenuItem(value: b, child: Text(b))).toList(),
+              items: CatalogData.brands.map((b) => DropdownMenuItem(value: b, child: Text(b))).toList(),
               onChanged: (value) {
                 setState(() {
                   _brand = value;
@@ -76,7 +76,7 @@ class _AddPhoneScreenState extends State<AddPhoneScreen> {
             _label('اسم الهاتف'),
             DropdownButtonFormField<String>(
               value: _phoneModel,
-              items: (MockData.phoneModelsByBrand[_brand] ?? const <String>[])
+              items: (CatalogData.phoneModelsByBrand[_brand] ?? const <String>[])
                   .map((model) => DropdownMenuItem(value: model, child: Text(model)))
                   .toList(),
               onChanged: _brand == null
@@ -221,7 +221,7 @@ class _AddPhoneScreenState extends State<AddPhoneScreen> {
             _label('المدينة'),
             DropdownButtonFormField<String>(
               value: _city,
-              items: MockData.cities.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+              items: CatalogData.cities.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
               onChanged: (v) => setState(() => _city = v),
               decoration: const InputDecoration(hintText: 'اختر المدينة'),
               validator: (v) => v == null ? 'مطلوب' : null,
