@@ -452,7 +452,7 @@ class AppState extends ChangeNotifier {
 
     try {
       final row = await Supabase.instance.client
-          .from('public_shop_profiles')
+          .from('public_seller_cards')
           .select('name, is_shop')
           .eq('id', userId)
           .maybeSingle();
