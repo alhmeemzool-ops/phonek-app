@@ -120,7 +120,7 @@ class _PhoneKUpdateGateState extends State<PhoneKUpdateGate>
       context: context,
       barrierDismissible: !update.mandatory,
       builder: (dialogContext) {
-        return _UpdateDialog(update: update);
+        return PhoneKUpdateDialog(update: update);
       },
     );
     _checking = false;
@@ -130,16 +130,16 @@ class _PhoneKUpdateGateState extends State<PhoneKUpdateGate>
   Widget build(BuildContext context) => widget.child;
 }
 
-class _UpdateDialog extends StatefulWidget {
+class PhoneKUpdateDialog extends StatefulWidget {
   final PhoneKUpdate update;
 
-  const _UpdateDialog({required this.update});
+  const PhoneKUpdateDialog({required this.update});
 
   @override
-  State<_UpdateDialog> createState() => _UpdateDialogState();
+  State<PhoneKUpdateDialog> createState() => PhoneKUpdateDialogState();
 }
 
-class _UpdateDialogState extends State<_UpdateDialog>
+class PhoneKUpdateDialogState extends State<PhoneKUpdateDialog>
     with WidgetsBindingObserver {
   double _progress = 0;
   bool _downloading = false;
