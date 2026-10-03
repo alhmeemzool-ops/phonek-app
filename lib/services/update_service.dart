@@ -182,7 +182,7 @@ class PhoneKUpdateService {
           (update.patchSha256 == null || !_isHexSha256(update.patchSha256!))) {
         const reason = 'manifest contains an invalid patch SHA-256';
         debugPrint('PhoneK update check failed: $reason');
-        return const PhoneKUpdateCheckResult.failed(reason);
+        return const PhoneKUpdateCheckResult.failed(PhoneKUpdateException('check_invalid', userMessage: 'بيانات التحديث غير صالحة حالياً. حاول لاحقاً.'));
       }
 
       if (update.versionCode <= currentBuildNumber) {
