@@ -12,6 +12,10 @@ Future<void> main() async {
 
   // Flutter's default release ErrorWidget is a silent gray rectangle. Keep
   // production build errors visible instead of making the page look frozen.
+  FlutterError.onError = (details) {
+    FlutterError.presentError(details);
+    debugPrint('PhoneK FlutterError: ' + details.exception.toString());
+  };
   ErrorWidget.builder = (details) => Directionality(
         textDirection: TextDirection.rtl,
         child: ColoredBox(
@@ -20,7 +24,7 @@ Future<void> main() async {
             child: Padding(
               padding: const EdgeInsets.all(24),
               child: Text(
-                'تعذر عرض الصفحة. أغلق التطبيق وافتحه من جديد.\n\n${details.exception}',
+                'تعذر عرض الصفحة. أغلق التطبيق وافتحه من جديد.',
                 textAlign: TextAlign.center,
                 style: const TextStyle(color: Colors.white70, fontSize: 14),
               ),
@@ -227,7 +231,7 @@ class PhoneKUpdateDialogState extends State<PhoneKUpdateDialog>
         _error = _needsPermission
             ? 'تم تنزيل التحديث. اسمح للتطبيق بتثبيت التطبيقات من هذا المصدر ثم اضغط «تحديث الآن» مرة أخرى.'
             : 'تعذر تثبيت التحديث تلقائياً. أعد المحاولة، أو نزّل النسخة الجديدة من صفحة GitHub الخاصة بالتطبيق.';
-        _errorDetail = error.reason;
+        _errorDetail = null;
       });
     } catch (error) {
       if (!mounted) return;
@@ -235,7 +239,8 @@ class PhoneKUpdateDialogState extends State<PhoneKUpdateDialog>
         _downloading = false;
         _error =
             'تعذر تنزيل التحديث. تأكد من اتصال الإنترنت والرابط ثم حاول مرة أخرى.';
-        _errorDetail = error.toString();
+        debugPrint('PhoneK update error: ' + error.toString());
+        _errorDetail = null;
       });
     }
   }
