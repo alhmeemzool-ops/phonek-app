@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import '../utils/friendly_error.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -46,7 +47,7 @@ class _LoginScreenState extends State<LoginScreen> {
       _startResendTimer((data['resendAfterSeconds'] as num?)?.toInt() ?? 60);
       _showMessage('تم إرسال رمز التحقق إلى WhatsApp');
     } catch (error) {
-      _showMessage(error is AuthException ? error.message : 'تعذر إرسال رمز التحقق');
+      _showMessage(friendlyError(error, fallback: 'تعذر إرسال رمز التحقق'));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -89,7 +90,7 @@ class _LoginScreenState extends State<LoginScreen> {
       } catch (_) {}
       if (mounted) Navigator.pop(context);
     } catch (error) {
-      _showMessage(error is AuthException ? error.message : 'رمز التحقق غير صحيح أو انتهت صلاحيته');
+      _showMessage(friendlyError(error, fallback: 'رمز التحقق غير صحيح أو انتهت صلاحيته'));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -121,7 +122,7 @@ class _LoginScreenState extends State<LoginScreen> {
       await context.read<AppState>().signInWithGoogle();
       if (mounted) Navigator.pop(context);
     } catch (error) {
-      _showMessage('تعذر تسجيل الدخول عبر Google: $error');
+      _showMessage(friendlyError(error, fallback: 'تعذر تسجيل الدخول عبر Google'));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
