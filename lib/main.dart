@@ -3,10 +3,13 @@ import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'data/app_state.dart';
 import 'screens/home_screen.dart';
+import 'screens/chat_screen.dart';
 import 'services/update_service.dart';
 import 'features/merchant_badges/level_up_celebration.dart';
 import 'services/notification_service.dart';
 import 'theme/app_theme.dart';
+
+final GlobalKey<NavigatorState> phoneKNavigatorKey = GlobalKey<NavigatorState>();
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -53,10 +56,39 @@ class PhoneKApp extends StatelessWidget {
       child: MaterialApp(
         title: 'PhoneK - فونك',
         debugShowCheckedModeBanner: false,
+        navigatorKey: phoneKNavigatorKey,
         theme: AppTheme.dark,
         darkTheme: AppTheme.dark,
         themeMode: ThemeMode.dark,
         builder: (context, child) {
+          NotificationService.setOnNotificationTap((data) async {
+            var navigator = phoneKNavigatorKey.currentState;
+            if (navigator == null) {
+              await Future<void>.delayed(const Duration(milliseconds: 500));
+              navigator = phoneKNavigatorKey.currentState;
+            }
+            if (navigator == null || !context.mounted) return;
+
+            final threadId = data['thread_id']?.toString();
+            if (threadId == null || threadId.isEmpty) return;
+
+            final appState = context.read<AppState>();
+            final thread = await appState.getChatThreadById(threadId);
+            if (thread == null) return;
+
+            final listing = await appState.getListingById(thread.phoneListingId);
+            if (listing == null) return;
+
+            navigator.push(
+              MaterialPageRoute(
+                builder: (_) => ChatScreen(
+                  listing: listing,
+                  thread: thread,
+                ),
+              ),
+            );
+          });
+
           return Directionality(
             textDirection: TextDirection.rtl,
             child: child ?? const SizedBox.shrink(),
