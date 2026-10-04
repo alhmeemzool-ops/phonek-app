@@ -290,11 +290,33 @@ class AppState extends ChangeNotifier {
     required String messageId,
   }) async {
     try {
+      final currentUserId = Supabase.instance.client.auth.currentUser?.id;
+      if (currentUserId == null) return;
+
+      final thread = await Supabase.instance.client
+          .from('chat_threads')
+          .select('buyer_id, seller_id')
+          .eq('id', threadId)
+          .maybeSingle();
+      if (thread == null) return;
+
+      final buyerId = thread['buyer_id']?.toString();
+      final sellerId = thread['seller_id']?.toString();
+      if (buyerId == null || sellerId == null) return;
+      if (currentUserId != buyerId && currentUserId != sellerId) return;
+
+      final recipientId =
+          currentUserId == buyerId ? sellerId : buyerId;
+
       await Supabase.instance.client.functions.invoke(
         'send-push-notification',
         body: {
           'thread_id': threadId,
+          'chatId': threadId,
           'message_id': messageId,
+          'senderId': currentUserId,
+          'recipientId': recipientId,
+          'recipient_user_id': recipientId,
         },
       );
     } catch (error) {
