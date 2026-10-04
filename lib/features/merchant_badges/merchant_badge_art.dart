@@ -44,14 +44,20 @@ class MerchantBadge3DViewer extends StatelessWidget {
     return SizedBox(
       width: size,
       height: size,
-      child: ModelViewer(
-        src: 'assets/badges/3d/badge_level_$safeLevel.glb',
-        alt: 'مجسّم ثلاثي الأبعاد لشارة المستوى $level',
-        backgroundColor: Colors.transparent,
-        autoRotate: true,
-        autoRotateDelay: 0,
-        disableZoom: true,
-        cameraControls: false,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          MerchantBadgeArt(level: level, size: size * .82),
+          ModelViewer(
+            src: 'assets/badges/3d/badge_level_$safeLevel.glb',
+            alt: 'مجسّم ثلاثي الأبعاد لشارة المستوى $level',
+            backgroundColor: Colors.transparent,
+            autoRotate: true,
+            autoRotateDelay: 0,
+            disableZoom: true,
+            cameraControls: false,
+          ),
+        ],
       ),
     );
   }

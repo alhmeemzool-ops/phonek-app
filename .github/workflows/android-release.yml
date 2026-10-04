@@ -1,15 +1,7 @@
 name: PhoneK Android Release
 
 on:
-  # التغييرات التطبيقية فقط تشغّل Full Release؛ الرفع السريع يبقى في Quick APK.
-  push:
-    branches:
-      - main
-    paths:
-      - pubspec.yaml
-      - lib/**
-      - android/**
-      - tool/**
+  # Full Release يدوي فقط؛ كل push يمر عبر Quick APK.
   workflow_dispatch:
 
 permissions:
