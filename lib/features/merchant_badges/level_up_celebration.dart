@@ -101,19 +101,19 @@ class _LevelUpCelebrationState extends State<LevelUpCelebration> with SingleTick
   late final List<_ConfettiParticle> _particles;
   late final List<_Firework> _fireworks;
 
-  int get _tier => widget.level >= 10 ? 4 : widget.level >= 7 ? 3 : widget.level >= 4 ? 2 : 1;
+  int get _tier => widget.level.clamp(1, 10);
 
   @override
   void initState() {
     super.initState();
     _random = math.Random(widget.level * 7919);
-    final count = [0, 45, 75, 105, 145][_tier];
+    final count = 18 + (_tier * 14);
     _particles = List.generate(count, (_) => _ConfettiParticle(_random));
-    final fireworks = [0, 0, 3, 5, 8][_tier];
+    final fireworks = (_tier / 2).floor().clamp(0, 5);
     _fireworks = List.generate(fireworks, (_) => _Firework(_random));
     _controller = AnimationController(
       vsync: this,
-      duration: Duration(milliseconds: _tier == 1 ? 3000 : 4200),
+      duration: Duration(milliseconds: 2800 + (_tier * 170)),
     )..forward();
     SystemSound.play(SystemSoundType.alert);
     unawaited(_playNativeSfx());
@@ -162,8 +162,67 @@ class _LevelUpCelebrationState extends State<LevelUpCelebration> with SingleTick
                     const SizedBox(height: 22),
                     AnimatedBuilder(
                       animation: _controller,
-                      builder: (_, child) => Transform.scale(scale: .78 + (_controller.value.clamp(0.0, 1.0) * .22), child: child),
-                      child: MerchantBadgeArt(level: widget.level, size: width * .52),
+                      builder: (_, child) {
+                        final p = Curves.easeOutBack.transform(_controller.value.clamp(0.0, 1.0));
+                        final wobble = math.sin(_controller.value * math.pi * 2.0) * (.06 + _tier * .008);
+                        final glow = (0.35 + _tier * 0.055).clamp(0.35, 0.9);
+                        final matrix = Matrix4.identity()
+                          ..setEntry(3, 2, 0.0014)
+                          ..rotateY(wobble)
+                          ..rotateX(-wobble * .45);
+                        return Transform(
+                          alignment: Alignment.center,
+                          transform: matrix,
+                          child: Transform.scale(
+                            scale: .58 + p * .42,
+                            child: Container(
+                              width: width * .64,
+                              height: width * .64,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                gradient: RadialGradient(
+                                  colors: [
+                                    const Color(0xFFFFD54F).withValues(alpha: glow),
+                                    const Color(0xFF7C3AED).withValues(alpha: .18),
+                                    Colors.transparent,
+                                  ],
+                                  stops: const [0.0, 0.48, 1.0],
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(0xFFFFD54F).withValues(alpha: .22 + _tier * .018),
+                                    blurRadius: 35 + _tier * 3.0,
+                                    spreadRadius: 3 + _tier * .8,
+                                  ),
+                                ],
+                              ),
+                              alignment: Alignment.center,
+                              child: Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  for (final r in [1.0, .82, .64])
+                                    Transform.scale(
+                                      scale: r + math.sin(_controller.value * math.pi) * .025,
+                                      child: Container(
+                                        width: width * .52 * r,
+                                        height: width * .52 * r,
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          border: Border.all(
+                                            color: const Color(0xFFFFD54F).withValues(alpha: .10 + _tier * .012),
+                                            width: 1.5 + _tier * .12,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  child!,
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                      child: MerchantBadgeArt(level: widget.level, size: width * .46),
                     ),
                     const SizedBox(height: 18),
                     Text(badge.nameAr, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 30, fontWeight: FontWeight.w900)),
@@ -224,7 +283,15 @@ class _CelebrationPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final colors = <Color>[const Color(0xFFFFD54F), const Color(0xFF60A5FA), const Color(0xFFF472B6), const Color(0xFF34D399), const Color(0xFFA78BFA)];
+    final colors = <Color>[
+      const Color(0xFFFFD54F),
+      const Color(0xFF60A5FA),
+      const Color(0xFFF472B6),
+      const Color(0xFF34D399),
+      const Color(0xFFA78BFA),
+      const Color(0xFFF97316),
+      const Color(0xFF22D3EE),
+    ];
     for (final p in particles) {
       final y = (p.y + progress * (1.25 + p.speed)) * size.height;
       if (y < -20 || y > size.height + 20) continue;
