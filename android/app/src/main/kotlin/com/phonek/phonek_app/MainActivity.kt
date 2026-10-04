@@ -1,19 +1,39 @@
 package com.phonek.phonek_app
 
+import android.app.PendingIntent
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
-import android.content.ClipData
+import android.content.IntentFilter
+import android.content.pm.PackageInstaller
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
-import androidx.core.content.FileProvider
 import java.io.File
+import java.io.FileInputStream
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.embedding.android.FlutterActivity
+import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
     private val channelName = "phonek/update_permissions"
     private val levelUpChannelName = "phonek/level_up"
+    private val installStatusChannelName = "phonek/update_status"
+
+    companion object {
+        @Volatile
+        private var installStatusSink: EventChannel.EventSink? = null
+
+        fun publishInstallStatus(status: Int, statusMessage: String) {
+            installStatusSink?.success(
+                mapOf(
+                    "status" to status,
+                    "statusMessage" to statusMessage,
+                )
+            )
+        }
+    }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -26,18 +46,26 @@ class MainActivity : FlutterActivity() {
             }
             result.notImplemented()
         }
+        EventChannel(flutterEngine.dartExecutor.binaryMessenger, installStatusChannelName)
+            .setStreamHandler(object : EventChannel.StreamHandler {
+                override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
+                    installStatusSink = events
+                }
+
+                override fun onCancel(arguments: Any?) {
+                    installStatusSink = null
+                }
+            })
+
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, channelName).setMethodCallHandler { call, result ->
             if (call.method == "installApk") {
                 val path = call.argument<String>("filePath")
+                var session: PackageInstaller.Session? = null
                 try {
                     require(!path.isNullOrBlank()) { "APK path is empty" }
                     val apk = File(path)
                     require(apk.exists() && apk.length() > 0) { "APK file does not exist" }
-                    val uri = FileProvider.getUriForFile(
-                        this,
-                        "$packageName.phonek.fileprovider",
-                        apk,
-                    )
+
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
                         !packageManager.canRequestPackageInstalls()
                     ) {
@@ -49,50 +77,58 @@ class MainActivity : FlutterActivity() {
                         return@setMethodCallHandler
                     }
 
-                    // بعض إصدارات Android/واجهات الشركات لا تفتح ACTION_INSTALL_PACKAGE
-                    // مع content:// بنفس الطريقة. جرّب مدير الحزم أولاً، ثم ACTION_VIEW
-                    // كخطة احتياط، مع منح صلاحية القراءة صراحةً.
-                    val installIntents = listOf(
-                        Intent(Intent.ACTION_INSTALL_PACKAGE).apply {
-                            setDataAndType(uri, "application/vnd.android.package-archive")
-                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                            putExtra(Intent.EXTRA_NOT_UNKNOWN_SOURCE, true)
-                            clipData = ClipData.newRawUri("APK", uri)
-                        },
-                        Intent(Intent.ACTION_VIEW).apply {
-                            setDataAndType(uri, "application/vnd.android.package-archive")
-                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                            addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                            clipData = ClipData.newRawUri("APK", uri)
-                        },
-                    )
+                    val packageInstaller = packageManager.packageInstaller
+                    val params = PackageInstaller.SessionParams(
+                        PackageInstaller.SessionParams.MODE_FULL_INSTALL
+                    ).apply {
+                        setSize(apk.length())
+                        setAppPackageName(packageName)
+                    }
+                    val sessionId = packageInstaller.createSession(params)
+                    session = packageInstaller.openSession(sessionId)
 
-                    var lastError: Exception? = null
-                    for (installIntent in installIntents) {
-                        try {
-                            startActivity(installIntent)
-                            result.success(null)
-                            return@setMethodCallHandler
-                        } catch (error: Exception) {
-                            lastError = error
+                    FileInputStream(apk).use { input ->
+                        session.openWrite("base.apk", 0, apk.length()).use { output ->
+                            input.copyTo(output)
+                            session.fsync(output)
                         }
                     }
 
-                    result.error(
-                        "INSTALL_ERROR",
-                        lastError?.let { error ->
-                            error.javaClass.simpleName + ": " + (error.message ?: "")
-                        } ?: "No Android package installer activity is available",
-                        null,
+                    val callbackIntent = Intent(
+                        this,
+                        PhoneKInstallStatusReceiver::class.java,
+                    ).apply {
+                        action = PhoneKInstallStatusReceiver.ACTION_INSTALL_STATUS
+                        putExtra(
+                            PhoneKInstallStatusReceiver.EXTRA_SESSION_ID,
+                            sessionId,
+                        )
+                    }
+                    val pendingIntentFlags =
+                        PendingIntent.FLAG_UPDATE_CURRENT or
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                                PendingIntent.FLAG_IMMUTABLE
+                            } else {
+                                0
+                            }
+                    val pendingIntent = PendingIntent.getBroadcast(
+                        this,
+                        sessionId,
+                        callbackIntent,
+                        pendingIntentFlags,
                     )
+
+                    session.commit(pendingIntent.intentSender)
+                    result.success(null)
                 } catch (error: Exception) {
+                    session?.abandon()
                     result.error(
                         "INSTALL_ERROR",
-                        "${error.javaClass.simpleName}: ${error.message}",
+                        error.javaClass.simpleName + ": " + (error.message ?: ""),
                         null,
                     )
+                } finally {
+                    session?.close()
                 }
                 return@setMethodCallHandler
             }
@@ -185,3 +221,52 @@ class MainActivity : FlutterActivity() {
     }
 
 }
+class PhoneKInstallStatusReceiver : BroadcastReceiver() {
+    companion object {
+        const val ACTION_INSTALL_STATUS =
+            "com.phonek.phonek_app.ACTION_INSTALL_STATUS"
+        const val EXTRA_SESSION_ID =
+            "com.phonek.phonek_app.EXTRA_SESSION_ID"
+    }
+
+    override fun onReceive(context: Context, intent: Intent) {
+        val status = intent.getIntExtra(
+            PackageInstaller.EXTRA_STATUS,
+            PackageInstaller.STATUS_FAILURE,
+        )
+        val statusMessage =
+            intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE).orEmpty()
+
+        MainActivity.publishInstallStatus(status, statusMessage)
+
+        if (status == PackageInstaller.STATUS_PENDING_USER_ACTION) {
+            val userActionIntent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                intent.getParcelableExtra(
+                    Intent.EXTRA_INTENT,
+                    Intent::class.java,
+                )
+            } else {
+                @Suppress("DEPRECATION")
+                intent.getParcelableExtra<Intent>(Intent.EXTRA_INTENT)
+            }
+
+            if (userActionIntent != null) {
+                userActionIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                try {
+                    context.startActivity(userActionIntent)
+                } catch (error: Exception) {
+                    MainActivity.publishInstallStatus(
+                        PackageInstaller.STATUS_FAILURE,
+                        error.javaClass.simpleName + ": " + (error.message ?: ""),
+                    )
+                }
+            } else {
+                MainActivity.publishInstallStatus(
+                    PackageInstaller.STATUS_FAILURE,
+                    "Android did not provide the installer confirmation intent.",
+                )
+            }
+        }
+    }
+}
+
