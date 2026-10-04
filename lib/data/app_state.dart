@@ -209,13 +209,23 @@ class AppState extends ChangeNotifier {
     if (userId == null) throw const AuthException('سجّل الدخول لإرسال رسالة');
     final cleanText = text.trim();
     if (cleanText.isEmpty) return;
-    await Supabase.instance.client.from('chat_messages').insert({
-      'thread_id': threadId,
-      'sender_id': userId,
-      'text': cleanText,
-      'type': MessageType.text.value,
-      'status': MessageStatus.sent.value,
-    });
+
+    final inserted = await Supabase.instance.client
+        .from('chat_messages')
+        .insert({
+          'thread_id': threadId,
+          'sender_id': userId,
+          'text': cleanText,
+          'type': MessageType.text.value,
+          'status': MessageStatus.sent.value,
+        })
+        .select('id')
+        .single();
+
+    unawaited(_sendPushForMessage(
+      threadId: threadId,
+      messageId: inserted['id'] as String,
+    ));
   }
 
   Future<void> sendOffer({required PhoneListing listing, required int amount}) async {
@@ -228,14 +238,112 @@ class AppState extends ChangeNotifier {
     if (listing.priceOnCall) throw const AuthException('هذا الإعلان سعره عند الاتصال');
 
     final threadId = await ensureChatThread(listing);
-    await Supabase.instance.client.from('chat_messages').insert({
-      'thread_id': threadId,
-      'sender_id': userId,
-      'text': '',
-      'type': MessageType.offer.value,
-      'offer_amount': amount,
-      'status': MessageStatus.sent.value,
-    });
+    final inserted = await Supabase.instance.client
+        .from('chat_messages')
+        .insert({
+          'thread_id': threadId,
+          'sender_id': userId,
+          'text': '',
+          'type': MessageType.offer.value,
+          'offer_amount': amount,
+          'status': MessageStatus.sent.value,
+        })
+        .select('id')
+        .single();
+
+    unawaited(_sendPushForMessage(
+      threadId: threadId,
+      messageId: inserted['id'] as String,
+    ));
+  }
+
+  Future<void> _sendPushForMessage({
+    required String threadId,
+    required String messageId,
+  }) async {
+    try {
+      await Supabase.instance.client.functions.invoke(
+        'send-push-notification',
+        body: {
+          'thread_id': threadId,
+          'message_id': messageId,
+        },
+      );
+    } catch (error) {
+      debugPrint('PhoneK push notification request failed: $error');
+    }
+  }
+
+  Future<PhoneListing?> getListingById(String listingId) async {
+    final cached = _listings.cast<PhoneListing?>().firstWhere(
+          (item) => item?.id == listingId,
+          orElse: () => null,
+        );
+    if (cached != null) return cached;
+
+    try {
+      final row = await Supabase.instance.client
+          .from('listings')
+          .select('*')
+          .eq('id', listingId)
+          .maybeSingle();
+      if (row == null) return null;
+
+      final sellerId = row['seller_id']?.toString();
+      Map<String, dynamic>? seller;
+      if (sellerId != null && sellerId.isNotEmpty) {
+        seller = await Supabase.instance.client
+            .from('public_seller_cards')
+            .select('*')
+            .eq('id', sellerId)
+            .maybeSingle();
+      }
+      return _listingFromRow(
+        Map<String, dynamic>.from(row),
+        seller == null ? null : Map<String, dynamic>.from(seller),
+      );
+    } catch (error) {
+      debugPrint('PhoneK notification listing lookup failed: $error');
+      return null;
+    }
+  }
+
+  Future<ChatThread?> getChatThreadById(String threadId) async {
+    try {
+      final row = await Supabase.instance.client
+          .from('chat_threads')
+          .select('id, listing_id, buyer_id, seller_id, created_at')
+          .eq('id', threadId)
+          .maybeSingle();
+      if (row == null) return null;
+
+      final listingId = row['listing_id']?.toString();
+      if (listingId == null || listingId.isEmpty) return null;
+
+      final listing = await getListingById(listingId);
+      if (listing == null) return null;
+
+      var otherUserName = listing.seller.name;
+      try {
+        final participant = await Supabase.instance.client.rpc(
+          'get_chat_participants',
+          params: {'p_thread_id': threadId},
+        );
+        if (participant is Map && participant['other_user_name'] != null) {
+          otherUserName = participant['other_user_name'].toString();
+        }
+      } catch (_) {}
+
+      return ChatThread(
+        id: threadId,
+        phoneListingId: listing.id,
+        phoneTitle: listing.title,
+        otherUserName: otherUserName,
+      );
+    } catch (error) {
+      debugPrint('PhoneK notification thread lookup failed: $error');
+      return null;
+    }
   }
 
   RealtimeChannel subscribeToMessages(String threadId, void Function(ChatMessage message) onMessage) {
