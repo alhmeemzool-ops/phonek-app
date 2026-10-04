@@ -38,13 +38,6 @@ class MainActivity : FlutterActivity() {
                         "$packageName.phonek.fileprovider",
                         apk,
                     )
-                    val intent = Intent(Intent.ACTION_INSTALL_PACKAGE).apply {
-                        setDataAndType(uri, "application/vnd.android.package-archive")
-                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                        putExtra(Intent.EXTRA_NOT_UNKNOWN_SOURCE, true)
-                        clipData = ClipData.newRawUri("APK", uri)
-                    }
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
                         !packageManager.canRequestPackageInstalls()
                     ) {
@@ -55,8 +48,45 @@ class MainActivity : FlutterActivity() {
                         )
                         return@setMethodCallHandler
                     }
-                    startActivity(intent)
-                    result.success(null)
+
+                    // بعض إصدارات Android/واجهات الشركات لا تفتح ACTION_INSTALL_PACKAGE
+                    // مع content:// بنفس الطريقة. جرّب مدير الحزم أولاً، ثم ACTION_VIEW
+                    // كخطة احتياط، مع منح صلاحية القراءة صراحةً.
+                    val installIntents = listOf(
+                        Intent(Intent.ACTION_INSTALL_PACKAGE).apply {
+                            setDataAndType(uri, "application/vnd.android.package-archive")
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            putExtra(Intent.EXTRA_NOT_UNKNOWN_SOURCE, true)
+                            clipData = ClipData.newRawUri("APK", uri)
+                        },
+                        Intent(Intent.ACTION_VIEW).apply {
+                            setDataAndType(uri, "application/vnd.android.package-archive")
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                            clipData = ClipData.newRawUri("APK", uri)
+                        },
+                    )
+
+                    var lastError: Exception? = null
+                    for (installIntent in installIntents) {
+                        try {
+                            startActivity(installIntent)
+                            result.success(null)
+                            return@setMethodCallHandler
+                        } catch (error: Exception) {
+                            lastError = error
+                        }
+                    }
+
+                    result.error(
+                        "INSTALL_ERROR",
+                        lastError?.let { error ->
+                            error.javaClass.simpleName + ": " + (error.message ?: "")
+                        } ?: "No Android package installer activity is available",
+                        null,
+                    )
                 } catch (error: Exception) {
                     result.error(
                         "INSTALL_ERROR",
