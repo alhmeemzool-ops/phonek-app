@@ -68,6 +68,7 @@ class PhoneKApp extends StatelessWidget {
             final targetUserId = data['recipient_user_id']?.toString();
             final currentUserId =
                 Supabase.instance.client.auth.currentUser?.id;
+            final appState = context.read<AppState>();
 
             if (targetUserId != null &&
                 targetUserId.isNotEmpty &&
@@ -80,7 +81,17 @@ class PhoneKApp extends StatelessWidget {
                 );
                 return;
               }
-              await Future<void>.delayed(const Duration(milliseconds: 300));
+
+              await appState.syncAuthState();
+              if (Supabase.instance.client.auth.currentUser?.id !=
+                  targetUserId) {
+                debugPrint(
+                  'PhoneK notification account switch did not activate target account: $targetUserId',
+                );
+                return;
+              }
+            } else {
+              await appState.syncAuthState();
             }
 
             var navigator = phoneKNavigatorKey.currentState;
@@ -93,7 +104,6 @@ class PhoneKApp extends StatelessWidget {
             final threadId = data['thread_id']?.toString();
             if (threadId == null || threadId.isEmpty) return;
 
-            final appState = context.read<AppState>();
             final thread = await appState.getChatThreadById(threadId);
             if (thread == null) return;
 
