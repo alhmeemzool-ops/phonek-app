@@ -65,14 +65,20 @@ class PhoneKApp extends StatelessWidget {
         themeMode: ThemeMode.dark,
         builder: (context, child) {
           NotificationService.setOnNotificationTap((data) async {
-            final targetUserId = (data['recipientId'] ?? data['recipient_user_id'])?.toString();
+            final targetUserId =
+                (data['recipientId'] ?? data['recipient_user_id'])?.toString();
             final currentUserId =
                 Supabase.instance.client.auth.currentUser?.id;
             final appState = context.read<AppState>();
 
-            if (targetUserId != null &&
+            // A notification for another account must perform a REAL account
+            // switch, not merely open that account's chat on top of the current
+            // account's page stack (Messenger-style account switching).
+            final switchingAccount = targetUserId != null &&
                 targetUserId.isNotEmpty &&
-                targetUserId != currentUserId) {
+                targetUserId != currentUserId;
+
+            if (switchingAccount) {
               final switched =
                   await NotificationService.switchToAccount(targetUserId);
               if (!switched) {
@@ -109,6 +115,25 @@ class PhoneKApp extends StatelessWidget {
 
             final listing = await appState.getListingById(thread.phoneListingId);
             if (listing == null) return;
+
+            if (switchingAccount) {
+              // Clear every page belonging to the previous account first.
+              // The new HomeScreen is now the root of the newly active account.
+              navigator.pushAndRemoveUntil(
+                MaterialPageRoute(
+                  builder: (_) => const PhoneKUpdateGate(
+                    child: MerchantLevelUpGate(child: HomeScreen()),
+                  ),
+                ),
+                (route) => false,
+              );
+
+              // Let the new account's root finish rebuilding before opening
+              // the requested chat.
+              await Future<void>.delayed(const Duration(milliseconds: 150));
+              navigator = phoneKNavigatorKey.currentState;
+              if (navigator == null) return;
+            }
 
             navigator.push(
               MaterialPageRoute(
