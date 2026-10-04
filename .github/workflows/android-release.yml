@@ -6,8 +6,11 @@ on:
   push:
     branches:
       - main
-    paths-ignore:
-      - update.json
+    paths:
+      - pubspec.yaml
+      - lib/**
+      - android/**
+      - tool/**
   workflow_dispatch:
 
 permissions:
