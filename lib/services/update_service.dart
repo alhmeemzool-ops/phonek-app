@@ -9,6 +9,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 const String phoneKUpdateManifestUrl =
     'https://raw.githubusercontent.com/alhmeemzool-ops/phonek-app/main/update.json';
@@ -388,14 +389,130 @@ class PhoneKUpdateService {
     }
   }
 
-  static Future<void> _installApk(File file) async {
+  static const _installStatusChannel = EventChannel('phonek/update_status');
+
+  static Future<void> _saveLastInstallError({
+    required String reason,
+    String? code,
+    String? message,
+  }) async {
     try {
+      final preferences = await SharedPreferences.getInstance();
+      await preferences.setString(
+        'phonek_last_update_error',
+        jsonEncode({
+          'timestamp': DateTime.now().toIso8601String(),
+          'reason': reason,
+          'code': code,
+          'message': message,
+        }),
+      );
+    } catch (saveError) {
+      debugPrint('PhoneK update: failed to save last install error: $saveError');
+    }
+  }
+
+  static Future<void> _installApk(File file) async {
+    StreamSubscription<dynamic>? subscription;
+    final terminal = Completer<void>();
+
+    try {
+      subscription = _installStatusChannel.receiveBroadcastStream().listen(
+        (dynamic event) async {
+          if (event is! Map) return;
+          final status = event['status'];
+          final statusMessage = event['statusMessage']?.toString() ?? '';
+          final statusCode = status is num ? status.toInt() : null;
+
+          // PackageInstaller sends STATUS_PENDING_USER_ACTION before showing
+          // the Android confirmation UI; the native receiver launches EXTRA_INTENT.
+          if (statusCode == -1) return;
+          if (statusCode == 0) {
+            if (!terminal.isCompleted) terminal.complete();
+            return;
+          }
+
+          final code = statusCode == null ? 'INSTALL_STATUS' : 'STATUS_$statusCode';
+          await _saveLastInstallError(
+            reason: 'install_status',
+            code: code,
+            message: statusMessage,
+          );
+          if (!terminal.isCompleted) {
+            terminal.completeError(
+              PhoneKUpdateException(
+                'install',
+                userMessage: 'تم تنزيل التحديث، لكن تعذر تثبيته. حاول مرة أخرى.',
+                errorCode: code,
+                errorMessage: statusMessage.isEmpty ? null : statusMessage,
+              ),
+            );
+          }
+        },
+        onError: (Object error, StackTrace stackTrace) {
+          debugPrint('PhoneK update status stream failed: $error');
+          if (!terminal.isCompleted) {
+            terminal.completeError(
+              PhoneKUpdateException(
+                'install',
+                userMessage: 'تم تنزيل التحديث، لكن تعذر متابعة التثبيت. حاول مرة أخرى.',
+                errorCode: error is PlatformException ? error.code : 'UPDATE_STATUS_STREAM',
+                errorMessage: error.toString(),
+              ),
+            );
+          }
+        },
+      );
+
       await _platform.invokeMethod<void>('installApk', {'filePath': file.path});
+      await terminal.future.timeout(
+        const Duration(minutes: 30),
+        onTimeout: () => throw const PhoneKUpdateException(
+          'install_timeout',
+          userMessage: 'تم بدء التثبيت، لكن لم تصل نتيجة من Android خلال المهلة المحددة.',
+          errorCode: 'INSTALL_TIMEOUT',
+          errorMessage: 'No terminal PackageInstaller status was received within 30 minutes.',
+        ),
+      );
     } on PlatformException catch (error) {
+      debugPrint(
+        'PhoneK update install PlatformException: code=${error.code}, message=${error.message}',
+      );
+      await _saveLastInstallError(
+        reason: 'install_platform_exception',
+        code: error.code,
+        message: error.message,
+      );
       if (error.code == 'INSTALL_PERMISSION') {
-        throw const PhoneKUpdateException('install_permission');
+        throw PhoneKUpdateException(
+          'install_permission',
+          errorCode: error.code,
+          errorMessage: error.message,
+        );
       }
-      throw const PhoneKUpdateException('install', userMessage: 'تم تنزيل التحديث، لكن تعذر فتح شاشة التثبيت. حاول مرة أخرى.');
+      throw PhoneKUpdateException(
+        'install',
+        userMessage: 'تم تنزيل التحديث، لكن تعذر بدء التثبيت. حاول مرة أخرى.',
+        errorCode: error.code,
+        errorMessage: error.message,
+      );
+    } on PhoneKUpdateException {
+      rethrow;
+    } catch (error) {
+      debugPrint('PhoneK update install failed: $error');
+      await _saveLastInstallError(
+        reason: 'install_unknown',
+        code: 'INSTALL_UNKNOWN',
+        message: error.toString(),
+      );
+      throw PhoneKUpdateException(
+        'install',
+        userMessage: 'تم تنزيل التحديث، لكن تعذر بدء التثبيت. حاول مرة أخرى.',
+        errorCode: 'INSTALL_UNKNOWN',
+        errorMessage: error.toString(),
+      );
+    } finally {
+      await subscription?.cancel();
     }
   }
 }
@@ -403,8 +520,15 @@ class PhoneKUpdateService {
 class PhoneKUpdateException implements Exception {
   final String reason;
   final String userMessage;
+  final String? errorCode;
+  final String? errorMessage;
 
-  const PhoneKUpdateException(this.reason, {this.userMessage = 'حدث خطأ أثناء التحديث. حاول مرة أخرى.'});
+  const PhoneKUpdateException(
+    this.reason, {
+    this.userMessage = 'حدث خطأ أثناء التحديث. حاول مرة أخرى.',
+    this.errorCode,
+    this.errorMessage,
+  });
 
   @override
   String toString() => userMessage;
