@@ -120,11 +120,10 @@ jobs:
         run: |
           tag="v${{ steps.version.outputs.version_name }}"
           if gh release view "$tag" >/dev/null 2>&1; then
-            echo "::warning::Release $tag already exists; bump version in pubspec.yaml."
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "skip=false" >> "$GITHUB_OUTPUT"
+            echo "::error::Release $tag already exists, so NO update would be published. Bump the version in pubspec.yaml (for example 1.0.68+68). If the release was created but update.json was not updated, delete that release and its tag, then run this workflow again."
+            exit 1
           fi
+          echo "skip=false" >> "$GITHUB_OUTPUT"
 
       - name: Fail if release tag already exists
         if: steps.guard.outputs.skip != 'true'
@@ -169,6 +168,16 @@ jobs:
             exit 1
           }
           echo "APK versionCode verified: $apk_code"
+
+      - name: Verify APK signature
+        if: steps.guard.outputs.skip != 'true'
+        shell: bash
+        run: |
+          apk="build/app/outputs/flutter-apk/app-release.apk"
+          apksigner_bin=$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -n 1)
+          test -x "$apksigner_bin" || { echo "apksigner not found"; exit 1; }
+          "$apksigner_bin" verify --print-certs "$apk"
+          echo "APK signature verified."
 
       - name: Calculate APK SHA-256
         if: steps.guard.outputs.skip != 'true'
