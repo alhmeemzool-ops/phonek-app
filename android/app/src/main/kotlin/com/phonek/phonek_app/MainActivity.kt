@@ -1,38 +1,20 @@
 package com.phonek.phonek_app
 
-import android.app.PendingIntent
-import android.content.BroadcastReceiver
-import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageInstaller
+import android.content.ClipData
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
+import androidx.core.content.FileProvider
 import java.io.File
-import java.io.FileInputStream
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.embedding.android.FlutterActivity
-import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
     private val channelName = "phonek/update_permissions"
     private val levelUpChannelName = "phonek/level_up"
-    private val installStatusChannelName = "phonek/update_status"
-
-    companion object {
-        @Volatile
-        private var installStatusSink: EventChannel.EventSink? = null
-
-        fun publishInstallStatus(status: Int, statusMessage: String) {
-            installStatusSink?.success(
-                mapOf(
-                    "status" to status,
-                    "statusMessage" to statusMessage,
-                )
-            )
-        }
-    }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -45,91 +27,20 @@ class MainActivity : FlutterActivity() {
             }
             result.notImplemented()
         }
-        EventChannel(flutterEngine.dartExecutor.binaryMessenger, installStatusChannelName)
-            .setStreamHandler(object : EventChannel.StreamHandler {
-                override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
-                    installStatusSink = events
-                }
-
-                override fun onCancel(arguments: Any?) {
-                    installStatusSink = null
-                }
-            })
-
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, channelName).setMethodCallHandler { call, result ->
+        val updateChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, channelName)
+        PhoneKInstaller.channel = updateChannel
+        updateChannel.setMethodCallHandler { call, result ->
             if (call.method == "installApk") {
-                val path = call.argument<String>("filePath")
-                var session: PackageInstaller.Session? = null
-                try {
-                    require(!path.isNullOrBlank()) { "APK path is empty" }
-                    val apk = File(path)
-                    require(apk.exists() && apk.length() > 0) { "APK file does not exist" }
-
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
-                        !packageManager.canRequestPackageInstalls()
-                    ) {
-                        result.error(
-                            "INSTALL_PERMISSION",
-                            "Unknown-source installation permission is not granted",
-                            null,
-                        )
-                        return@setMethodCallHandler
-                    }
-
-                    val packageInstaller = packageManager.packageInstaller
-                    val params = PackageInstaller.SessionParams(
-                        PackageInstaller.SessionParams.MODE_FULL_INSTALL
-                    ).apply {
-                        setSize(apk.length())
-                        setAppPackageName(packageName)
-                    }
-                    val sessionId = packageInstaller.createSession(params)
-                    val installSession = packageInstaller.openSession(sessionId)
-                    session = installSession
-
-                    FileInputStream(apk).use { input ->
-                        installSession.openWrite("base.apk", 0, apk.length()).use { output ->
-                            input.copyTo(output)
-                            installSession.fsync(output)
-                        }
-                    }
-
-                    val callbackIntent = Intent(
-                        this,
-                        PhoneKInstallStatusReceiver::class.java,
-                    ).apply {
-                        action = PhoneKInstallStatusReceiver.ACTION_INSTALL_STATUS
-                        putExtra(
-                            PhoneKInstallStatusReceiver.EXTRA_SESSION_ID,
-                            sessionId,
-                        )
-                    }
-                    val pendingIntentFlags =
-                        PendingIntent.FLAG_UPDATE_CURRENT or
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                                PendingIntent.FLAG_IMMUTABLE
-                            } else {
-                                0
-                            }
-                    val pendingIntent = PendingIntent.getBroadcast(
-                        this,
-                        sessionId,
-                        callbackIntent,
-                        pendingIntentFlags,
-                    )
-
-                    installSession.commit(pendingIntent.intentSender)
-                    result.success(null)
-                } catch (error: Exception) {
-                    session?.abandon()
-                    result.error(
-                        "INSTALL_ERROR",
-                        error.javaClass.simpleName + ": " + (error.message ?: ""),
-                        null,
-                    )
-                } finally {
-                    session?.close()
-                }
+                handleInstallApk(call.argument<String>("filePath"), result)
+                return@setMethodCallHandler
+            }
+            if (call.method == "getLastInstallResult") {
+                result.success(PhoneKInstaller.lastResult(this))
+                return@setMethodCallHandler
+            }
+            if (call.method == "clearInstallResult") {
+                PhoneKInstaller.clearResult(this)
+                result.success(null)
                 return@setMethodCallHandler
             }
             if (call.method == "canInstallPackages") {
@@ -172,6 +83,150 @@ class MainActivity : FlutterActivity() {
             result.success(null)
         }
     }
+    override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
+        PhoneKInstaller.channel = null
+        super.cleanUpFlutterEngine(flutterEngine)
+    }
+
+    private fun handleInstallApk(path: String?, result: MethodChannel.Result) {
+        val apk = File(path ?: "")
+        val problem: String? = when {
+            path.isNullOrBlank() -> "APK path is empty"
+            !apk.exists() || apk.length() <= 0L -> "APK file does not exist"
+            else -> null
+        }
+        if (problem != null) {
+            result.error("INSTALL_ERROR", problem, null)
+            return
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+            !packageManager.canRequestPackageInstalls()
+        ) {
+            result.error(
+                "INSTALL_PERMISSION",
+                "Unknown-source installation permission is not granted",
+                null,
+            )
+            return
+        }
+
+        // فحص مسبق: يمنع محاولة تثبيت ملف سيرفضه النظام (توقيع مختلف / حزمة مختلفة)
+        // ويعطي المستخدم سبباً واضحاً بدل رسالة عامة.
+        val rejection = preflightApk(apk)
+        if (rejection != null) {
+            result.error("APK_REJECTED", rejection, null)
+            return
+        }
+
+        // نسخ ملف كبير يجب ألا يتم على الخيط الرئيسي (يسبب تجمّد).
+        Thread {
+            val sessionError: String? = try {
+                PhoneKInstaller.install(this, apk)
+                null
+            } catch (error: Exception) {
+                error.javaClass.simpleName + ": " + (error.message ?: "")
+            }
+            runOnUiThread {
+                if (sessionError == null) {
+                    result.success("session")
+                } else {
+                    installWithIntent(apk, sessionError, result)
+                }
+            }
+        }.start()
+    }
+
+    // خطة احتياط: الطريقة القديمة عبر FileProvider إذا فشلت جلسة PackageInstaller.
+    private fun installWithIntent(apk: File, sessionError: String, result: MethodChannel.Result) {
+        try {
+            val uri = FileProvider.getUriForFile(
+                this,
+                "$packageName.phonek.fileprovider",
+                apk,
+            )
+            val installIntents = listOf(
+                Intent(Intent.ACTION_INSTALL_PACKAGE).apply {
+                    setDataAndType(uri, "application/vnd.android.package-archive")
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    putExtra(Intent.EXTRA_NOT_UNKNOWN_SOURCE, true)
+                    clipData = ClipData.newRawUri("APK", uri)
+                },
+                Intent(Intent.ACTION_VIEW).apply {
+                    setDataAndType(uri, "application/vnd.android.package-archive")
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                    clipData = ClipData.newRawUri("APK", uri)
+                },
+            )
+
+            var lastError: Exception? = null
+            for (installIntent in installIntents) {
+                try {
+                    startActivity(installIntent)
+                    result.success("intent")
+                    return
+                } catch (error: Exception) {
+                    lastError = error
+                }
+            }
+            val intentError = if (lastError != null) {
+                lastError.javaClass.simpleName + ": " + (lastError.message ?: "")
+            } else {
+                "no installer activity"
+            }
+            result.error("INSTALL_ERROR", "session: $sessionError | intent: $intentError", null)
+        } catch (error: Exception) {
+            result.error(
+                "INSTALL_ERROR",
+                "session: $sessionError | fileprovider: ${error.javaClass.simpleName}: ${error.message}",
+                null,
+            )
+        }
+    }
+
+    // يرجع null إذا كان الملف سليماً (أو إذا تعذر الفحص)، وإلا نص يبدأ برمز السبب.
+    @Suppress("DEPRECATION")
+    private fun preflightApk(apk: File): String? {
+        try {
+            val pm = packageManager
+            val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                PackageManager.GET_SIGNING_CERTIFICATES
+            } else {
+                0
+            }
+            val archive = pm.getPackageArchiveInfo(apk.absolutePath, flags) ?: return null
+            if (archive.packageName != packageName) {
+                return "APK_WRONG_PACKAGE: ${archive.packageName}"
+            }
+            val installed = pm.getPackageInfo(packageName, flags)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                val newCode = archive.longVersionCode
+                val oldCode = installed.longVersionCode
+                if (newCode <= oldCode) {
+                    return "APK_NOT_NEWER: $newCode <= $oldCode"
+                }
+                val newSigners = archive.signingInfo?.apkContentsSigners
+                val oldSigners = installed.signingInfo?.apkContentsSigners
+                if (newSigners != null && oldSigners != null &&
+                    newSigners.isNotEmpty() && oldSigners.isNotEmpty()
+                ) {
+                    val same = newSigners.any { n -> oldSigners.any { o -> n == o } }
+                    if (!same) return "APK_SIGNATURE_MISMATCH"
+                }
+            } else {
+                if (archive.versionCode <= installed.versionCode) {
+                    return "APK_NOT_NEWER: ${archive.versionCode} <= ${installed.versionCode}"
+                }
+            }
+            return null
+        } catch (error: Exception) {
+            return null
+        }
+    }
+
     private fun playLevelUpSound(level: Int) {
         Thread {
             val sampleRate = 44100
@@ -221,52 +276,3 @@ class MainActivity : FlutterActivity() {
     }
 
 }
-class PhoneKInstallStatusReceiver : BroadcastReceiver() {
-    companion object {
-        const val ACTION_INSTALL_STATUS =
-            "com.phonek.phonek_app.ACTION_INSTALL_STATUS"
-        const val EXTRA_SESSION_ID =
-            "com.phonek.phonek_app.EXTRA_SESSION_ID"
-    }
-
-    override fun onReceive(context: Context, intent: Intent) {
-        val status = intent.getIntExtra(
-            PackageInstaller.EXTRA_STATUS,
-            PackageInstaller.STATUS_FAILURE,
-        )
-        val statusMessage =
-            intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE).orEmpty()
-
-        MainActivity.publishInstallStatus(status, statusMessage)
-
-        if (status == PackageInstaller.STATUS_PENDING_USER_ACTION) {
-            val userActionIntent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                intent.getParcelableExtra(
-                    Intent.EXTRA_INTENT,
-                    Intent::class.java,
-                )
-            } else {
-                @Suppress("DEPRECATION")
-                intent.getParcelableExtra<Intent>(Intent.EXTRA_INTENT)
-            }
-
-            if (userActionIntent != null) {
-                userActionIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                try {
-                    context.startActivity(userActionIntent)
-                } catch (error: Exception) {
-                    MainActivity.publishInstallStatus(
-                        PackageInstaller.STATUS_FAILURE,
-                        error.javaClass.simpleName + ": " + (error.message ?: ""),
-                    )
-                }
-            } else {
-                MainActivity.publishInstallStatus(
-                    PackageInstaller.STATUS_FAILURE,
-                    "Android did not provide the installer confirmation intent.",
-                )
-            }
-        }
-    }
-}
-
