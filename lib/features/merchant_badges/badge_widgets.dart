@@ -56,35 +56,125 @@ class MerchantBadgeGallery extends StatelessWidget {
 void showMerchantBadgeDetails(BuildContext context, MerchantBadge badge, {required bool current, bool unlocked = true}) {
   showDialog<void>(
     context: context,
-    barrierColor: Colors.black87,
-    builder: (dialogContext) => _BadgeCelebrationDialog(badge: badge, current: current, unlocked: unlocked),
+    barrierColor: Colors.black54,
+    builder: (_) => _BadgeCelebrationDialog(badge: badge, current: current, unlocked: unlocked),
   );
 }
 
 class _BadgeCelebrationDialog extends StatefulWidget {
   const _BadgeCelebrationDialog({required this.badge, required this.current, required this.unlocked});
-  final MerchantBadge badge; final bool current; final bool unlocked;
-  @override State<_BadgeCelebrationDialog> createState() => _BadgeCelebrationDialogState();
+  final MerchantBadge badge;
+  final bool current;
+  final bool unlocked;
+
+  @override
+  State<_BadgeCelebrationDialog> createState() => _BadgeCelebrationDialogState();
 }
 
-class _BadgeCelebrationDialogState extends State<_BadgeCelebrationDialog> {
+class _BadgeCelebrationDialogState extends State<_BadgeCelebrationDialog>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
   @override
-  void initState() { super.initState(); SystemSound.play(SystemSoundType.alert); }
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 700),
+    )..forward();
+    SystemSound.play(SystemSoundType.click);
+  }
+
   @override
-  Widget build(BuildContext context) => Dialog.fullscreen(
-    backgroundColor: const Color(0xFF111827),
-    child: SafeArea(child: Stack(children: [
-      Center(child: SingleChildScrollView(padding: const EdgeInsets.all(24), child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-        Icon(widget.unlocked ? Icons.auto_awesome : Icons.lock_outline, color: const Color(0xFFFFD700), size: 42),
-        const SizedBox(height: 12),
-        Text(widget.badge.nameAr, textAlign: TextAlign.center, style: const TextStyle(fontSize: 30, fontWeight: FontWeight.w900, color: Colors.white)),
-        const SizedBox(height: 8), Text('المستوى ${widget.badge.level}', style: const TextStyle(color: Color(0xFFFFD700), fontSize: 18, fontWeight: FontWeight.bold)),
-        const SizedBox(height: 24), MerchantBadgeArt(level: widget.badge.level, size: 240, locked: !widget.unlocked),
-        const SizedBox(height: 24), Text(widget.current ? 'هذه شارتك الحالية' : widget.unlocked ? 'مبروك! هذه الشارة مفتوحة' : 'شارة قادمة', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-        const SizedBox(height: 12), Text(widget.badge.descriptionAr, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white70, height: 1.5)),
-        const SizedBox(height: 20), SizedBox(width: double.infinity, child: FilledButton(onPressed: () => Navigator.pop(context), child: const Text('إغلاق'))),
-      ]))),
-      Positioned(top: 8, right: 8, child: IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close, color: Colors.white, size: 30))),
-    ])),
-  );
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = widget.unlocked ? const Color(0xFFFFD700) : const Color(0xFF64748B);
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 34, vertical: 28),
+      child: ScaleTransition(
+        scale: CurvedAnimation(parent: _controller, curve: Curves.elasticOut),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
+          decoration: BoxDecoration(
+            color: const Color(0xFF111827),
+            borderRadius: BorderRadius.circular(28),
+            border: Border.all(color: accent.withValues(alpha: .55), width: 1.5),
+            boxShadow: [
+              BoxShadow(color: accent.withValues(alpha: .24), blurRadius: 32, spreadRadius: 3),
+              const BoxShadow(color: Color(0x66000000), blurRadius: 22),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  Icon(widget.unlocked ? Icons.auto_awesome : Icons.lock_outline, color: accent, size: 24),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      widget.current ? '✨ شارتك المملوكة' : widget.unlocked ? '✨ شارة مملوكة' : 'شارة قادمة',
+                      style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w900),
+                    ),
+                  ),
+                  IconButton(
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close, color: Colors.white70, size: 22),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              AnimatedBuilder(
+                animation: _controller,
+                builder: (_, child) => Transform.rotate(
+                  angle: (1 - _controller.value) * .12,
+                  child: Transform.scale(
+                    scale: .82 + _controller.value * .18,
+                    child: child,
+                  ),
+                ),
+                child: MerchantBadgeArt(level: widget.badge.level, size: 145, locked: !widget.unlocked),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                widget.badge.nameAr,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                'المستوى ${widget.badge.level}',
+                style: TextStyle(color: accent, fontSize: 14, fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                widget.current
+                    ? 'احتفظت بهذه الشارة بجدارة 🎉'
+                    : widget.unlocked
+                        ? 'هذه الشارة مفتوحة في متجرك 🎉'
+                        : 'واصل التقدم لفتحها',
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.white70, fontSize: 13, height: 1.4),
+              ),
+              const SizedBox(height: 14),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('ممتاز'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
