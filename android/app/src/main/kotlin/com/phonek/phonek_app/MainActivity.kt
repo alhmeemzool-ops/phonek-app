@@ -4,7 +4,6 @@ import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
 import android.content.pm.PackageInstaller
 import android.net.Uri
 import android.os.Build
@@ -85,12 +84,13 @@ class MainActivity : FlutterActivity() {
                         setAppPackageName(packageName)
                     }
                     val sessionId = packageInstaller.createSession(params)
-                    session = packageInstaller.openSession(sessionId)
+                    val installSession = packageInstaller.openSession(sessionId)
+                    session = installSession
 
                     FileInputStream(apk).use { input ->
-                        session.openWrite("base.apk", 0, apk.length()).use { output ->
+                        installSession.openWrite("base.apk", 0, apk.length()).use { output ->
                             input.copyTo(output)
-                            session.fsync(output)
+                            installSession.fsync(output)
                         }
                     }
 
@@ -118,7 +118,7 @@ class MainActivity : FlutterActivity() {
                         pendingIntentFlags,
                     )
 
-                    session.commit(pendingIntent.intentSender)
+                    installSession.commit(pendingIntent.intentSender)
                     result.success(null)
                 } catch (error: Exception) {
                     session?.abandon()
