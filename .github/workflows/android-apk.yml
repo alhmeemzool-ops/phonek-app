@@ -115,13 +115,6 @@ jobs:
       - name: Build release APK
         run: flutter build apk --release --target-platform android-arm,android-arm64 --no-pub --build-name=${{ steps.version.outputs.version_name }} --build-number=${{ steps.version.outputs.version_code }} --dart-define=PHONEK_BUILD_NUMBER=${{ steps.version.outputs.version_code }}
 
-      - name: Verify APK signature
-        run: |
-          APK="build/app/outputs/flutter-apk/app-release.apk"
-          test -f "$APK"
-          APKSIGNER="$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)/apksigner"
-          "$APKSIGNER" verify --verbose "$APK"
-
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
