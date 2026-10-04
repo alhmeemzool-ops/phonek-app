@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "235493531734",
+    "project_id": "world-of-devices-be97a",
+    "storage_bucket": "world-of-devices-be97a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:235493531734:android:3ed243c7cf1de297dcdbf7",
+        "android_client_info": {
+          "package_name": "com.phonek.phonek_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAZOVtSjcSxLcVyoZESvAAdJNoI6Lej9sY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
