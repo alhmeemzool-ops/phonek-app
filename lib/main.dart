@@ -265,7 +265,9 @@ class PhoneKUpdateDialogState extends State<PhoneKUpdateDialog>
         _error = _needsPermission
             ? 'تم تنزيل التحديث. اسمح للتطبيق بتثبيت التطبيقات من هذا المصدر ثم اضغط «تحديث الآن» مرة أخرى.'
             : error.userMessage;
-        _errorDetail = null;
+        _errorDetail = error.errorCode == null && error.errorMessage == null
+            ? null
+            : 'رمز الخطأ: ${error.errorCode ?? 'غير متوفر'}\\nرسالة النظام: ${error.errorMessage ?? 'غير متوفرة'}';
       });
     } catch (error) {
       if (!mounted) return;
@@ -316,7 +318,7 @@ class PhoneKUpdateDialogState extends State<PhoneKUpdateDialog>
             if (_installerOpened) ...[
               const SizedBox(height: 12),
               const Text(
-                'اضغط «تثبيت» في نافذة النظام وسيُغلق التطبيق ويُحدَّث تلقائياً',
+                'اكتمل تثبيت التحديث بنجاح. قد يعيد Android تشغيل PhoneK تلقائياً.',
               ),
             ],
             if (_error != null) ...[
