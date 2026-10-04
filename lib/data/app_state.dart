@@ -216,7 +216,6 @@ class AppState extends ChangeNotifier {
       'type': MessageType.text.value,
       'status': MessageStatus.sent.value,
     }).select('id').single();
-    unawaited(_sendPushForMessage(threadId, inserted['id'] as String));
   }
 
   Future<void> sendOffer({required PhoneListing listing, required int amount}) async {
