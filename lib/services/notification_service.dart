@@ -30,6 +30,10 @@ class NotificationService {
       final token = await _messaging.getToken();
       if (token != null) await _saveToken(token);
       _messaging.onTokenRefresh.listen(_saveToken);
+      Supabase.instance.client.auth.onAuthStateChange.listen((_) async {
+        final token = await _messaging.getToken();
+        if (token != null) await _saveToken(token);
+      });
     } catch(e) { debugPrint('PhoneK notification init failed: $e'); }
   }
 
