@@ -1,11 +1,11 @@
 {
-  "versionCode": 67,
-  "versionName": "1.0.67",
-  "apkUrl": "https://github.com/alhmeemzool-ops/phonek-app/releases/download/v1.0.67/app-release.apk",
-  "sha256": "04f03fb500ac939bc40e3c52b78b862449b65acba82ee1738f9882517e69d83c",
-  "patchUrl": "https://github.com/alhmeemzool-ops/phonek-app/releases/download/v1.0.67/patch.bin",
-  "patchSha256": "c624b16242c5d921c1086ff61daff0b220f5dd4b1055e3f19c28e09b5d8376e2",
-  "patchBaseVersionCode": 66,
+  "versionCode": 68,
+  "versionName": "1.0.68",
+  "apkUrl": "https://github.com/alhmeemzool-ops/phonek-app/releases/download/v1.0.68/app-release.apk",
+  "sha256": "c1467d199782247f2e1ebe4a67a6086de11377046900f2d00775a91aa9b48e81",
+  "patchUrl": "https://github.com/alhmeemzool-ops/phonek-app/releases/download/v1.0.68/patch.bin",
+  "patchSha256": "0136fa968f6167f8f33ae14e7ef40bb6575ead1789a9793843a256fc3cf9820d",
+  "patchBaseVersionCode": 67,
   "minSupportedVersionCode": 58,
   "mandatory": false,
   "notes": "تحديث جديد لتحسين PhoneK وإصلاح الأخطاء."
