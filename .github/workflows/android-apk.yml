@@ -21,7 +21,31 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-          cache: gradle
+
+      # Dependency cache: stable and independent from the rolling build cache.
+      - name: Cache Gradle dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches/modules-2
+            ~/.gradle/caches/jars-*
+            ~/.gradle/caches/transforms-*
+            ~/.gradle/wrapper
+          key: phonek-gradle-deps-${{ runner.os }}-${{ hashFiles('android/gradle/wrapper/gradle-wrapper.properties', 'android/settings.gradle.kts', 'android/build.gradle*', 'android/app/build.gradle*') }}
+          restore-keys: |
+            phonek-gradle-deps-${{ runner.os }}-
+
+      # Rolling build cache: every Quick run saves new Gradle task outputs,
+      # while the next run restores the newest previous cache.
+      - name: Cache Gradle build outputs
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches/build-cache-1
+            android/.gradle
+          key: phonek-quick-build-${{ runner.os }}-flutter-3.47.2-${{ github.sha }}
+          restore-keys: |
+            phonek-quick-build-${{ runner.os }}-flutter-3.47.2-
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
@@ -39,15 +63,6 @@ jobs:
           restore-keys: |
             phonek-pub-${{ runner.os }}-
 
-      - name: Cache Gradle build state
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: phonek-gradle-${{ runner.os }}-${{ hashFiles('pubspec.lock') }}
-          restore-keys: |
-            phonek-gradle-${{ runner.os }}-
 
       - name: Restore Android upload keystore
         shell: bash
@@ -90,8 +105,12 @@ jobs:
           version_name=$(echo "$version_line" | sed -E 's/version: ([^+]+)\+.*/\1/')
           version_code=$(echo "$version_line" | sed -E 's/version: [^+]+\+([0-9]+)/\1/')
           test -n "$version_name" && test -n "$version_code"
+          case "$version_code" in
+            ''|*[!0-9]*) echo "Invalid versionCode: $version_code"; exit 1 ;;
+          esac
           echo "version_name=$version_name" >> "$GITHUB_OUTPUT"
           echo "version_code=$version_code" >> "$GITHUB_OUTPUT"
+          echo "Quick APK version: $version_name+$version_code"
 
       - name: Build release APK
         run: flutter build apk --release --target-platform android-arm,android-arm64 --no-pub --build-name=${{ steps.version.outputs.version_name }} --build-number=${{ steps.version.outputs.version_code }} --dart-define=PHONEK_BUILD_NUMBER=${{ steps.version.outputs.version_code }}
