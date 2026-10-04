@@ -5,6 +5,7 @@ import 'data/app_state.dart';
 import 'screens/home_screen.dart';
 import 'services/update_service.dart';
 import 'features/merchant_badges/level_up_celebration.dart';
+import 'services/notification_service.dart';
 import 'theme/app_theme.dart';
 
 Future<void> main() async {
@@ -38,6 +39,7 @@ Future<void> main() async {
     publishableKey: 'sb_publishable_3XRVtwMyK5nNOvNpNDT7Mg_4nyH7FC1',
   );
 
+  await NotificationService.initialize();
   runApp(const PhoneKApp());
 }
 
