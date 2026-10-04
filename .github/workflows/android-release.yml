@@ -1,9 +1,8 @@
 name: PhoneK Android Release
 
 on:
-  push:
-    branches:
-      - main
+  # Full Release لا يعمل تلقائياً مع كل رفع.
+  # أي push على main يمر عبر Quick APK فقط.
   workflow_dispatch:
 
 permissions:
