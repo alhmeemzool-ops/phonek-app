@@ -31,5 +31,5 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
     SwitchListTile(title:const Text('العروض'),subtitle:const Text('تنبيه عند وصول عرض شراء'),value:offers,onChanged:(v)=>_set('offers',v)),
     SwitchListTile(title:const Text('الإعلانات'),subtitle:const Text('تنبيهات الإعلانات'),value:listings,onChanged:(v)=>_set('listings',v)),
     SwitchListTile(title:const Text('النظام'),subtitle:const Text('التنبيهات العامة المهمة'),value:system,onChanged:(v)=>_set('system',v)),
-  ]); 
+  ]));
 }
