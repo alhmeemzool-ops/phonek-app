@@ -5,9 +5,12 @@ import 'data/app_state.dart';
 import 'screens/home_screen.dart';
 import 'screens/chat_screen.dart';
 import 'services/update_service.dart';
+import 'widgets/phonek_update_dialog.dart';
 import 'features/merchant_badges/level_up_celebration.dart';
 import 'services/notification_service.dart';
 import 'theme/app_theme.dart';
+
+export 'widgets/phonek_update_dialog.dart' show PhoneKUpdateDialog;
 
 final GlobalKey<NavigatorState> phoneKNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -120,6 +123,7 @@ class _PhoneKUpdateGateState extends State<PhoneKUpdateGate>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    PhoneKUpdateService.cleanupStaleFiles();
     WidgetsBinding.instance.addPostFrameCallback((_) => _checkForUpdate());
   }
 
@@ -139,221 +143,30 @@ class _PhoneKUpdateGateState extends State<PhoneKUpdateGate>
   Future<void> _checkForUpdate() async {
     if (_checking) return;
     _checking = true;
-    await Future<void>.delayed(const Duration(seconds: 2));
-    if (!mounted || _dialogShown) {
-      _checking = false;
-      return;
-    }
+    try {
+      await Future<void>.delayed(const Duration(seconds: 2));
+      if (!mounted || _dialogShown) return;
 
-    final checkResult = await PhoneKUpdateService.check();
-    if (!mounted ||
-        checkResult.status != PhoneKUpdateCheckStatus.updateAvailable) {
-      _checking = false;
-      return;
-    }
-    final update = checkResult.update!;
+      final checkResult = await PhoneKUpdateService.check();
+      if (!mounted ||
+          checkResult.status != PhoneKUpdateCheckStatus.updateAvailable) {
+        return;
+      }
+      final update = checkResult.update!;
 
-    _dialogShown = true;
-    await showDialog<void>(
-      context: context,
-      barrierDismissible: !update.mandatory,
-      builder: (dialogContext) {
-        return PhoneKUpdateDialog(update: update);
-      },
-    );
-    _checking = false;
+      _dialogShown = true;
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: !update.mandatory,
+        builder: (dialogContext) => PhoneKUpdateDialog(update: update),
+      );
+    } catch (error) {
+      debugPrint('PhoneK update gate error: $error');
+    } finally {
+      _checking = false;
+    }
   }
 
   @override
   Widget build(BuildContext context) => widget.child;
-}
-
-class PhoneKUpdateDialog extends StatefulWidget {
-  final PhoneKUpdate update;
-
-  const PhoneKUpdateDialog({required this.update});
-
-  @override
-  State<PhoneKUpdateDialog> createState() => PhoneKUpdateDialogState();
-}
-
-class PhoneKUpdateDialogState extends State<PhoneKUpdateDialog>
-    with WidgetsBindingObserver {
-  double _progress = 0;
-  bool _downloading = false;
-  bool _needsPermission = false;
-  bool _installerOpened = false;
-  String? _error;
-  String? _errorDetail;
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addObserver(this);
-  }
-
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    super.dispose();
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed &&
-        _needsPermission &&
-        !_downloading) {
-      _checkPermissionAndContinue();
-    }
-  }
-
-  Future<void> _checkPermissionAndContinue() async {
-    if (!mounted || !_needsPermission || _downloading) return;
-    final canInstall = await PhoneKUpdateService.canInstallPackages();
-    if (!mounted || !canInstall || _downloading) return;
-    setState(() {
-      _needsPermission = false;
-      _error = null;
-      _errorDetail = null;
-    });
-    await _install();
-  }
-
-  Future<void> _install() async {
-    if (_downloading) return;
-    setState(() {
-      _downloading = true;
-      _needsPermission = false;
-      _installerOpened = false;
-      _error = null;
-      _errorDetail = null;
-    });
-
-    try {
-      final canInstall = await PhoneKUpdateService.canInstallPackages();
-      if (!canInstall) {
-        if (!mounted) return;
-        setState(() {
-          _downloading = false;
-          _needsPermission = true;
-          _error =
-              'يجب السماح لـ PhoneK بتثبيت التطبيقات من هذا المصدر قبل بدء التحديث.';
-        });
-        return;
-      }
-
-      await PhoneKUpdateService.downloadAndInstall(
-        widget.update,
-        onProgress: (value) {
-          if (mounted) setState(() => _progress = value);
-        },
-      );
-      if (!mounted) return;
-      setState(() {
-        _downloading = false;
-        _installerOpened = true;
-        _progress = 1.0;
-        _error = null;
-        _errorDetail = null;
-      });
-    } on PhoneKUpdateException catch (error) {
-      debugPrint('PhoneK update install failed: ${error.reason}');
-      if (!mounted) return;
-      setState(() {
-        _downloading = false;
-        _needsPermission = error.reason == 'install_permission';
-        _error = _needsPermission
-            ? 'تم تنزيل التحديث. اسمح للتطبيق بتثبيت التطبيقات من هذا المصدر ثم اضغط «تحديث الآن» مرة أخرى.'
-            : error.userMessage;
-        _errorDetail = error.errorCode == null && error.errorMessage == null
-            ? null
-            : 'رمز الخطأ: ${error.errorCode ?? 'غير متوفر'}\\nرسالة النظام: ${error.errorMessage ?? 'غير متوفرة'}';
-      });
-    } catch (error) {
-      if (!mounted) return;
-      debugPrint('PhoneK update error: ' + error.toString());
-      setState(() {
-        _downloading = false;
-        _error = 'تعذر تنزيل التحديث. تحقق من الإنترنت وحاول مرة أخرى.';
-        _errorDetail = null;
-      });
-    }
-  }
-
-  Future<void> _openInstallPermissionSettings() async {
-    try {
-      await PhoneKUpdateService.openInstallPermissionSettings();
-    } catch (error) {
-      if (!mounted) return;
-      setState(() {
-        _needsPermission = true;
-        _error =
-            'تعذر فتح إعدادات الصلاحية. افتح إعدادات Android ثم فعّل السماح لـ PhoneK بتثبيت التطبيقات.';
-        _errorDetail = null;
-      });
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return PopScope(
-      canPop: !widget.update.mandatory && !_downloading,
-      child: AlertDialog(
-        title: const Text('تحديث جديد متاح'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text('الإصدار ${widget.update.versionName} أصبح متاحاً لـ PhoneK.'),
-            if (widget.update.notes.isNotEmpty) ...[
-              const SizedBox(height: 10),
-              Text(widget.update.notes),
-            ],
-            if (_downloading) ...[
-              const SizedBox(height: 18),
-              LinearProgressIndicator(value: _progress <= 0 ? null : _progress),
-              const SizedBox(height: 8),
-              Text('جاري تنزيل النسخة الأحدث... ${(_progress * 100).round()}%'),
-            ],
-            if (_installerOpened) ...[
-              const SizedBox(height: 12),
-              const Text(
-                'اكتمل تثبيت التحديث بنجاح. قد يعيد Android تشغيل PhoneK تلقائياً.',
-              ),
-            ],
-            if (_error != null) ...[
-              const SizedBox(height: 12),
-              Text(_error!, style: const TextStyle(color: Colors.redAccent)),
-              if (_errorDetail != null) ...[
-                const SizedBox(height: 4),
-                Text(
-                  _errorDetail!,
-                  style: const TextStyle(color: Colors.grey, fontSize: 11),
-                ),
-              ],
-              if (_needsPermission) ...[
-                const SizedBox(height: 10),
-                OutlinedButton.icon(
-                  onPressed: _openInstallPermissionSettings,
-                  icon: const Icon(Icons.security_outlined),
-                  label: const Text('السماح بالتثبيت من هذا المصدر'),
-                ),
-              ],
-            ],
-          ],
-        ),
-        actions: [
-          if (!widget.update.mandatory && !_downloading)
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('لاحقاً'),
-            ),
-          FilledButton(
-            onPressed: _downloading ? null : _install,
-            child: Text(_downloading ? 'جاري التحديث...' : 'تحديث الآن'),
-          ),
-        ],
-      ),
-    );
-  }
 }
