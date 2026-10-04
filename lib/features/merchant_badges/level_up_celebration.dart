@@ -115,7 +115,6 @@ class _LevelUpCelebrationState extends State<LevelUpCelebration> with SingleTick
       vsync: this,
       duration: Duration(milliseconds: 2800 + (_tier * 170)),
     )..forward();
-    SystemSound.play(SystemSoundType.alert);
     unawaited(_playNativeSfx());
   }
 
