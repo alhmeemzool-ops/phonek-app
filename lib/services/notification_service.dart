@@ -6,6 +6,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -41,6 +42,8 @@ class NotificationService {
   );
 
   static const _soundPreferenceKey = 'phonek_notification_sound_enabled';
+  static const _accountRefreshTokenPrefix = 'phonek_account_refresh_token_';
+  static const _secureStorage = FlutterSecureStorage();
   static bool _soundEnabled = true;
   static bool get soundEnabled => _soundEnabled;
 
@@ -48,6 +51,38 @@ class NotificationService {
     _soundEnabled = enabled;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_soundPreferenceKey, enabled);
+  }
+
+  static Future<void> rememberCurrentAccountSession() async {
+    final session = Supabase.instance.client.auth.currentSession;
+    final userId = session?.user.id;
+    final refreshToken = session?.refreshToken;
+    if (userId == null || refreshToken == null || refreshToken.isEmpty) return;
+    try {
+      await _secureStorage.write(
+        key: '$_accountRefreshTokenPrefix$userId',
+        value: refreshToken,
+      );
+    } catch (e) {
+      debugPrint('PhoneK account session save failed: $e');
+    }
+  }
+
+  static Future<bool> switchToAccount(String userId) async {
+    final currentUserId = Supabase.instance.client.auth.currentUser?.id;
+    if (currentUserId == userId) return true;
+    try {
+      final refreshToken = await _secureStorage.read(
+        key: '$_accountRefreshTokenPrefix$userId',
+      );
+      if (refreshToken == null || refreshToken.isEmpty) return false;
+      final response =
+          await Supabase.instance.client.auth.setSession(refreshToken);
+      return response.user?.id == userId;
+    } catch (e) {
+      debugPrint('PhoneK notification account switch failed: $e');
+      return false;
+    }
   }
 
   static Future<void> _loadSoundPreference() async {
@@ -134,6 +169,7 @@ class NotificationService {
       _messaging.onTokenRefresh.listen(_saveToken);
 
       Supabase.instance.client.auth.onAuthStateChange.listen((_) async {
+        await rememberCurrentAccountSession();
         final token = await _messaging.getToken();
         if (token != null) await _saveToken(token);
       });
