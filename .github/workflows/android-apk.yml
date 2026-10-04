@@ -5,12 +5,16 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 concurrency:
   group: phonek-quick-apk
   cancel-in-progress: true
 
 jobs:
   build-apk:
+    if: github.event.head_commit.message != 'Update PhoneK quick update manifest' && github.event.head_commit.message != 'Update PhoneK update manifest'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -118,6 +122,48 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: phonek-quick-release-apk
+          name: phonek-quick-release-apk-${{ steps.version.outputs.version_name }}-${{ steps.version.outputs.version_code }}
           path: build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
+
+      - name: Publish versioned Quick Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION_NAME: ${{ steps.version.outputs.version_name }}
+          VERSION_CODE: ${{ steps.version.outputs.version_code }}
+        run: |
+          tag="quick-v${VERSION_NAME}"
+          gh release delete "$tag" --yes --cleanup-tag 2>/dev/null || true
+          gh release create "$tag" build/app/outputs/flutter-apk/app-release.apk \
+            --title "PhoneK Quick ${VERSION_NAME}" \
+            --notes "Quick APK update ${VERSION_NAME} (${VERSION_CODE})"
+
+      - name: Update Quick update manifest
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION_NAME: ${{ steps.version.outputs.version_name }}
+          VERSION_CODE: ${{ steps.version.outputs.version_code }}
+        run: |
+          sha256=$(sha256sum build/app/outputs/flutter-apk/app-release.apk | awk '{print $1}')
+          python3 - <<PY
+          import json, os
+          d = {
+            "versionCode": int(os.environ["VERSION_CODE"]),
+            "versionName": os.environ["VERSION_NAME"],
+            "apkUrl": f"https://github.com/alhmeemzool-ops/phonek-app/releases/download/quick-v{os.environ['VERSION_NAME']}/app-release.apk",
+            "sha256": "${sha256}",
+            "patchUrl": None,
+            "patchSha256": None,
+            "patchBaseVersionCode": None,
+            "minSupportedVersionCode": 58,
+            "mandatory": False,
+            "notes": "تحديث سريع جديد لـ PhoneK."
+          }
+          with open("update.json", "w", encoding="utf-8") as f:
+              json.dump(d, f, ensure_ascii=False, indent=2); f.write("\n")
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add update.json
+          git commit -m "Update PhoneK quick update manifest"
+          git push origin HEAD:main
