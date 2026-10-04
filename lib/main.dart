@@ -65,6 +65,24 @@ class PhoneKApp extends StatelessWidget {
         themeMode: ThemeMode.dark,
         builder: (context, child) {
           NotificationService.setOnNotificationTap((data) async {
+            final targetUserId = data['recipient_user_id']?.toString();
+            final currentUserId =
+                Supabase.instance.client.auth.currentUser?.id;
+
+            if (targetUserId != null &&
+                targetUserId.isNotEmpty &&
+                targetUserId != currentUserId) {
+              final switched =
+                  await NotificationService.switchToAccount(targetUserId);
+              if (!switched) {
+                debugPrint(
+                  'PhoneK notification target account is not available on this device: $targetUserId',
+                );
+                return;
+              }
+              await Future<void>.delayed(const Duration(milliseconds: 300));
+            }
+
             var navigator = phoneKNavigatorKey.currentState;
             if (navigator == null) {
               await Future<void>.delayed(const Duration(milliseconds: 500));
