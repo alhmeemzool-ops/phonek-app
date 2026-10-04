@@ -11,6 +11,7 @@ import 'my_listings_screen.dart';
 import 'shop_account_screen.dart';
 import 'admin_dashboard_screen.dart';
 import 'terms_privacy_screen.dart';
+import 'notification_settings_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -50,7 +51,7 @@ class ProfileScreen extends StatelessWidget {
       if (appState.isAdmin) _tile(context, Icons.admin_panel_settings, 'لوحة الإدارة', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminDashboardScreen()))),
       _tile(context, Icons.bookmark, 'عمليات البحث المحفوظة', () => _showComingSoon(context, 'عمليات البحث المحفوظة')),
       _tile(context, Icons.system_update_outlined, 'التحقق من التحديثات', () => _checkForUpdates(context)),
-      _tile(context, Icons.notifications, 'إعدادات الإشعارات', () => _showComingSoon(context, 'إعدادات الإشعارات')),
+      _tile(context, Icons.notifications, 'إعدادات الإشعارات', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const NotificationSettingsScreen()))),
       _tile(context, Icons.help_outline, 'الأسئلة الشائعة', () => _showComingSoon(context, 'الأسئلة الشائعة')),
       _tile(context, Icons.description_outlined, 'الشروط والأحكام وسياسة الخصوصية', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TermsPrivacyScreen()))),
       const Divider(height: 32),
