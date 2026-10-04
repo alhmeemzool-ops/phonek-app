@@ -21,7 +21,7 @@ class NotificationService {
       await Firebase.initializeApp();
       FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
       const settings = InitializationSettings(android: AndroidInitializationSettings('@mipmap/ic_launcher'));
-      await _local.initialize(settings);
+      await _local.initialize(settings: settings);
       final android = _local.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
       await android?.createNotificationChannel(_channel);
       await _messaging.requestPermission(alert:true,badge:true,sound:true,provisional:false);
@@ -40,7 +40,7 @@ class NotificationService {
   static Future<void> _showForeground(RemoteMessage message) async {
     final n=message.notification;
     if(n==null)return;
-    await _local.show(n.hashCode,n.title??'PhoneK',n.body??'',const NotificationDetails(
+    await _local.show(id: n.hashCode, title: n.title??'PhoneK', body: n.body??'', notificationDetails: const NotificationDetails(
       android: AndroidNotificationDetails('phonek_high','إشعارات PhoneK',channelDescription:'رسائل وعروض وتنبيهات PhoneK',importance:Importance.high,priority:Priority.high,icon:'@mipmap/ic_launcher')));
   }
 
