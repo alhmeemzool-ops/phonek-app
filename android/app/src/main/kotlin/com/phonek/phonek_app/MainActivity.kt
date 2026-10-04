@@ -227,118 +227,127 @@ class MainActivity : FlutterActivity() {
         }
     }
 
-    // لكل مستوى شخصية صوتية مختلفة فعلياً: اللحن، الإيقاع، شكل الموجة، الطبقات
-    // والغلاف الزمني تختلف حسب الشارة. لا توجد ملفات صوتية خارجية، لذلك لا نزيد حجم APK.
+    // احتفال الشارة: ضربة فورية + فانفير + تشويق + انفجار + ذيل طويل.
+    // الصوت يتدرج من 6.0s إلى 10.5s، بدون كلام أو SystemSound إضافي.
     private fun playLevelUpSound(level: Int) {
         Thread {
             val sampleRate = 44100
-            val safeLevel = level.coerceIn(1, 10)
+            val tier = level.coerceIn(1, 10)
+            val durationMs = 6000 + ((tier - 1) * 500)
+            val totalSamples = sampleRate * durationMs / 1000
+            val raw = DoubleArray(totalSamples)
+            val notes = arrayOf(
+                doubleArrayOf(261.63, 329.63, 392.00),
+                doubleArrayOf(293.66, 369.99, 440.00, 554.37),
+                doubleArrayOf(329.63, 415.30, 523.25, 659.25),
+                doubleArrayOf(349.23, 440.00, 523.25, 659.25, 783.99),
+                doubleArrayOf(392.00, 493.88, 587.33, 783.99, 987.77),
+                doubleArrayOf(440.00, 554.37, 659.25, 880.00, 1108.73),
+                doubleArrayOf(493.88, 622.25, 739.99, 987.77, 1244.51, 1479.98),
+                doubleArrayOf(523.25, 659.25, 783.99, 1046.50, 1318.51, 1567.98),
+                doubleArrayOf(587.33, 739.99, 880.00, 1174.66, 1479.98, 1760.00),
+                doubleArrayOf(659.25, 783.99, 987.77, 1318.51, 1567.98, 1975.53, 2637.02)
+            )[tier - 1]
 
-            val melodies = arrayOf(
-                doubleArrayOf(523.25, 659.25),                                      // 1: chime
-                doubleArrayOf(659.25, 783.99, 987.77),                              // 2: rising bell
-                doubleArrayOf(392.0, 523.25, 659.25, 783.99),                       // 3: arpeggio
-                doubleArrayOf(440.0, 554.37, 659.25, 880.0, 1108.73),              // 4: bright fanfare
-                doubleArrayOf(392.0, 493.88, 587.33, 783.99, 987.77, 1174.66),     // 5: triumphant
-                doubleArrayOf(523.25, 659.25, 783.99, 1046.5, 783.99, 1318.51),    // 6: crown
-                doubleArrayOf(293.66, 369.99, 440.0, 554.37, 659.25, 880.0, 1108.73), // 7: rare
-                doubleArrayOf(261.63, 329.63, 392.0, 493.88, 659.25, 783.99, 987.77, 1318.51), // 8: elite
-                doubleArrayOf(329.63, 415.30, 523.25, 659.25, 830.61, 1046.5, 1318.51, 1567.98), // 9: master
-                doubleArrayOf(261.63, 329.63, 392.0, 523.25, 659.25, 783.99, 1046.5, 1318.51, 1567.98, 2093.0) // 10: legendary
-            )
-            val durations = intArrayOf(620, 760, 880, 1040, 1180, 1340, 1500, 1660, 1840, 2200)
-            val waveforms = intArrayOf(0, 1, 2, 1, 3, 2, 3, 4, 4, 5)
-            val bassLevels = doubleArrayOf(0.0, 0.0, 0.08, 0.10, 0.16, 0.20, 0.25, 0.30, 0.38, 0.48)
-            val sparkleLevels = doubleArrayOf(0.08, 0.12, 0.16, 0.20, 0.25, 0.30, 0.38, 0.45, 0.52, 0.62)
-
-            val notes = melodies[safeLevel - 1]
-            val durationMs = durations[safeLevel - 1]
-            val waveform = waveforms[safeLevel - 1]
-            val bass = bassLevels[safeLevel - 1]
-            val sparkle = sparkleLevels[safeLevel - 1]
-            val total = durationMs / 1000.0
-            val segmentLength = total / notes.size
-            val sampleCount = sampleRate * durationMs / 1000
-            val buffer = ShortArray(sampleCount)
-
-            fun wave(phase: Double, type: Int): Double {
-                val p = phase - kotlin.math.floor(phase)
-                return when (type) {
-                    0 -> kotlin.math.sin(2.0 * Math.PI * p)
-                    1 -> if (p < 0.5) 1.0 else -1.0
-                    2 -> 2.0 * kotlin.math.abs(2.0 * p - 1.0) - 1.0
-                    3 -> kotlin.math.sin(2.0 * Math.PI * p) * 0.72 +
-                        kotlin.math.sin(4.0 * Math.PI * p) * 0.20 +
-                        kotlin.math.sin(6.0 * Math.PI * p) * 0.08
-                    4 -> kotlin.math.sin(2.0 * Math.PI * p) * 0.60 +
-                        kotlin.math.sin(4.0 * Math.PI * p) * 0.25 +
-                        kotlin.math.sin(8.0 * Math.PI * p) * 0.10 +
-                        kotlin.math.sin(12.0 * Math.PI * p) * 0.05
-                    else -> kotlin.math.sin(2.0 * Math.PI * p) * 0.48 +
-                        kotlin.math.sin(3.0 * Math.PI * p) * 0.18 +
-                        kotlin.math.sin(4.0 * Math.PI * p) * 0.14 +
-                        kotlin.math.sin(6.0 * Math.PI * p) * 0.10 +
-                        kotlin.math.sin(8.0 * Math.PI * p) * 0.06
-                }
+            fun env(t: Double, a: Double, r: Double, end: Double): Double {
+                val attack = (t / a).coerceIn(0.0, 1.0)
+                val release = if (t > end - r) ((end - t) / r).coerceIn(0.0, 1.0) else 1.0
+                return attack * release
+            }
+            fun sine(freq: Double, t: Double): Double = kotlin.math.sin(2.0 * Math.PI * freq * t)
+            fun noiseLike(i: Int): Double {
+                var x = i * 1103515245L + 12345L
+                x = x xor (x shr 16)
+                return ((x and 0x7fffffffL).toDouble() / 1073741823.5) - 1.0
             }
 
-            for (i in 0 until sampleCount) {
+            val total = durationMs / 1000.0
+            val fanfareStart = 0.18
+            val fanfareEnd = 1.65 + tier * 0.045
+            val suspenseStart = fanfareEnd
+            val explosionAt = (2.15 + tier * 0.16).coerceAtMost(total - 2.0)
+            val tailStart = explosionAt + 0.28
+            val strength = 0.72 + tier * 0.025
+
+            for (i in raw.indices) {
                 val t = i.toDouble() / sampleRate
-                val progress = (t / total).coerceIn(0.0, 0.999999)
-                val segment = (progress * notes.size).toInt().coerceAtMost(notes.size - 1)
-                val localT = t - segment * segmentLength
-                val freq = notes[segment]
+                var s = 0.0
 
-                // كل شارة لها انتقال/هجوم مختلف حتى لا تبدو النغمات نسخة واحدة.
-                val attackTime = when (safeLevel) {
-                    1, 2 -> 0.018
-                    3, 4 -> 0.028
-                    5, 6 -> 0.040
-                    7, 8 -> 0.055
-                    else -> 0.070
+                // 1) Immediate cinematic impact.
+                val impact = kotlin.math.exp(-t * (20.0 - tier * 0.35))
+                s += sine(58.0 + tier * 2.2, t) * impact * (0.70 + tier * 0.025)
+                s += sine(116.0 + tier * 4.0, t) * impact * 0.26
+                s += noiseLike(i) * impact * (0.08 + tier * 0.006)
+
+                // 2) Rising fanfare.
+                if (t >= fanfareStart && t < fanfareEnd) {
+                    val local = t - fanfareStart
+                    val seg = (local / ((fanfareEnd - fanfareStart) / notes.size)).toInt().coerceIn(0, notes.size - 1)
+                    val segLen = (fanfareEnd - fanfareStart) / notes.size
+                    val lt = local - seg * segLen
+                    val f = notes[seg]
+                    val e = env(lt, 0.025, 0.18, segLen)
+                    s += sine(f, t) * e * 0.34
+                    s += sine(f * 2.0, t) * e * 0.16
+                    s += sine(f * 3.0, t) * e * (0.07 + tier * 0.004)
+                    s += sine(f * 0.5, t) * e * (0.06 + tier * 0.006)
                 }
-                val attack = (localT / attackTime).coerceAtMost(1.0)
-                val releaseTime = when (safeLevel) {
-                    1, 2 -> 0.10
-                    3, 4 -> 0.14
-                    5, 6 -> 0.18
-                    7, 8 -> 0.24
-                    else -> 0.32
+
+                // 3) Suspense / rising shimmer.
+                if (t >= suspenseStart && t < explosionAt) {
+                    val q = ((t - suspenseStart) / (explosionAt - suspenseStart)).coerceIn(0.0, 1.0)
+                    val sweep = 420.0 + q * (1100.0 + tier * 90.0)
+                    val e = 0.08 + q * 0.20
+                    s += sine(sweep, t) * e
+                    s += sine(sweep * 1.5, t) * e * 0.38
+                    s += sine(7.0 + q * 15.0, t) * e * 0.10
                 }
-                val release = if (t > total - releaseTime) {
-                    ((total - t) / releaseTime).coerceIn(0.0, 1.0)
-                } else 1.0
-                val envelope = attack * release
 
-                val noteProgress = (localT / segmentLength).coerceIn(0.0, 1.0)
-                val vibrato = if (safeLevel >= 7) {
-                    1.0 + kotlin.math.sin(2.0 * Math.PI * 5.2 * t) * 0.0025
-                } else 1.0
-                val main = wave(t * freq * vibrato, waveform) * (0.58 + safeLevel * 0.018)
-
-                // طبقة bass تظهر بوضوح من الشارات المتقدمة، وطبقة sparkle ترتفع مع الندرة.
-                val bassTone = if (bass > 0.0) {
-                    kotlin.math.sin(2.0 * Math.PI * (freq / 2.0) * t) * bass
-                } else 0.0
-                val sparkleFreq = freq * if (safeLevel >= 9) 2.0 else 3.0
-                val sparkleTone = kotlin.math.sin(2.0 * Math.PI * sparkleFreq * t) * sparkle * 0.16
-
-                // المستويات 5+ تحصل على نبضة خفيفة إضافية في بداية كل نغمة.
-                val accent = if (safeLevel >= 5 && noteProgress < 0.12) {
-                    kotlin.math.sin(2.0 * Math.PI * freq * 2.0 * t) * (0.05 + safeLevel * 0.006) *
-                        (1.0 - noteProgress / 0.12)
-                } else 0.0
-
-                val tone = main + bassTone + sparkleTone + accent
-                val peak = when (safeLevel) {
-                    1, 2 -> 7200.0
-                    3, 4 -> 8200.0
-                    5, 6 -> 9000.0
-                    7, 8 -> 9800.0
-                    9 -> 10400.0
-                    else -> 11200.0
+                // 4) Big explosion / crown hit.
+                val ex = t - explosionAt
+                if (ex >= 0.0 && ex < 0.55 + tier * 0.012) {
+                    val boom = kotlin.math.exp(-ex * (8.0 - tier * 0.12))
+                    s += sine(45.0 + tier * 3.0, ex) * boom * (1.05 + tier * 0.05)
+                    s += sine(91.0 + tier * 5.0, ex) * boom * 0.42
+                    s += noiseLike(i) * boom * (0.28 + tier * 0.018)
+                    val crack = kotlin.math.exp(-ex * 32.0)
+                    s += sine(1400.0 + tier * 120.0, ex) * crack * 0.18
                 }
-                buffer[i] = (tone * envelope * peak).coerceIn(-32767.0, 32767.0).toInt().toShort()
+
+                // 5) Long harmonic tail.
+                if (t >= tailStart) {
+                    val q = t - tailStart
+                    val decay = kotlin.math.exp(-q / (1.55 + tier * 0.10))
+                    val root = notes.last()
+                    s += sine(root, q) * decay * 0.22
+                    s += sine(root * 1.5, q) * decay * 0.13
+                    s += sine(root * 2.0, q) * decay * 0.07
+                }
+
+                raw[i] = s * strength
+            }
+
+            // Stereo-style spaciousness collapsed safely to mono: short multi-tap reverb.
+            val wet = DoubleArray(totalSamples)
+            val taps = intArrayOf(1900, 3300, 5100, 7600, 10300)
+            val gains = doubleArrayOf(0.18, 0.13, 0.095, 0.065, 0.04)
+            for (i in raw.indices) {
+                var r = 0.0
+                for (k in taps.indices) {
+                    val j = i - taps[k]
+                    if (j >= 0) r += raw[j] * gains[k]
+                }
+                wet[i] = r
+            }
+
+            val buffer = ShortArray(totalSamples)
+            var peak = 0.0
+            for (i in raw.indices) peak = maxOf(peak, kotlin.math.abs(raw[i] + wet[i]))
+            val norm = if (peak > 0.001) (0.88 / peak) else 1.0
+            for (i in raw.indices) {
+                val x = (raw[i] + wet[i] * (0.72 + tier * 0.018)) * norm
+                val limited = kotlin.math.tanh(x * 1.15) / kotlin.math.tanh(1.15)
+                buffer[i] = (limited * 30000.0).coerceIn(-32767.0, 32767.0).toInt().toShort()
             }
 
             val minBuffer = android.media.AudioTrack.getMinBufferSize(
@@ -347,7 +356,6 @@ class MainActivity : FlutterActivity() {
                 android.media.AudioFormat.ENCODING_PCM_16BIT
             )
             if (minBuffer <= 0) return@Thread
-
             val track = android.media.AudioTrack.Builder()
                 .setAudioAttributes(
                     android.media.AudioAttributes.Builder()
@@ -365,11 +373,10 @@ class MainActivity : FlutterActivity() {
                 .setBufferSizeInBytes(maxOf(minBuffer, buffer.size * 2))
                 .setTransferMode(android.media.AudioTrack.MODE_STATIC)
                 .build()
-
             try {
                 track.write(buffer, 0, buffer.size)
                 track.play()
-                Thread.sleep(durationMs.toLong() + 100L)
+                Thread.sleep(durationMs.toLong() + 120L)
             } finally {
                 track.stop()
                 track.release()
