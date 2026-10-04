@@ -230,40 +230,65 @@ class MainActivity : FlutterActivity() {
     private fun playLevelUpSound(level: Int) {
         Thread {
             val sampleRate = 44100
-            val durationMs = when {
-                level >= 10 -> 1800
-                level >= 7 -> 1450
-                level >= 4 -> 1100
-                else -> 750
-            }
+            val safeLevel = level.coerceIn(1, 10)
+            val durations = intArrayOf(620, 700, 780, 900, 1020, 1160, 1320, 1500, 1680, 1950)
+            val noteSets = arrayOf(
+                doubleArrayOf(523.25, 659.25),
+                doubleArrayOf(523.25, 659.25, 783.99),
+                doubleArrayOf(392.0, 523.25, 659.25),
+                doubleArrayOf(440.0, 554.37, 659.25, 880.0),
+                doubleArrayOf(392.0, 493.88, 587.33, 783.99),
+                doubleArrayOf(440.0, 523.25, 659.25, 783.99, 1046.5),
+                doubleArrayOf(392.0, 493.88, 587.33, 783.99, 987.77),
+                doubleArrayOf(349.23, 440.0, 554.37, 659.25, 880.0, 1108.73),
+                doubleArrayOf(329.63, 415.30, 523.25, 659.25, 830.61, 1046.5),
+                doubleArrayOf(261.63, 329.63, 392.0, 523.25, 659.25, 783.99, 1046.5, 1318.51)
+            )
+            val durationMs = durations[safeLevel - 1]
+            val notes = noteSets[safeLevel - 1]
             val sampleCount = sampleRate * durationMs / 1000
             val buffer = ShortArray(sampleCount)
-            val notes = when {
-                level >= 10 -> doubleArrayOf(392.0, 523.25, 659.25, 783.99, 1046.5)
-                level >= 7 -> doubleArrayOf(392.0, 493.88, 587.33, 783.99)
-                level >= 4 -> doubleArrayOf(440.0, 554.37, 659.25)
-                else -> doubleArrayOf(523.25, 659.25)
-            }
+
             for (i in 0 until sampleCount) {
                 val t = i.toDouble() / sampleRate
                 val total = durationMs / 1000.0
-                val segment = ((t / total) * notes.size).toInt().coerceAtMost(notes.size - 1)
+                val progress = (t / total).coerceIn(0.0, 0.999999)
+                val segment = (progress * notes.size).toInt().coerceAtMost(notes.size - 1)
                 val localT = t - segment * (total / notes.size)
                 val freq = notes[segment]
-                val attack = (localT / 0.035).coerceAtMost(1.0)
-                val release = if (t > total - 0.12) ((total - t) / 0.12).coerceIn(0.0, 1.0) else 1.0
+                val attack = (localT / 0.025).coerceAtMost(1.0)
+                val release = if (t > total - 0.16) ((total - t) / 0.16).coerceIn(0.0, 1.0) else 1.0
+                val shimmer = kotlin.math.sin(2.0 * Math.PI * freq * 2.0 * t) * 0.16
+                val tone = kotlin.math.sin(2.0 * Math.PI * freq * t) * 0.68 + shimmer
                 val envelope = attack * release
-                val wave = kotlin.math.sin(2.0 * Math.PI * freq * t) * 0.72 + kotlin.math.sin(2.0 * Math.PI * freq * 2.0 * t) * 0.20
-                buffer[i] = (wave * envelope * 11000.0).toInt().toShort()
+                buffer[i] = (tone * envelope * (9000.0 + safeLevel * 450.0)).toInt().toShort()
             }
-            val minBuffer = android.media.AudioTrack.getMinBufferSize(sampleRate, android.media.AudioFormat.CHANNEL_OUT_MONO, android.media.AudioFormat.ENCODING_PCM_16BIT)
+
+            val minBuffer = android.media.AudioTrack.getMinBufferSize(
+                sampleRate,
+                android.media.AudioFormat.CHANNEL_OUT_MONO,
+                android.media.AudioFormat.ENCODING_PCM_16BIT
+            )
             if (minBuffer <= 0) return@Thread
+
             val track = android.media.AudioTrack.Builder()
-                .setAudioAttributes(android.media.AudioAttributes.Builder().setUsage(android.media.AudioAttributes.USAGE_NOTIFICATION).setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION).build())
-                .setAudioFormat(android.media.AudioFormat.Builder().setSampleRate(sampleRate).setEncoding(android.media.AudioFormat.ENCODING_PCM_16BIT).setChannelMask(android.media.AudioFormat.CHANNEL_OUT_MONO).build())
+                .setAudioAttributes(
+                    android.media.AudioAttributes.Builder()
+                        .setUsage(android.media.AudioAttributes.USAGE_NOTIFICATION)
+                        .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                        .build()
+                )
+                .setAudioFormat(
+                    android.media.AudioFormat.Builder()
+                        .setSampleRate(sampleRate)
+                        .setEncoding(android.media.AudioFormat.ENCODING_PCM_16BIT)
+                        .setChannelMask(android.media.AudioFormat.CHANNEL_OUT_MONO)
+                        .build()
+                )
                 .setBufferSizeInBytes(maxOf(minBuffer, buffer.size * 2))
                 .setTransferMode(android.media.AudioTrack.MODE_STATIC)
                 .build()
+
             try {
                 track.write(buffer, 0, buffer.size)
                 track.play()
