@@ -236,7 +236,6 @@ class AppState extends ChangeNotifier {
       'offer_amount': amount,
       'status': MessageStatus.sent.value,
     }).select('id').single();
-    unawaited(_sendPushForMessage(threadId, inserted['id'] as String));
   }
 
   RealtimeChannel subscribeToMessages(String threadId, void Function(ChatMessage message) onMessage) {
