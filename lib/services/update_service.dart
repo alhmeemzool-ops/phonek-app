@@ -467,14 +467,14 @@ class PhoneKUpdateService {
       onProgress?.call(0.7);
 
       onPhase?.call(PhoneKUpdatePhase.applyingPatch);
-      final oldPath = oldFile.path;
-      final patchPath = patchFile.path;
-      final rebuilt = await Isolate.run(() async {
-        final oldData = await File(oldPath).readAsBytes();
-        final patchData = await File(patchPath).readAsBytes();
-        return BinaryPatch.applyBytes(oldData: oldData, patchData: patchData);
-      });
-      await outputFile.writeAsBytes(rebuilt, flush: true);
+      // Apply the patch directly from files instead of loading the entire
+      // old APK and patch into RAM. This is substantially lighter on phones.
+      await BinaryPatch.apply(
+        oldFile: oldFile.path,
+        patchFile: patchFile.path,
+        outputFile: outputFile.path,
+        verifyChecksum: true,
+      );
       onPhase?.call(PhoneKUpdatePhase.verifying);
       if (await _sha256File(outputFile) != update.sha256) {
         await outputFile.delete().catchError((_) => outputFile);
