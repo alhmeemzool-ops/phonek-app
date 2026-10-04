@@ -25,7 +25,7 @@ android {
 
     defaultConfig {
         applicationId = "com.phonek.phonek_app"
-        minSdk = flutter.minSdkVersion
+        minSdk = 24
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName

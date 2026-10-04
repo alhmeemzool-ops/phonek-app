@@ -159,14 +159,9 @@ class _LevelUpCelebrationState extends State<LevelUpCelebration> with SingleTick
                     const SizedBox(height: 7),
                     Text('المستوى ${widget.previousLevel}  ←  ${widget.level}', style: const TextStyle(color: Color(0xFFFFD54F), fontSize: 20, fontWeight: FontWeight.w800)),
                     const SizedBox(height: 22),
-                    AnimatedBuilder(
-                      animation: _controller,
-                      builder: (_, __) => _RotatingBadge3D(
-                        level: widget.level,
-                        size: width * .46,
-                        progress: _controller.value,
-                        tier: _tier,
-                      ),
+                    MerchantBadge3DViewer(
+                      level: widget.level,
+                      size: width * .56,
                     ),
                     const SizedBox(height: 18),
                     Text(badge.nameAr, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 30, fontWeight: FontWeight.w900)),

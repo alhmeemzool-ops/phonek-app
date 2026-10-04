@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:model_viewer_plus/model_viewer_plus.dart';
 import 'badge_model.dart';
 
 /// Uses the supplied PhoneK badge PNG as the source of truth.
@@ -27,6 +28,30 @@ class MerchantBadgeArt extends StatelessWidget {
             errorBuilder: (_, __, ___) => _FallbackBadge(level: badge.level, size: size),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class MerchantBadge3DViewer extends StatelessWidget {
+  const MerchantBadge3DViewer({super.key, required this.level, this.size = 180});
+  final int level;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final safeLevel = level.clamp(1, 10).toString().padLeft(2, '0');
+    return SizedBox(
+      width: size,
+      height: size,
+      child: ModelViewer(
+        src: 'assets/badges/3d/badge_level_$safeLevel.glb',
+        alt: 'مجسّم ثلاثي الأبعاد لشارة المستوى $level',
+        backgroundColor: Colors.transparent,
+        autoRotate: true,
+        autoRotateDelay: 0,
+        disableZoom: true,
+        cameraControls: false,
       ),
     );
   }

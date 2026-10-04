@@ -80,8 +80,8 @@ class _BadgeCelebrationDialogState extends State<_BadgeCelebrationDialog>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 700),
-    )..forward();
+      duration: const Duration(milliseconds: 3600),
+    )..repeat();
     SystemSound.play(SystemSoundType.click);
   }
 
@@ -131,17 +131,7 @@ class _BadgeCelebrationDialogState extends State<_BadgeCelebrationDialog>
                 ],
               ),
               const SizedBox(height: 4),
-              AnimatedBuilder(
-                animation: _controller,
-                builder: (_, child) => Transform.rotate(
-                  angle: (1 - _controller.value) * .12,
-                  child: Transform.scale(
-                    scale: .82 + _controller.value * .18,
-                    child: child,
-                  ),
-                ),
-                child: MerchantBadgeArt(level: widget.badge.level, size: 145, locked: !widget.unlocked),
-              ),
+              MerchantBadge3DViewer(level: widget.badge.level, size: 180),
               const SizedBox(height: 8),
               Text(
                 widget.badge.nameAr,

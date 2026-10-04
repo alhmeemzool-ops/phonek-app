@@ -1,7 +1,7 @@
 name: phonek_app
 description: "فونك | PhoneK - سوق بيع وشراء الهواتف في السودان"
 publish_to: 'none'
-version: 1.0.78+78
+version: 1.0.79+79
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -31,6 +31,7 @@ dependencies:
   firebase_messaging: ^16.7.0
   flutter_local_notifications: ^22.3.1
   binary_patch: ^1.0.0
+  model_viewer_plus: ^1.10.0
 
 dev_dependencies:
   flutter_test:
@@ -41,3 +42,4 @@ flutter:
   uses-material-design: true
   assets:
     - assets/badges/
+    - assets/badges/3d/
