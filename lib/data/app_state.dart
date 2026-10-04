@@ -209,13 +209,13 @@ class AppState extends ChangeNotifier {
     if (userId == null) throw const AuthException('سجّل الدخول لإرسال رسالة');
     final cleanText = text.trim();
     if (cleanText.isEmpty) return;
-    final inserted = await Supabase.instance.client.from('chat_messages').insert({
+    await Supabase.instance.client.from('chat_messages').insert({
       'thread_id': threadId,
       'sender_id': userId,
       'text': cleanText,
       'type': MessageType.text.value,
       'status': MessageStatus.sent.value,
-    }).select('id').single();
+    });
   }
 
   Future<void> sendOffer({required PhoneListing listing, required int amount}) async {
@@ -228,14 +228,14 @@ class AppState extends ChangeNotifier {
     if (listing.priceOnCall) throw const AuthException('هذا الإعلان سعره عند الاتصال');
 
     final threadId = await ensureChatThread(listing);
-    final inserted = await Supabase.instance.client.from('chat_messages').insert({
+    await Supabase.instance.client.from('chat_messages').insert({
       'thread_id': threadId,
       'sender_id': userId,
       'text': '',
       'type': MessageType.offer.value,
       'offer_amount': amount,
       'status': MessageStatus.sent.value,
-    }).select('id').single();
+    });
   }
 
   RealtimeChannel subscribeToMessages(String threadId, void Function(ChatMessage message) onMessage) {
