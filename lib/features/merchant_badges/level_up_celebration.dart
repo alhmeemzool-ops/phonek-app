@@ -113,8 +113,8 @@ class _LevelUpCelebrationState extends State<LevelUpCelebration> with SingleTick
     _fireworks = List.generate(fireworks, (_) => _Firework(_random));
     _controller = AnimationController(
       vsync: this,
-      duration: Duration(milliseconds: 2800 + (_tier * 170)),
-    )..forward();
+      duration: Duration(milliseconds: 3600 + (_tier * 170)),
+    )..repeat();
     unawaited(_playNativeSfx());
   }
 
@@ -161,67 +161,12 @@ class _LevelUpCelebrationState extends State<LevelUpCelebration> with SingleTick
                     const SizedBox(height: 22),
                     AnimatedBuilder(
                       animation: _controller,
-                      builder: (_, child) {
-                        final p = Curves.easeOutBack.transform(_controller.value.clamp(0.0, 1.0));
-                        final wobble = math.sin(_controller.value * math.pi * 2.0) * (.06 + _tier * .008);
-                        final glow = (0.35 + _tier * 0.055).clamp(0.35, 0.9);
-                        final matrix = Matrix4.identity()
-                          ..setEntry(3, 2, 0.0014)
-                          ..rotateY(wobble)
-                          ..rotateX(-wobble * .45);
-                        return Transform(
-                          alignment: Alignment.center,
-                          transform: matrix,
-                          child: Transform.scale(
-                            scale: .58 + p * .42,
-                            child: Container(
-                              width: width * .64,
-                              height: width * .64,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                gradient: RadialGradient(
-                                  colors: [
-                                    const Color(0xFFFFD54F).withValues(alpha: glow),
-                                    const Color(0xFF7C3AED).withValues(alpha: .18),
-                                    Colors.transparent,
-                                  ],
-                                  stops: const [0.0, 0.48, 1.0],
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: const Color(0xFFFFD54F).withValues(alpha: .22 + _tier * .018),
-                                    blurRadius: 35 + _tier * 3.0,
-                                    spreadRadius: 3 + _tier * .8,
-                                  ),
-                                ],
-                              ),
-                              alignment: Alignment.center,
-                              child: Stack(
-                                alignment: Alignment.center,
-                                children: [
-                                  for (final r in [1.0, .82, .64])
-                                    Transform.scale(
-                                      scale: r + math.sin(_controller.value * math.pi) * .025,
-                                      child: Container(
-                                        width: width * .52 * r,
-                                        height: width * .52 * r,
-                                        decoration: BoxDecoration(
-                                          shape: BoxShape.circle,
-                                          border: Border.all(
-                                            color: const Color(0xFFFFD54F).withValues(alpha: .10 + _tier * .012),
-                                            width: 1.5 + _tier * .12,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  child!,
-                                ],
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                      child: MerchantBadgeArt(level: widget.level, size: width * .46),
+                      builder: (_, __) => _RotatingBadge3D(
+                        level: widget.level,
+                        size: width * .46,
+                        progress: _controller.value,
+                        tier: _tier,
+                      ),
                     ),
                     const SizedBox(height: 18),
                     Text(badge.nameAr, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 30, fontWeight: FontWeight.w900)),
@@ -254,6 +199,78 @@ class _LevelUpCelebrationState extends State<LevelUpCelebration> with SingleTick
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _RotatingBadge3D extends StatelessWidget {
+  const _RotatingBadge3D({required this.level, required this.size, required this.progress, required this.tier});
+  final int level;
+  final double size;
+  final double progress;
+  final int tier;
+
+  @override
+  Widget build(BuildContext context) {
+    final angle = progress * math.pi * 2.0 * 1.25;
+    final side = math.sin(angle).abs();
+    final glow = (.45 + tier * .045).clamp(.45, .88);
+    final matrix = Matrix4.identity()
+      ..setEntry(3, 2, 0.0022)
+      ..rotateY(angle)
+      ..rotateX(math.sin(angle) * .08);
+
+    return SizedBox(
+      width: size * 1.55,
+      height: size * 1.55,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Container(
+            width: size * 1.28,
+            height: size * 1.28,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: RadialGradient(colors: [const Color(0xFFFFD54F).withValues(alpha: glow), const Color(0xFF7C3AED).withValues(alpha: .2), Colors.transparent]),
+              boxShadow: [BoxShadow(color: const Color(0xFFFFD54F).withValues(alpha: .28), blurRadius: 32 + tier * 3.0, spreadRadius: 4)],
+            ),
+          ),
+          Transform(
+            alignment: Alignment.center,
+            transform: matrix,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                for (var i = 6; i >= 1; i--)
+                  Transform.translate(
+                    offset: Offset(math.sin(angle) * i * 1.25, i * .35),
+                    child: Opacity(
+                      opacity: .10 + side * .07,
+                      child: Container(
+                        width: size,
+                        height: size,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: const Color(0xFF8B5E16).withValues(alpha: .75),
+                          border: Border.all(color: const Color(0xFFFFD76A).withValues(alpha: .7), width: 2),
+                        ),
+                      ),
+                    ),
+                  ),
+                Container(
+                  width: size,
+                  height: size,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: .45), blurRadius: 16, offset: const Offset(0, 8))],
+                  ),
+                  child: MerchantBadgeArt(level: level, size: size),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
