@@ -155,3 +155,4 @@ class _NotificationSettingsScreenState
                 ],
               ),
       );
+}
