@@ -65,7 +65,7 @@ class PhoneKApp extends StatelessWidget {
         themeMode: ThemeMode.dark,
         builder: (context, child) {
           NotificationService.setOnNotificationTap((data) async {
-            final targetUserId = data['recipient_user_id']?.toString();
+            final targetUserId = (data['recipientId'] ?? data['recipient_user_id'])?.toString();
             final currentUserId =
                 Supabase.instance.client.auth.currentUser?.id;
             final appState = context.read<AppState>();
