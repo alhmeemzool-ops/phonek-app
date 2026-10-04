@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/chat_model.dart';
 import '../models/phone_model.dart';
+import '../services/notification_service.dart';
 
 /// Global application state for authentication, listings, favorites, and account role.
 class AppState extends ChangeNotifier {
@@ -614,7 +615,11 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> logout() async {
-    await Supabase.instance.client.auth.signOut();
+    // Keep this account's refresh token available for automatic account switching.
+    // Local sign-out clears the active session on this device without revoking
+    // the server-side session, so a notification can switch back to this account.
+    await NotificationService.rememberCurrentAccountSession();
+    await Supabase.instance.client.auth.signOut(scope: SignOutScope.local);
   }
 
   Future<void> _loadProfile() async {
