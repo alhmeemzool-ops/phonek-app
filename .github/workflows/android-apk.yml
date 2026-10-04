@@ -1,10 +1,10 @@
-name: Build Android APK
+name: Quick Android APK
 
 on:
   workflow_dispatch:
 
 concurrency:
-  group: phonek-android-build
+  group: phonek-quick-apk
   cancel-in-progress: true
 
 jobs:
@@ -60,12 +60,6 @@ jobs:
             fi
           done
 
-      - name: Analyze
-        run: flutter analyze --no-pub --no-fatal-warnings --no-fatal-infos
-
-      - name: Run tests
-        run: flutter test --no-pub
-
       - name: Read app version
         id: version
         shell: bash
@@ -80,9 +74,16 @@ jobs:
       - name: Build release APK
         run: flutter build apk --release --target-platform android-arm,android-arm64 --no-pub --build-name=${{ steps.version.outputs.version_name }} --build-number=${{ steps.version.outputs.version_code }} --dart-define=PHONEK_BUILD_NUMBER=${{ steps.version.outputs.version_code }}
 
+      - name: Verify APK signature
+        run: |
+          APK="build/app/outputs/flutter-apk/app-release.apk"
+          test -f "$APK"
+          APKSIGNER="$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)/apksigner"
+          "$APKSIGNER" verify --verbose "$APK"
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: phonek-release-apk
+          name: phonek-quick-release-apk
           path: build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
