@@ -9,7 +9,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 const String phoneKUpdateManifestUrl =
     'https://raw.githubusercontent.com/alhmeemzool-ops/phonek-app/main/update.json';
@@ -76,6 +75,73 @@ class PhoneKUpdate {
       patchBaseVersionCode == currentBuildNumber;
 }
 
+/// مراحل التحديث كما تُعرض للمستخدم في نافذة التحديث.
+enum PhoneKUpdatePhase {
+  preparing,
+  downloadingPatch,
+  applyingPatch,
+  downloadingApk,
+  verifying,
+  installing,
+}
+
+/// نتيجة التثبيت كما يعيدها نظام أندرويد (PackageInstaller).
+class PhoneKInstallStatus {
+  static const int pending = -1;
+  static const int ok = 0;
+  static const int failure = 1;
+  static const int blocked = 2;
+  static const int aborted = 3;
+  static const int invalid = 4;
+  static const int conflict = 5;
+  static const int storage = 6;
+  static const int incompatible = 7;
+  static const int timeout = 8;
+  static const int confirmFailed = -100;
+
+  final int code;
+  final String message;
+
+  const PhoneKInstallStatus(this.code, this.message);
+
+  factory PhoneKInstallStatus.fromMap(Map<dynamic, dynamic> map) {
+    final rawCode = map['status'];
+    final rawMessage = map['message'];
+    return PhoneKInstallStatus(
+      rawCode is num ? rawCode.toInt() : failure,
+      rawMessage is String ? rawMessage : '',
+    );
+  }
+
+  bool get isPending => code == pending;
+  bool get isSuccess => code == ok;
+  bool get isCancelled => code == aborted;
+  bool get isFailure => !isPending && !isSuccess;
+
+  String get userMessage {
+    switch (code) {
+      case blocked:
+        return 'منع النظام عملية التثبيت. عطّل مؤقتاً «Auto Blocker» أو حماية الجهاز (Play Protect) ثم أعد المحاولة.';
+      case aborted:
+        return 'تم إلغاء التثبيت. اضغط «إعادة المحاولة» عندما تكون جاهزاً.';
+      case invalid:
+        return 'ملف التحديث غير صالح أو تالف. سيُعاد تنزيله عند المحاولة التالية.';
+      case conflict:
+        return 'يوجد تعارض مع النسخة المثبتة (غالباً اختلاف التوقيع). احذف PhoneK ثم ثبّت أحدث نسخة يدوياً مرة واحدة.';
+      case storage:
+        return 'مساحة تخزين الجهاز غير كافية. احذف بعض الملفات ثم أعد المحاولة.';
+      case incompatible:
+        return 'هذا التحديث غير متوافق مع جهازك.';
+      case timeout:
+        return 'انتهت مهلة التثبيت. أعد المحاولة.';
+      case confirmFailed:
+        return 'تعذر فتح نافذة تأكيد التثبيت. أعد المحاولة.';
+      default:
+        return 'فشل التثبيت (رمز $code). أعد المحاولة.';
+    }
+  }
+}
+
 enum PhoneKUpdateCheckStatus { updateAvailable, upToDate, failed }
 
 class PhoneKUpdateCheckResult {
@@ -98,30 +164,105 @@ class PhoneKUpdateCheckResult {
 class PhoneKUpdateService {
   static const _platform = MethodChannel('phonek/update_permissions');
 
-  static Future<void> _deleteOldUpdateApks(String keepPath) async {
-    final tempDir = Directory.systemTemp;
-    await for (final entity in tempDir.list()) {
-      if (entity is File &&
-          entity.path != keepPath &&
-          entity.path.contains('/phonek-update-') &&
-          entity.path.endsWith('.apk')) {
-        await entity.delete().catchError((_) => entity);
+  /// آخر نتيجة تثبيت أبلغ عنها النظام (تستمع لها نافذة التحديث).
+  static final ValueNotifier<PhoneKInstallStatus?> installStatus =
+      ValueNotifier<PhoneKInstallStatus?>(null);
+
+  static bool _handlerReady = false;
+
+  static bool get _supported => !kIsWeb && Platform.isAndroid;
+
+  /// يربط القناة لاستقبال نتائج التثبيت القادمة من Kotlin.
+  static void _ensureHandler() {
+    if (_handlerReady || !_supported) return;
+    _handlerReady = true;
+    _platform.setMethodCallHandler((call) async {
+      if (call.method == 'installStatus') {
+        final args = call.arguments;
+        if (args is Map) {
+          installStatus.value = PhoneKInstallStatus.fromMap(args);
+        }
       }
+      return null;
+    });
+  }
+
+  /// يسترجع آخر نتيجة تثبيت محفوظة (مفيد عند عودة التطبيق من شاشة التثبيت).
+  static Future<PhoneKInstallStatus?> lastInstallResult() async {
+    if (!_supported) return null;
+    _ensureHandler();
+    try {
+      final raw = await _platform.invokeMethod<Object?>('getLastInstallResult');
+      if (raw is Map) return PhoneKInstallStatus.fromMap(raw);
+    } catch (error) {
+      debugPrint('PhoneK update: cannot read install result: $error');
+    }
+    return null;
+  }
+
+  /// اسم الملف المؤقت للتحديث: phonek-update-<رقم>.apk وما يتبعه من .patch/.part
+  /// يعيد رقم الإصدار أو null إذا لم يكن الملف من ملفات التحديث.
+  static int? updateFileVersion(String path) {
+    final name = path.split(RegExp(r'[\\/]')).last;
+    final match =
+        RegExp(r'^phonek-update-(\d+)\.apk(?:\.patch)?(?:\.part)?$')
+            .firstMatch(name);
+    if (match == null) return null;
+    return int.tryParse(match.group(1)!);
+  }
+
+  static Future<void> _deleteUpdateFiles(
+    bool Function(int version) shouldDelete,
+  ) async {
+    try {
+      await for (final entity in Directory.systemTemp.list()) {
+        if (entity is! File) continue;
+        final version = updateFileVersion(entity.path);
+        if (version == null || !shouldDelete(version)) continue;
+        try {
+          await entity.delete();
+        } catch (_) {
+          // ملف مستخدم حالياً؛ سيُحذف لاحقاً.
+        }
+      }
+    } catch (error) {
+      debugPrint('PhoneK update: cleanup failed: $error');
     }
   }
 
+  /// يُستدعى عند بدء التطبيق: يحذف ملفات التحديث القديمة (بما فيها APK الإصدار
+  /// المثبّت حالياً والملفات الجزئية) حتى لا تتراكم عشرات الميغابايتات في الجهاز.
+  static Future<void> cleanupStaleFiles() async {
+    if (!_supported) return;
+    _ensureHandler();
+    try {
+      final info = await PackageInfo.fromPlatform();
+      final current = int.tryParse(info.buildNumber) ?? 0;
+      await _deleteUpdateFiles((version) => version <= current);
+      await _platform.invokeMethod<void>('clearInstallResult');
+    } catch (error) {
+      debugPrint('PhoneK update: startup cleanup failed: $error');
+    }
+  }
+
+  /// يحذف نسخة APK المخزنة لهذا الإصدار (مثلاً إذا رفضها النظام كملف تالف).
+  static Future<void> discardCachedApk(PhoneKUpdate update) async {
+    if (!_supported) return;
+    await _deleteUpdateFiles((version) => version == update.versionCode);
+  }
+
   static Future<void> openInstallPermissionSettings() async {
-    if (!Platform.isAndroid) return;
+    if (!_supported) return;
     await _platform.invokeMethod<void>('openInstallPermissionSettings');
   }
 
   static Future<bool> canInstallPackages() async {
-    if (!Platform.isAndroid) return true;
+    if (!_supported) return true;
     return await _platform.invokeMethod<bool>('canInstallPackages') ?? false;
   }
 
   static Future<String?> _installedApkPath() async {
-    if (!Platform.isAndroid) return null;
+    if (!_supported) return null;
     try {
       return await _platform.invokeMethod<String>('getInstalledApkPath');
     } catch (error) {
@@ -130,8 +271,27 @@ class PhoneKUpdateService {
     }
   }
 
+  static Future<http.Response> _fetchManifest() async {
+    Object? lastError;
+    for (var attempt = 1; attempt <= 2; attempt++) {
+      try {
+        final now = DateTime.now().millisecondsSinceEpoch;
+        return await http.get(
+          Uri.parse(phoneKUpdateManifestUrl).replace(
+            queryParameters: {'t': now.toString()},
+          ),
+          headers: const {'Cache-Control': 'no-cache'},
+        ).timeout(const Duration(seconds: 15));
+      } catch (error) {
+        lastError = error;
+        if (attempt < 2) await Future<void>.delayed(const Duration(seconds: 2));
+      }
+    }
+    throw lastError!;
+  }
+
   static Future<PhoneKUpdateCheckResult> check() async {
-    if (!Platform.isAndroid) {
+    if (!_supported) {
       debugPrint('PhoneK update check skipped: platform is not Android.');
       return const PhoneKUpdateCheckResult.upToDate();
     }
@@ -139,25 +299,23 @@ class PhoneKUpdateService {
     try {
       final packageInfo = await PackageInfo.fromPlatform();
       final currentBuildNumber = int.tryParse(packageInfo.buildNumber) ?? 0;
-      final now = DateTime.now().millisecondsSinceEpoch;
-      final response = await http.get(
-        Uri.parse(phoneKUpdateManifestUrl).replace(
-          queryParameters: {'t': now.toString()},
-        ),
-        headers: const {'Cache-Control': 'no-cache'},
-      ).timeout(const Duration(seconds: 8));
+      final response = await _fetchManifest();
 
       if (response.statusCode != 200) {
         final reason = 'manifest HTTP ${response.statusCode}';
         debugPrint('PhoneK update check failed: $reason');
-        return PhoneKUpdateCheckResult.failed(const PhoneKUpdateException('check_http', userMessage: 'تعذر الوصول إلى خادم التحديث. تحقق من الإنترنت وحاول مرة أخرى.'));
+        return PhoneKUpdateCheckResult.failed(PhoneKUpdateException(
+          'check_http',
+          userMessage: 'تعذر الوصول إلى خادم التحديث. تحقق من الإنترنت وحاول مرة أخرى.',
+          detail: reason,
+        ));
       }
 
       final decoded = jsonDecode(response.body);
       if (decoded is! Map<String, dynamic>) {
         const reason = 'manifest is not a JSON object';
         debugPrint('PhoneK update check failed: $reason');
-        return const PhoneKUpdateCheckResult.failed(PhoneKUpdateException('check_manifest', userMessage: 'بيانات التحديث غير صحيحة حالياً. حاول لاحقاً.'));
+        return const PhoneKUpdateCheckResult.failed(PhoneKUpdateException('check_manifest', userMessage: 'بيانات التحديث غير صحيحة حالياً. حاول لاحقاً.', detail: reason));
       }
       final update = PhoneKUpdate.fromJson(
         decoded,
@@ -167,23 +325,23 @@ class PhoneKUpdateService {
       if (update.apkUrl.isEmpty || !_isReleaseAssetUrl(update.apkUrl)) {
         const reason = 'manifest contains an invalid apkUrl';
         debugPrint('PhoneK update check failed: $reason');
-        return const PhoneKUpdateCheckResult.failed(PhoneKUpdateException('check_invalid', userMessage: 'بيانات التحديث غير صالحة حالياً. حاول لاحقاً.'));
+        return const PhoneKUpdateCheckResult.failed(PhoneKUpdateException('check_invalid', userMessage: 'بيانات التحديث غير صالحة حالياً. حاول لاحقاً.', detail: reason));
       }
       if (update.sha256.length != 64 || !_isHexSha256(update.sha256)) {
         const reason = 'manifest contains an invalid APK SHA-256';
         debugPrint('PhoneK update check failed: $reason');
-        return const PhoneKUpdateCheckResult.failed(PhoneKUpdateException('check_invalid', userMessage: 'بيانات التحديث غير صالحة حالياً. حاول لاحقاً.'));
+        return const PhoneKUpdateCheckResult.failed(PhoneKUpdateException('check_invalid', userMessage: 'بيانات التحديث غير صالحة حالياً. حاول لاحقاً.', detail: reason));
       }
       if (update.patchUrl != null && !_isReleaseAssetUrl(update.patchUrl!)) {
         const reason = 'manifest contains an invalid patchUrl';
         debugPrint('PhoneK update check failed: $reason');
-        return const PhoneKUpdateCheckResult.failed(PhoneKUpdateException('check_invalid', userMessage: 'بيانات التحديث غير صالحة حالياً. حاول لاحقاً.'));
+        return const PhoneKUpdateCheckResult.failed(PhoneKUpdateException('check_invalid', userMessage: 'بيانات التحديث غير صالحة حالياً. حاول لاحقاً.', detail: reason));
       }
       if (update.patchUrl != null &&
           (update.patchSha256 == null || !_isHexSha256(update.patchSha256!))) {
         const reason = 'manifest contains an invalid patch SHA-256';
         debugPrint('PhoneK update check failed: $reason');
-        return const PhoneKUpdateCheckResult.failed(PhoneKUpdateException('check_invalid', userMessage: 'بيانات التحديث غير صالحة حالياً. حاول لاحقاً.'));
+        return const PhoneKUpdateCheckResult.failed(PhoneKUpdateException('check_invalid', userMessage: 'بيانات التحديث غير صالحة حالياً. حاول لاحقاً.', detail: reason));
       }
 
       if (update.versionCode <= currentBuildNumber) {
@@ -195,7 +353,16 @@ class PhoneKUpdateService {
     } catch (error, stackTrace) {
       debugPrint('PhoneK update check failed: $error');
       debugPrint('$stackTrace');
-      return const PhoneKUpdateCheckResult.failed(PhoneKUpdateException('check_unknown', userMessage: 'تعذر التحقق من وجود تحديث حالياً. حاول مرة أخرى.'));
+      final isNetwork = error is SocketException ||
+          error is TimeoutException ||
+          error is http.ClientException;
+      return PhoneKUpdateCheckResult.failed(PhoneKUpdateException(
+        isNetwork ? 'check_network' : 'check_unknown',
+        userMessage: isNetwork
+            ? 'تعذر الاتصال بخادم التحديث. تحقق من الإنترنت وحاول مرة أخرى.'
+            : 'تعذر التحقق من وجود تحديث حالياً. حاول مرة أخرى.',
+        detail: error.toString(),
+      ));
     }
   }
 
@@ -208,40 +375,75 @@ class PhoneKUpdateService {
   static Future<String> _sha256File(File file) async =>
       (await sha256.bind(file.openRead()).first).toString();
 
+  static bool _isNoSpace(FileSystemException error) =>
+      error.osError?.errorCode == 28; // ENOSPC
+
   static Future<void> downloadAndInstall(
     PhoneKUpdate update, {
     void Function(double progress)? onProgress,
+    void Function(PhoneKUpdatePhase phase)? onPhase,
   }) async {
-    final tempDir = Directory.systemTemp;
-    final file =
-        File('${tempDir.path}/phonek-update-${update.versionCode}.apk');
-    await _deleteOldUpdateApks(file.path);
-
-    var cachedApkIsValid = false;
-    if (await file.exists() && await file.length() > 0) {
-      final cachedDigest = await _sha256File(file);
-      cachedApkIsValid = cachedDigest.toLowerCase() == update.sha256;
-      if (cachedApkIsValid) onProgress?.call(1.0);
-    }
-
-    if (!cachedApkIsValid) {
-      final builtFromPatch = await _tryBuildFromPatch(
-        update,
-        file,
-        onProgress: onProgress,
+    _ensureHandler();
+    installStatus.value = null;
+    try {
+      final file = File(
+        '${Directory.systemTemp.path}/phonek-update-${update.versionCode}.apk',
       );
-      if (!builtFromPatch) {
-        await _downloadFullApk(update, file, onProgress: onProgress);
-      }
-    }
+      onPhase?.call(PhoneKUpdatePhase.preparing);
+      await _deleteUpdateFiles((version) => version != update.versionCode);
 
-    await _installApk(file);
+      var cachedApkIsValid = false;
+      if (await file.exists() && await file.length() > 0) {
+        onPhase?.call(PhoneKUpdatePhase.verifying);
+        final cachedDigest = await _sha256File(file);
+        cachedApkIsValid = cachedDigest.toLowerCase() == update.sha256;
+        if (cachedApkIsValid) {
+          onProgress?.call(1.0);
+        } else {
+          await file.delete().catchError((_) => file);
+        }
+      }
+
+      if (!cachedApkIsValid) {
+        final builtFromPatch = await _tryBuildFromPatch(
+          update,
+          file,
+          onProgress: onProgress,
+          onPhase: onPhase,
+        );
+        if (!builtFromPatch) {
+          await _downloadFullApk(
+            update,
+            file,
+            onProgress: onProgress,
+            onPhase: onPhase,
+          );
+        }
+      }
+
+      onPhase?.call(PhoneKUpdatePhase.installing);
+      await _installApk(file);
+    } on FileSystemException catch (error) {
+      if (_isNoSpace(error)) {
+        throw PhoneKUpdateException(
+          'storage_full',
+          userMessage: 'مساحة تخزين الجهاز ممتلئة. احذف بعض الملفات ثم أعد المحاولة.',
+          detail: error.toString(),
+        );
+      }
+      throw PhoneKUpdateException(
+        'file_system',
+        userMessage: 'تعذر حفظ ملف التحديث على الجهاز. أعد المحاولة.',
+        detail: error.toString(),
+      );
+    }
   }
 
   static Future<bool> _tryBuildFromPatch(
     PhoneKUpdate update,
     File outputFile, {
     void Function(double progress)? onProgress,
+    void Function(PhoneKUpdatePhase phase)? onPhase,
   }) async {
     File? patchFile;
     try {
@@ -253,15 +455,18 @@ class PhoneKUpdateService {
       final oldFile = File(path);
       if (!await oldFile.exists()) return false;
 
+      onPhase?.call(PhoneKUpdatePhase.downloadingPatch);
       patchFile = File('${outputFile.path}.patch');
       await _downloadWithResume(
         Uri.parse(update.patchUrl!),
         patchFile,
         onProgress: (value) => onProgress?.call(value * 0.6),
       );
+      onPhase?.call(PhoneKUpdatePhase.verifying);
       if (await _sha256File(patchFile) != update.patchSha256) return false;
       onProgress?.call(0.7);
 
+      onPhase?.call(PhoneKUpdatePhase.applyingPatch);
       final oldPath = oldFile.path;
       final patchPath = patchFile.path;
       final rebuilt = await Isolate.run(() async {
@@ -270,6 +475,7 @@ class PhoneKUpdateService {
         return BinaryPatch.applyBytes(oldData: oldData, patchData: patchData);
       });
       await outputFile.writeAsBytes(rebuilt, flush: true);
+      onPhase?.call(PhoneKUpdatePhase.verifying);
       if (await _sha256File(outputFile) != update.sha256) {
         await outputFile.delete().catchError((_) => outputFile);
         return false;
@@ -278,10 +484,18 @@ class PhoneKUpdateService {
       return true;
     } catch (error) {
       debugPrint('PhoneK update patch failed; using full APK: $error');
+      onProgress?.call(0.0);
       return false;
     } finally {
-      if (patchFile != null && await patchFile.exists()) {
-        await patchFile.delete().catchError((_) => patchFile!);
+      if (patchFile != null) {
+        final leftover = patchFile;
+        if (await leftover.exists()) {
+          await leftover.delete().catchError((_) => leftover);
+        }
+        final leftoverPart = File('${leftover.path}.part');
+        if (await leftoverPart.exists()) {
+          await leftoverPart.delete().catchError((_) => leftoverPart);
+        }
       }
     }
   }
@@ -290,16 +504,19 @@ class PhoneKUpdateService {
     PhoneKUpdate update,
     File file, {
     void Function(double progress)? onProgress,
+    void Function(PhoneKUpdatePhase phase)? onPhase,
   }) async {
+    onPhase?.call(PhoneKUpdatePhase.downloadingApk);
     await _downloadWithResume(
       Uri.parse(update.apkUrl),
       file,
       onProgress: onProgress,
     );
+    onPhase?.call(PhoneKUpdatePhase.verifying);
     final digest = await _sha256File(file);
     if (digest.toLowerCase() != update.sha256) {
       await file.delete().catchError((_) => file);
-      throw const PhoneKUpdateException('apk_checksum', userMessage: 'فشل التحقق من ملف التحديث. لن يتم تثبيت ملف غير موثوق.');
+      throw const PhoneKUpdateException('apk_checksum', userMessage: 'فشل التحقق من ملف التحديث. لن يتم تثبيت ملف غير موثوق. أعد المحاولة.');
     }
     onProgress?.call(1.0);
   }
@@ -310,6 +527,7 @@ class PhoneKUpdateService {
     void Function(double progress)? onProgress,
   }) async {
     final partial = File('${destination.path}.part');
+    Object? lastError;
     for (var attempt = 1; attempt <= 3; attempt++) {
       final client = HttpClient()
         ..connectionTimeout = const Duration(seconds: 15);
@@ -350,7 +568,12 @@ class PhoneKUpdateService {
         await destination.delete().catchError((_) => destination);
         await partial.rename(destination.path);
         return;
+      } on FileSystemException {
+        // خطأ تخزين (مثل امتلاء المساحة): لا فائدة من إعادة المحاولة.
+        rethrow;
       } catch (error) {
+        lastError = error;
+        debugPrint('PhoneK update: download attempt $attempt failed: $error');
         if (attempt < 3) {
           await Future<void>.delayed(Duration(seconds: attempt * 2));
         }
@@ -359,7 +582,11 @@ class PhoneKUpdateService {
       }
     }
 
-    throw const PhoneKUpdateException('download', userMessage: 'تعذر تنزيل التحديث بعد عدة محاولات. تحقق من الإنترنت وحاول مرة أخرى.');
+    throw PhoneKUpdateException(
+      'download',
+      userMessage: 'تعذر تنزيل التحديث بعد عدة محاولات. تحقق من الإنترنت وحاول مرة أخرى.',
+      detail: lastError?.toString(),
+    );
   }
 
   static Future<void> _consumeResponse(
@@ -387,132 +614,51 @@ class PhoneKUpdateService {
       await sink.flush();
       await sink.close();
     }
-  }
-
-  static const _installStatusChannel = EventChannel('phonek/update_status');
-
-  static Future<void> _saveLastInstallError({
-    required String reason,
-    String? code,
-    String? message,
-  }) async {
-    try {
-      final preferences = await SharedPreferences.getInstance();
-      await preferences.setString(
-        'phonek_last_update_error',
-        jsonEncode({
-          'timestamp': DateTime.now().toIso8601String(),
-          'reason': reason,
-          'code': code,
-          'message': message,
-        }),
-      );
-    } catch (saveError) {
-      debugPrint('PhoneK update: failed to save last install error: $saveError');
+    if (total > 0 && received < total) {
+      // انقطع الاتصال مبكراً: نُبقي الملف الجزئي ونعيد المحاولة بالاستئناف.
+      throw HttpException('Incomplete download: $received/$total');
     }
   }
 
+  static String describeRejection(String message) {
+    if (message.startsWith('APK_SIGNATURE_MISMATCH')) {
+      return 'توقيع نسخة التحديث يختلف عن النسخة المثبتة على جهازك لذلك يرفضها أندرويد. احذف PhoneK ثم ثبّت أحدث نسخة يدوياً مرة واحدة.';
+    }
+    if (message.startsWith('APK_WRONG_PACKAGE')) {
+      return 'ملف التحديث يخص تطبيقاً مختلفاً. أبلغ الدعم.';
+    }
+    if (message.startsWith('APK_NOT_NEWER')) {
+      return 'النسخة المثبتة حالياً مساوية لملف التحديث أو أحدث منه.';
+    }
+    return 'تم رفض ملف التحديث قبل التثبيت.';
+  }
+
   static Future<void> _installApk(File file) async {
-    StreamSubscription<dynamic>? subscription;
-    final terminal = Completer<void>();
-
     try {
-      subscription = _installStatusChannel.receiveBroadcastStream().listen(
-        (dynamic event) async {
-          if (event is! Map) return;
-          final status = event['status'];
-          final statusMessage = event['statusMessage']?.toString() ?? '';
-          final statusCode = status is num ? status.toInt() : null;
-
-          // PackageInstaller sends STATUS_PENDING_USER_ACTION before showing
-          // the Android confirmation UI; the native receiver launches EXTRA_INTENT.
-          if (statusCode == -1) return;
-          if (statusCode == 0) {
-            if (!terminal.isCompleted) terminal.complete();
-            return;
-          }
-
-          final code = statusCode == null ? 'INSTALL_STATUS' : 'STATUS_$statusCode';
-          await _saveLastInstallError(
-            reason: 'install_status',
-            code: code,
-            message: statusMessage,
-          );
-          if (!terminal.isCompleted) {
-            terminal.completeError(
-              PhoneKUpdateException(
-                'install',
-                userMessage: 'تم تنزيل التحديث، لكن تعذر تثبيته. حاول مرة أخرى.',
-                errorCode: code,
-                errorMessage: statusMessage.isEmpty ? null : statusMessage,
-              ),
-            );
-          }
-        },
-        onError: (Object error, StackTrace stackTrace) {
-          debugPrint('PhoneK update status stream failed: $error');
-          if (!terminal.isCompleted) {
-            terminal.completeError(
-              PhoneKUpdateException(
-                'install',
-                userMessage: 'تم تنزيل التحديث، لكن تعذر متابعة التثبيت. حاول مرة أخرى.',
-                errorCode: error is PlatformException ? error.code : 'UPDATE_STATUS_STREAM',
-                errorMessage: error.toString(),
-              ),
-            );
-          }
-        },
-      );
-
-      await _platform.invokeMethod<void>('installApk', {'filePath': file.path});
-      await terminal.future.timeout(
-        const Duration(minutes: 30),
-        onTimeout: () => throw const PhoneKUpdateException(
-          'install_timeout',
-          userMessage: 'تم بدء التثبيت، لكن لم تصل نتيجة من Android خلال المهلة المحددة.',
-          errorCode: 'INSTALL_TIMEOUT',
-          errorMessage: 'No terminal PackageInstaller status was received within 30 minutes.',
-        ),
-      );
+      await _platform.invokeMethod<String>('installApk', {'filePath': file.path});
     } on PlatformException catch (error) {
-      debugPrint(
-        'PhoneK update install PlatformException: code=${error.code}, message=${error.message}',
-      );
-      await _saveLastInstallError(
-        reason: 'install_platform_exception',
-        code: error.code,
-        message: error.message,
-      );
+      final message = error.message ?? '';
       if (error.code == 'INSTALL_PERMISSION') {
+        throw const PhoneKUpdateException('install_permission');
+      }
+      if (error.code == 'APK_REJECTED') {
         throw PhoneKUpdateException(
-          'install_permission',
-          errorCode: error.code,
-          errorMessage: error.message,
+          'apk_rejected',
+          userMessage: describeRejection(message),
+          detail: message,
         );
       }
       throw PhoneKUpdateException(
         'install',
-        userMessage: 'تم تنزيل التحديث، لكن تعذر بدء التثبيت. حاول مرة أخرى.',
-        errorCode: error.code,
-        errorMessage: error.message,
+        userMessage: 'تم تنزيل التحديث، لكن تعذر فتح شاشة التثبيت.',
+        detail: '${error.code}: $message',
       );
-    } on PhoneKUpdateException {
-      rethrow;
-    } catch (error) {
-      debugPrint('PhoneK update install failed: $error');
-      await _saveLastInstallError(
-        reason: 'install_unknown',
-        code: 'INSTALL_UNKNOWN',
-        message: error.toString(),
-      );
+    } on MissingPluginException catch (error) {
       throw PhoneKUpdateException(
         'install',
-        userMessage: 'تم تنزيل التحديث، لكن تعذر بدء التثبيت. حاول مرة أخرى.',
-        errorCode: 'INSTALL_UNKNOWN',
-        errorMessage: error.toString(),
+        userMessage: 'هذه النسخة لا تدعم التثبيت التلقائي. ثبّت أحدث نسخة يدوياً.',
+        detail: error.toString(),
       );
-    } finally {
-      await subscription?.cancel();
     }
   }
 }
@@ -520,14 +666,14 @@ class PhoneKUpdateService {
 class PhoneKUpdateException implements Exception {
   final String reason;
   final String userMessage;
-  final String? errorCode;
-  final String? errorMessage;
+
+  /// تفاصيل تقنية تظهر بخط صغير في نافذة التحديث (لتسهيل تشخيص أي مشكلة).
+  final String? detail;
 
   const PhoneKUpdateException(
     this.reason, {
     this.userMessage = 'حدث خطأ أثناء التحديث. حاول مرة أخرى.',
-    this.errorCode,
-    this.errorMessage,
+    this.detail,
   });
 
   @override
