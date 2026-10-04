@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:isolate';
 
 import 'package:binary_patch/binary_patch.dart';
 import 'package:crypto/crypto.dart';
