@@ -114,6 +114,32 @@ class AppState extends ChangeNotifier {
     }
   }
 
+  Future<void> syncAuthState() async {
+    _session = Supabase.instance.client.auth.currentSession;
+    if (_session == null) {
+      _userName = null;
+      _isShopOwner = false;
+      _isAdmin = false;
+      _shopName = null;
+      _favoriteIds.clear();
+      _chatThreads.clear();
+      notifyListeners();
+      return;
+    }
+    _isShopOwner = false;
+    _isAdmin = false;
+    _shopName = null;
+    _userName = _session!.user.userMetadata?['full_name'] as String? ??
+        _session!.user.email ??
+        'مستخدم PhoneK';
+    notifyListeners();
+    await Future.wait<void>([
+      _loadProfile(),
+      _loadFavorites(),
+      loadChatThreads(),
+    ]);
+  }
+
   Future<void> loadChatThreads() async {
     final userId = _session?.user.id;
     if (userId == null) return;
@@ -149,6 +175,7 @@ class AppState extends ChangeNotifier {
           otherUserName: otherUserName,
         ));
       }
+      if (_session?.user.id != userId) return;
       _chatThreads
         ..clear()
         ..addAll(loadedThreads);
