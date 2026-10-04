@@ -54,8 +54,12 @@ class _ShopAccountScreenState extends State<ShopAccountScreen> {
       });
     }
     try {
+      // Use the same profile source as AppState. The old
+      // public_shop_profiles view can fail under RLS even when the account
+      // profile itself is available, which incorrectly leaves "متجري" on
+      // the error screen.
       final row = await Supabase.instance.client
-          .from('public_shop_profiles')
+          .from('public_seller_cards')
           .select('id, name, is_shop')
           .eq('id', userId)
           .maybeSingle()
