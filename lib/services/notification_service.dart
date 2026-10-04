@@ -6,6 +6,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 @pragma('vm:entry-point')
@@ -19,9 +20,7 @@ class NotificationService {
   static final _messaging = FirebaseMessaging.instance;
   static final _local = FlutterLocalNotificationsPlugin();
 
-  // New channel id intentionally replaces the old one so Android can apply
-  // the sound configuration on devices that already created the old channel.
-  static const _channel = AndroidNotificationChannel(
+  static const _soundChannel = AndroidNotificationChannel(
     'phonek_alerts_v2',
     'إشعارات PhoneK',
     description: 'رسائل وعروض وإعلانات وتنبيهات PhoneK',
@@ -30,6 +29,31 @@ class NotificationService {
     enableVibration: true,
     showBadge: true,
   );
+
+  static const _silentChannel = AndroidNotificationChannel(
+    'phonek_alerts_silent_v1',
+    'إشعارات PhoneK بدون صوت',
+    description: 'إشعارات PhoneK بدون صوت',
+    importance: Importance.max,
+    playSound: false,
+    enableVibration: true,
+    showBadge: true,
+  );
+
+  static const _soundPreferenceKey = 'phonek_notification_sound_enabled';
+  static bool _soundEnabled = true;
+  static bool get soundEnabled => _soundEnabled;
+
+  static Future<void> setSoundEnabled(bool enabled) async {
+    _soundEnabled = enabled;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_soundPreferenceKey, enabled);
+  }
+
+  static Future<void> _loadSoundPreference() async {
+    final prefs = await SharedPreferences.getInstance();
+    _soundEnabled = prefs.getBool(_soundPreferenceKey) ?? true;
+  }
 
   static Future<void> Function(Map<String, dynamic> data)? _onTap;
   static Map<String, dynamic>? _pendingTap;
@@ -60,6 +84,7 @@ class NotificationService {
 
     try {
       await Firebase.initializeApp();
+      await _loadSoundPreference();
       FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
       const settings = InitializationSettings(
@@ -83,7 +108,9 @@ class NotificationService {
           _local.resolvePlatformSpecificImplementation<
               AndroidFlutterLocalNotificationsPlugin>();
 
-      await android?.createNotificationChannel(_channel);
+      await android?.createNotificationChannel(_soundChannel);
+      await android?.createNotificationChannel(_silentChannel);
+
       await _messaging.requestPermission(
         alert: true,
         badge: true,
@@ -124,18 +151,23 @@ class NotificationService {
       if (message.messageId != null) 'message_id': message.messageId,
     });
 
+    final channelId =
+        _soundEnabled ? _soundChannel.id : _silentChannel.id;
+
     await _local.show(
       id: DateTime.now().millisecondsSinceEpoch.remainder(2147483647),
       title: n.title ?? 'PhoneK',
       body: n.body ?? '',
-      notificationDetails: const NotificationDetails(
+      notificationDetails: NotificationDetails(
         android: AndroidNotificationDetails(
-          'phonek_alerts_v2',
-          'إشعارات PhoneK',
-          channelDescription: 'رسائل وعروض وإعلانات وتنبيهات PhoneK',
+          channelId,
+          _soundEnabled ? 'إشعارات PhoneK' : 'إشعارات PhoneK بدون صوت',
+          channelDescription: _soundEnabled
+              ? 'رسائل وعروض وإعلانات وتنبيهات PhoneK'
+              : 'إشعارات PhoneK بدون صوت',
           importance: Importance.max,
           priority: Priority.max,
-          playSound: true,
+          playSound: _soundEnabled,
           enableVibration: true,
           autoCancel: true,
           icon: '@mipmap/ic_launcher',
