@@ -29,6 +29,26 @@ jobs:
           flutter-version: '3.47.2'
           cache: true
 
+      - name: Cache Flutter/Dart packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pub-cache
+            .dart_tool
+          key: phonek-pub-${{ runner.os }}-${{ hashFiles('pubspec.lock') }}
+          restore-keys: |
+            phonek-pub-${{ runner.os }}-
+
+      - name: Cache Gradle build state
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: phonek-gradle-${{ runner.os }}-${{ hashFiles('pubspec.lock') }}
+          restore-keys: |
+            phonek-gradle-${{ runner.os }}-
+
       - name: Restore Android upload keystore
         shell: bash
         env:
