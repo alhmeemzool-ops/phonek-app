@@ -78,49 +78,16 @@ class NotificationService {
       );
       if (refreshToken == null || refreshToken.isEmpty) return false;
 
-      final activation = Completer<bool>();
-      late final StreamSubscription<AuthState> subscription;
-      subscription = Supabase.instance.client.auth.onAuthStateChange.listen(
-        (data) {
-          if (data.session?.user.id != userId || activation.isCompleted) return;
-          activation.complete(true);
-          unawaited(subscription.cancel());
-        },
-        onError: (error, stackTrace) {
-          if (!activation.isCompleted) {
-            activation.complete(false);
-          }
-          unawaited(subscription.cancel());
-        },
-      );
-
       final response =
           await Supabase.instance.client.auth.setSession(refreshToken);
+      if (response.user?.id != userId) return false;
 
-      if (response.user?.id != userId) {
-        if (!activation.isCompleted) activation.complete(false);
-        await subscription.cancel();
-        return false;
-      }
-
-      if (!activation.isCompleted) {
-        activation.complete(true);
-      }
-
-      final switched = await activation.future.timeout(
-        const Duration(seconds: 5),
-        onTimeout: () => true,
-      );
-
-      if (switched) {
-        final activeSession = Supabase.instance.client.auth.currentSession;
-        final activeRefreshToken = activeSession?.refreshToken;
-        if (activeRefreshToken != null && activeRefreshToken.isNotEmpty) {
-          await _secureStorage.write(
-            key: '$_accountRefreshTokenPrefix$userId',
-            value: activeRefreshToken,
-          );
-        }
+      final activeRefreshToken = response.session?.refreshToken;
+      if (activeRefreshToken != null && activeRefreshToken.isNotEmpty) {
+        await _secureStorage.write(
+          key: '$_accountRefreshTokenPrefix$userId',
+          value: activeRefreshToken,
+        );
       }
 
       return Supabase.instance.client.auth.currentUser?.id == userId;
