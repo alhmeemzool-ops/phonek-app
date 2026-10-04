@@ -73,6 +73,15 @@ class _AddPhoneScreenState extends State<AddPhoneScreen> {
               decoration: const InputDecoration(hintText: 'اختر الماركة أولاً'),
               validator: (v) => v == null ? 'مطلوب' : null,
             ),
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerRight,
+              child: OutlinedButton.icon(
+                onPressed: _suggestBrand,
+                icon: const Icon(Icons.add, size: 18),
+                label: const Text('ماركة غير موجودة؟ أضف ماركة جديدة'),
+              ),
+            ),
             const SizedBox(height: 16),
             _label('اسم الهاتف'),
             DropdownButtonFormField<String>(
@@ -90,6 +99,15 @@ class _AddPhoneScreenState extends State<AddPhoneScreen> {
                 hintText: _brand == null ? 'اختر الماركة أولاً' : 'اختر اسم الهاتف',
               ),
               validator: (v) => v == null ? 'مطلوب' : null,
+            ),
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerRight,
+              child: OutlinedButton.icon(
+                onPressed: _brand == null ? null : _suggestPhoneModel,
+                icon: const Icon(Icons.add, size: 18),
+                label: const Text('موبايل غير موجود؟ أضف موبايل جديد'),
+              ),
             ),
             const SizedBox(height: 16),
             _label('السعر (ج.س)'),
@@ -332,6 +350,61 @@ class _AddPhoneScreenState extends State<AddPhoneScreen> {
     if (!mounted || selected.isEmpty) return;
     setState(() => _images.addAll(selected.take(remaining)));
   }
+
+  Future<void> _saveCatalogSuggestion({required String? brand, required String? model}) async {
+    final brandController = TextEditingController(text: brand ?? '');
+    final modelController = TextEditingController(text: model ?? '');
+    final isBrandSuggestion = model == null;
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(isBrandSuggestion ? 'إضافة ماركة جديدة' : 'إضافة موبايل جديد'),
+        content: TextField(
+          controller: isBrandSuggestion ? brandController : modelController,
+          autofocus: true,
+          textDirection: TextDirection.ltr,
+          decoration: InputDecoration(
+            hintText: isBrandSuggestion ? 'اسم الماركة' : 'اسم الموبايل',
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('إلغاء')),
+          FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('حفظ')),
+        ],
+      ),
+    );
+    final value = (isBrandSuggestion ? brandController.text : modelController.text).trim();
+    brandController.dispose();
+    modelController.dispose();
+    if (result != true || value.isEmpty || !mounted) return;
+    try {
+      final userId = Supabase.instance.client.auth.currentUser?.id;
+      await Supabase.instance.client.from('phone_catalog_suggestions').insert({
+        'brand': isBrandSuggestion ? value : _brand,
+        'model': isBrandSuggestion ? null : value,
+        'suggested_by': userId,
+        'status': 'pending',
+      });
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تم حفظ الاقتراح وسيتم مراجعته قبل إضافته للقائمة')),
+      );
+    } on PostgrestException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(friendlyError(error, fallback: 'تعذر حفظ الاقتراح.'))),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تعذر حفظ الاقتراح حالياً')),
+      );
+    }
+  }
+
+  Future<void> _suggestBrand() => _saveCatalogSuggestion(brand: null, model: null);
+
+  Future<void> _suggestPhoneModel() => _saveCatalogSuggestion(brand: _brand, model: '');
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
