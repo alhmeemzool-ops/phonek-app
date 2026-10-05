@@ -51,9 +51,9 @@ class MakePatchesTest(unittest.TestCase):
     def test_replacing_same_version_and_trimming_to_five(self):
         history = [
             {"versionCode": i, "apkUrl": f"{MODULE.PREFIX}v1.0.{i}/app-release.apk", "sha256": str(i) * 64}
-            for i in range(3, 8)
+            for i in range(2, 7)
         ]
-        history.append({"versionCode": 8, "apkUrl": f"{MODULE.PREFIX}v1.0.8/app-release.apk", "sha256": "8" * 64})
+        history.append({"versionCode": 7, "apkUrl": f"{MODULE.PREFIX}v1.0.7/app-release.apk", "sha256": "7" * 64})
         out = self.run_manifest(
             {"versionCode": 7, "versionName": "1.0.7", "apkUrl": history[0]["apkUrl"], "sha256": "a" * 64, "history": history},
             {"patches": [], "skipped": []}, version=7)
