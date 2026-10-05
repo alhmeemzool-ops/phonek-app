@@ -337,23 +337,35 @@ class _ShareImageScreenState extends State<_ShareImageScreen> {
       if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('تعذر إنشاء صورة المشاركة: '+e.toString())));
     }
   }
-  @override Widget build(BuildContext context)=>Scaffold(
-    appBar:AppBar(title:const Text('مشاركة كصورة')),
-    body:SingleChildScrollView(scrollDirection:Axis.horizontal,child:Center(child:RepaintBoundary(
-      key:key,
-      child:Directionality(textDirection:TextDirection.rtl,child:SizedBox(width:1080,height:1350,child:Container(
-        color:AppColors.surface,padding:const EdgeInsets.all(60),
-        child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-          if(widget.listing.imageUrls.isNotEmpty)SizedBox(height:650,width:1080,child:Image.network(widget.listing.imageUrls.first,fit:BoxFit.contain)),
-          const SizedBox(height:30),
-          Text(widget.listing.title,style:const TextStyle(fontSize:48,fontWeight:FontWeight.bold)),
-          const SizedBox(height:20),
-          Text(widget.listing.priceOnCall?'اتصل للسعر':AppFormatters.priceSDG(widget.listing.displayedPrice),style:const TextStyle(fontSize:44,color:AppColors.gold,fontWeight:FontWeight.bold)),
-          Text(widget.listing.city,style:const TextStyle(fontSize:30,color:AppColors.textSecondary)),
-          const Spacer(),
-          const Text('PhoneK | فونك',style:TextStyle(fontSize:32,color:AppColors.gold,fontWeight:FontWeight.bold)),
-        ]),
-      )),
-    ))),
-  );
+  @override Widget build(BuildContext context) {
+    final content = SizedBox(
+      width: 1080,
+      height: 1350,
+      child: Directionality(
+        textDirection: TextDirection.rtl,
+        child: Container(
+          color: AppColors.surface,
+          padding: const EdgeInsets.all(60),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            if (widget.listing.imageUrls.isNotEmpty)
+              SizedBox(height: 650, width: 1080, child: Image.network(widget.listing.imageUrls.first, fit: BoxFit.contain)),
+            const SizedBox(height: 30),
+            Text(widget.listing.title, style: const TextStyle(fontSize: 48, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 20),
+            Text(widget.listing.priceOnCall ? 'اتصل للسعر' : AppFormatters.priceSDG(widget.listing.displayedPrice), style: const TextStyle(fontSize: 44, color: AppColors.gold, fontWeight: FontWeight.bold)),
+            Text(widget.listing.city, style: const TextStyle(fontSize: 30, color: AppColors.textSecondary)),
+            const Spacer(),
+            const Text('PhoneK | فونك', style: TextStyle(fontSize: 32, color: AppColors.gold, fontWeight: FontWeight.bold)),
+          ]),
+        ),
+      ),
+    );
+    return Scaffold(
+      appBar: AppBar(title: const Text('مشاركة كصورة')),
+      body: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Center(child: RepaintBoundary(key: key, child: content)),
+      ),
+    );
+  }
 }

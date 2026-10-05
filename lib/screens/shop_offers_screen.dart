@@ -63,7 +63,7 @@ class _ShopOffersScreenState extends State<ShopOffersScreen>{
     }
     return Scaffold(appBar: AppBar(title: const Text('عروض المعرض')), body: _loading
       ? const Center(child: CircularProgressIndicator(color: AppColors.gold))
-      : ListView(padding: const EdgeInsets.all(12), children: children);
+      : ListView(padding: const EdgeInsets.all(12), children: children));
   }
 
 }
