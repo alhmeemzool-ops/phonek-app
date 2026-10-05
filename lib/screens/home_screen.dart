@@ -6,6 +6,7 @@ import '../data/catalog_data.dart' as catalog;
 import '../models/phone_model.dart';
 import '../theme/app_theme.dart';
 import '../widgets/phone_card.dart';
+import '../widgets/listing_form.dart';
 import 'phone_details_screen.dart';
 import 'add_phone_screen.dart';
 import 'favorites_screen.dart';
@@ -246,20 +247,13 @@ class _HomeScreenState extends State<HomeScreen> {
                   const SizedBox(height: 16),
                   const Text('المدينة', style: TextStyle(color: AppColors.textSecondary)),
                   const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    children: [
-                      ChoiceChip(
-                        label: const Text('الكل'),
-                        selected: _selectedCity == null,
-                        onSelected: (_) => setSheetState(() => _selectedCity = null),
-                      ),
-                      ...catalog.CatalogData.cities.map((c) => ChoiceChip(
-                            label: Text(c),
-                            selected: _selectedCity == c,
-                            onSelected: (_) => setSheetState(() => _selectedCity = c),
-                          )),
-                    ],
+                  OutlinedButton.icon(
+                    onPressed: () async {
+                      final picked = await showCityPicker(ctx, selectedCity: _selectedCity, includeAll: true);
+                      setSheetState(() => _selectedCity = picked);
+                    },
+                    icon: const Icon(Icons.location_city),
+                    label: Text(_selectedCity ?? 'الكل'),
                   ),
                   const SizedBox(height: 20),
                   const Text('الترتيب', style: TextStyle(color: AppColors.textSecondary)),
