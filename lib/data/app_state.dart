@@ -314,6 +314,34 @@ class AppState extends ChangeNotifier {
     return tid;
   }
 
+  Future<void> sendLocation({
+    required String threadId,
+    required double latitude,
+    required double longitude,
+  }) async {
+    final uid = _session?.user.id;
+    if (uid == null) throw const AuthException('سجّل الدخول لإرسال الموقع');
+    final inserted = await Supabase.instance.client
+        .from('chat_messages')
+        .insert({
+          'thread_id': threadId,
+          'sender_id': uid,
+          'text': '',
+          'type': MessageType.location.value,
+          'status': MessageStatus.sent.value,
+          'payload': {
+            'latitude': latitude,
+            'longitude': longitude,
+          },
+        })
+        .select('id')
+        .single();
+    unawaited(_sendPushForMessage(
+      threadId: threadId,
+      messageId: inserted['id'] as String,
+    ));
+  }
+
   Future<void> sendVoice({required String threadId,required String path,required int durationSeconds}) async {
     final uid=_session?.user.id;if(uid==null)throw const AuthException('سجّل الدخول لإرسال رسالة صوتية');
     final inserted=await Supabase.instance.client.from('chat_messages').insert({'thread_id':threadId,'sender_id':uid,'text':'','type':MessageType.voice.value,'status':MessageStatus.sent.value,'payload':{'path':path,'duration_seconds':durationSeconds}}).select('id').single();
