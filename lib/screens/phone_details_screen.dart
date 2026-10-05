@@ -79,7 +79,7 @@ class _PhoneDetailsScreenState extends State<PhoneDetailsScreen> {
               children: [
                 Text(listing.title, style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w800)),
                 const SizedBox(height: 7),
-                Row(children:[Expanded(child:Text(listing.priceOnCall ? 'اتصل للسعر' : AppFormatters.priceSDG(listing.price), style: const TextStyle(color: AppColors.gold, fontSize: 23, fontWeight: FontWeight.bold))),if(listing.acceptsSwap)const Chip(label:Text('يقبل التبديل'))]),
+                Row(children:[Expanded(child:Text(listing.priceOnCall ? 'اتصل للسعر' : AppFormatters.priceSDG(listing.displayedPrice), style: const TextStyle(color: AppColors.gold, fontSize: 23, fontWeight: FontWeight.bold))),if(listing.hasActiveOffer)Chip(label:Text('عرض -'+listing.offerDiscountPercent.toString()+'%')),if(listing.acceptsSwap)const Chip(label:Text('يقبل التبديل')),if(listing.subscriptionActive)const Chip(label:Text('معرض مميز'))]),
                 const SizedBox(height: 8),
                 if(!isOwner) Align(alignment:Alignment.centerRight,child:TextButton.icon(onPressed:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>CompareScreen(first:listing,candidates:context.read<AppState>().listings.where((x)=>x.id!=listing.id&&x.status==ListingStatus.active).toList()))),icon:const Icon(Icons.compare_arrows),label:const Text('قارن'))),
                 if(listing.acceptsSwap && !isOwner) Align(alignment:Alignment.centerRight,child:OutlinedButton.icon(onPressed:()=>_swap(context),icon:const Icon(Icons.swap_horiz),label:const Text('اعرض تبديل'))),
