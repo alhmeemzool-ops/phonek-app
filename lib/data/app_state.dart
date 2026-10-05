@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -507,18 +508,120 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  Future<void> updateListing({required String id, required String title, required int price, required String city, required String description, List<String>? imageUrls}) async {
+  Future<void> updateListing({
+    required String id,
+    required String title,
+    required String brand,
+    required int price,
+    required bool priceIsNegotiable,
+    required bool priceOnCall,
+    required String storage,
+    required String ram,
+    required int? batteryHealthPercent,
+    required DeviceCondition condition,
+    required String? damageNotes,
+    required bool hasBox,
+    required bool hasCharger,
+    required bool hasInvoice,
+    required bool hasEarphones,
+    required String city,
+    required String description,
+    required List<String> imageUrls,
+    List<XFile> newImages = const [],
+    List<String> originalImageUrls = const [],
+  }) async {
     final userId = _session?.user.id;
     if (userId == null) throw const AuthException('سجّل الدخول لتعديل الإعلان');
-    final updates = <String, dynamic>{
-      'title': title.trim(),
-      'price': price,
-      'city': city.trim(),
-      'description': description.trim(),
-    };
-    if (imageUrls != null) updates['image_urls'] = imageUrls;
-    await Supabase.instance.client.from('listings').update(updates).eq('id', id).eq('seller_id', userId);
-    await loadListings();
+
+    final client = Supabase.instance.client;
+    final uploadedPaths = <String>[];
+    final finalImageUrls = <String>[...imageUrls];
+
+    try {
+      for (var index = 0; index < newImages.length; index++) {
+        final image = newImages[index];
+        final path = userId +
+            '/' +
+            DateTime.now().microsecondsSinceEpoch.toString() +
+            '_edit_' +
+            index.toString() +
+            '.' +
+            _imageExtension(image.name);
+        await client.storage.from('listing-images').uploadBinary(
+          path,
+          await image.readAsBytes(),
+          fileOptions: FileOptions(contentType: _imageContentType(image.name), upsert: false),
+        );
+        uploadedPaths.add(path);
+        finalImageUrls.add(client.storage.from('listing-images').getPublicUrl(path));
+      }
+
+      await client.from('listings').update({
+        'title': title.trim(),
+        'brand': brand.trim(),
+        'price': price,
+        'price_is_negotiable': priceIsNegotiable,
+        'price_on_call': priceOnCall,
+        'storage': storage,
+        'ram': ram,
+        'battery_health_percent': batteryHealthPercent,
+        'condition': condition.value,
+        'damage_notes': damageNotes?.trim().isEmpty == true ? null : damageNotes?.trim(),
+        'has_box': hasBox,
+        'has_charger': hasCharger,
+        'has_invoice': hasInvoice,
+        'has_earphones': hasEarphones,
+        'city': city.trim(),
+        'description': description.trim(),
+        'image_urls': finalImageUrls,
+      }).eq('id', id).eq('seller_id', userId);
+
+      final removedUrls = originalImageUrls.where((url) => !imageUrls.contains(url)).toList();
+      if (removedUrls.isNotEmpty) {
+        final removedPaths = removedUrls.map(_listingImagePath).whereType<String>().toList();
+        if (removedPaths.isNotEmpty) {
+          try {
+            await client.storage.from('listing-images').remove(removedPaths);
+          } catch (error) {
+            debugPrint('PhoneK removed listing image cleanup failed: $error');
+          }
+        }
+      }
+      await loadListings();
+    } catch (_) {
+      if (uploadedPaths.isNotEmpty) {
+        try {
+          await client.storage.from('listing-images').remove(uploadedPaths);
+        } catch (error) {
+          debugPrint('PhoneK new listing image rollback failed: $error');
+        }
+      }
+      rethrow;
+    }
+  }
+
+  String _imageExtension(String name) {
+    final dot = name.lastIndexOf('.');
+    return dot == -1 ? 'jpg' : name.substring(dot + 1).toLowerCase();
+  }
+
+  String _imageContentType(String name) {
+    switch (_imageExtension(name)) {
+      case 'png':
+        return 'image/png';
+      case 'webp':
+        return 'image/webp';
+      default:
+        return 'image/jpeg';
+    }
+  }
+
+  String? _listingImagePath(String url) {
+    const marker = '/listing-images/';
+    final index = url.indexOf(marker);
+    if (index == -1) return null;
+    final path = url.substring(index + marker.length);
+    return path.isEmpty ? null : path;
   }
 
   Future<void> deleteListing(String id) async {
