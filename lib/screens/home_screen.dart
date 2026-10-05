@@ -31,6 +31,7 @@ class _HomeScreenState extends State<HomeScreen> {
   String? _selectedCity;
   String? _selectedBrand;
   SortOption _sortOption = SortOption.newest;
+  bool _swapOnly = false;
   final TextEditingController _searchController = TextEditingController();
   String _appVersion = '';
 
@@ -53,18 +54,18 @@ class _HomeScreenState extends State<HomeScreen> {
           p.brand.toLowerCase().contains(_searchQuery.toLowerCase());
       final matchesCity = _selectedCity == null || p.city == _selectedCity;
       final matchesBrand = _selectedBrand == null || p.brand == _selectedBrand;
-      return matchesQuery && matchesCity && matchesBrand && p.status != ListingStatus.sold;
+      return matchesQuery && matchesCity && matchesBrand && (!_swapOnly || p.acceptsSwap) && p.status != ListingStatus.sold;
     }).toList();
 
     switch (_sortOption) {
       case SortOption.newest:
-        list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        list.sort((a, b) { if(a.subscriptionActive != b.subscriptionActive) return a.subscriptionActive ? -1 : 1; return b.createdAt.compareTo(a.createdAt); });
         break;
       case SortOption.priceLowHigh:
-        list.sort((a, b) => a.price.compareTo(b.price));
+        list.sort((a, b) => a.displayedPrice.compareTo(b.displayedPrice));
         break;
       case SortOption.priceHighLow:
-        list.sort((a, b) => b.price.compareTo(a.price));
+        list.sort((a, b) => b.displayedPrice.compareTo(a.displayedPrice));
         break;
     }
     return list;
