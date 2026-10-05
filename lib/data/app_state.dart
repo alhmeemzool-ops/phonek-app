@@ -11,9 +11,6 @@ import '../services/notification_service.dart';
 
 /// Global application state for authentication, listings, favorites, and account role.
 class AppState extends ChangeNotifier {
-  // UI compatibility fallback for the existing PhoneK admin account.
-  // Database writes and reads remain protected by Supabase RLS and is_admin().
-  static const adminUserId = '2fbf66e9-9234-4ad4-8d33-6db4603530f8';
   AppState() {
     _authSubscription = Supabase.instance.client.auth.onAuthStateChange.listen((data) {
       _session = data.session;
@@ -773,12 +770,12 @@ class AppState extends ChangeNotifier {
     try {
       final adminResult = await Supabase.instance.client.rpc('is_admin');
       if (_session?.user.id != userId) return;
-      _isAdmin = adminResult == true || userId == adminUserId;
+      _isAdmin = adminResult == true;
       notifyListeners();
     } catch (_) {
       if (_session?.user.id != userId) return;
-      _isAdmin = userId == adminUserId;
-      // The admin RPC may be unavailable during an initial setup.
+      _isAdmin = false;
+      // Fail closed if the admin RPC is unavailable.
       notifyListeners();
     }
   }
