@@ -88,15 +88,13 @@ class MakePatchesTest(unittest.TestCase):
             new_apk.write_bytes(b"0123456789")
             candidate = {"versionCode": 8, "apkUrl": "https://example.invalid/old.apk", "sha256": MODULE.sha256_file(new_apk)}
             old = Path("old-8.apk")
-            patch = Path("patch-from-8.bin")
-            rebuilt = Path("reconstructed-8.apk")
 
             def fake_run(args, timeout):
                 if args[0] == "curl":
                     old.write_bytes(new_apk.read_bytes())
-                elif "build_patch.dart" in args:
+                elif any("build_patch.dart" in str(arg) for arg in args):
                     Path(args[-1]).write_bytes(b"12345678")
-                elif "validate_patch.dart" in args:
+                elif any("validate_patch.dart" in str(arg) for arg in args):
                     Path(args[-1]).write_bytes(new_apk.read_bytes())
                 return mock.Mock(returncode=0)
 
