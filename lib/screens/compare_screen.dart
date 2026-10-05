@@ -1,6 +1,41 @@
-import 'package:flutter/material.dart';import '../models/phone_model.dart';import '../widgets/phone_card.dart';import '../theme/app_theme.dart';import 'phone_details_screen.dart';
-class CompareScreen extends StatefulWidget{const CompareScreen({super.key,required this.first,required this.candidates});final PhoneListing first;final List<PhoneListing> candidates;@override State<CompareScreen> createState()=>_CompareScreenState();}
-class _CompareScreenState extends State<CompareScreen>{PhoneListing? second;String q='';
-@override Widget build(BuildContext context){if(second==null)return Scaffold(appBar:AppBar(title:const Text('اختر هاتفاً للمقارنة')),body:Column(children:[Padding(padding:const EdgeInsets.all(12),child:TextField(decoration:const InputDecoration(prefixIcon:Icon(Icons.search),hintText:'بحث بالعنوان'),onChanged:(v)=>setState(()=>q=v))),Expanded(child:ListView(children:widget.candidates.where((x)=>x.title.toLowerCase().contains(q.toLowerCase())).map((x)=>ListTile(title:Text(x.title),subtitle:Text(x.priceOnCall?'اتصل للسعر':x.price.toString()+' ج.س'),onTap:()=>setState(()=>second=x))).toList())])));final b=second!;return Scaffold(appBar:AppBar(title:const Text('مقارنة')),body:SingleChildScrollView(scrollDirection:Axis.horizontal,child:DataTable(columns:[DataColumn(label:Text(widget.first.title)),DataColumn(label:Text(b.title))],rows:[
- DataRow(cells:[DataCell(_img(widget.first)),DataCell(_img(b))]),_row('السعر',widget.first.priceOnCall?'اتصل للسعر':widget.first.price.toString(),b.priceOnCall?'اتصل للسعر':b.price.toString(),lower:true),_row('التخزين',widget.first.storage,b.storage),_row('الرام',widget.first.ram,b.ram),_row('صحة البطارية',widget.first.isIphone?(widget.first.batteryHealthPercent?.toString()??'—'):'—',b.isIphone?(b.batteryHealthPercent?.toString()??'—'):'—'),_row('الحالة',widget.first.condition.labelAr,b.condition.labelAr),_row('الضمان',widget.first.warranty.value,b.warranty.value),_row('المدينة',widget.first.city,b.city)
- ])));}Widget _img(PhoneListing x)=>SizedBox(width:150,height:120,child:x.imageUrls.isEmpty?const Icon(Icons.phone_android,color:AppColors.gold):Image.network(x.imageUrls.first,fit:BoxFit.contain));DataRow _row(String n,String a,String b,{bool lower=false}){final na=int.tryParse(a.replaceAll(RegExp(r'[^0-9]'),'')),nb=int.tryParse(b.replaceAll(RegExp(r'[^0-9]'),''));final ca=na!=null&&nb!=null&&((lower&&na<nb)||(!lower&&na>nb));final cb=na!=null&&nb!=null&&((lower&&nb<na)||(!lower&&nb>na));return DataRow(cells:[DataCell(Text(a,style:TextStyle(color:ca?AppColors.success:null))),DataCell(Text(b,style:TextStyle(color:cb?AppColors.success:null)))]);}}
+import 'package:flutter/material.dart';
+import '../models/phone_model.dart';
+import '../theme/app_theme.dart';
+
+class CompareScreen extends StatefulWidget{
+  const CompareScreen({super.key,required this.first,required this.candidates});
+  final PhoneListing first; final List<PhoneListing> candidates;
+  @override State<CompareScreen> createState()=>_CompareScreenState();
+}
+class _CompareScreenState extends State<CompareScreen>{
+  PhoneListing? second; String q='';
+  @override Widget build(BuildContext context){
+    if(second==null){
+      final list=widget.candidates.where((x)=>x.title.toLowerCase().contains(q.toLowerCase())).toList();
+      return Scaffold(appBar:AppBar(title:const Text('اختر هاتفاً للمقارنة')),body:Column(children:[
+        Padding(padding:const EdgeInsets.all(12),child:TextField(decoration:const InputDecoration(prefixIcon:Icon(Icons.search),hintText:'بحث بالعنوان'),onChanged:(v)=>setState(()=>q=v))),
+        Expanded(child:ListView.builder(itemCount:list.length,itemBuilder:(_,i){final x=list[i];return ListTile(title:Text(x.title),subtitle:Text(x.priceOnCall?'اتصل للسعر':'${x.price} ج.س'),onTap:()=>setState(()=>second=x));})),
+      ]));
+    }
+    final b=second!;
+    return Scaffold(appBar:AppBar(title:const Text('مقارنة')),body:SingleChildScrollView(scrollDirection:Axis.horizontal,child:DataTable(
+      columns:[DataColumn(label:Text(widget.first.title)),DataColumn(label:Text(b.title))],
+      rows:[
+        DataRow(cells:[DataCell(_img(widget.first)),DataCell(_img(b))]),
+        _row('السعر',widget.first.priceOnCall?'اتصل للسعر':widget.first.price.toString(),b.priceOnCall?'اتصل للسعر':b.price.toString(),lower:true),
+        _row('التخزين',widget.first.storage,b.storage),
+        _row('الرام',widget.first.ram,b.ram),
+        _row('صحة البطارية',widget.first.isIphone?(widget.first.batteryHealthPercent?.toString()??'—'):'—',b.isIphone?(b.batteryHealthPercent?.toString()??'—'):'—'),
+        _row('الحالة',widget.first.condition.labelAr,b.condition.labelAr),
+        _row('الضمان',widget.first.warranty.value,b.warranty.value),
+        _row('المدينة',widget.first.city,b.city),
+      ],
+    )));
+  }
+  Widget _img(PhoneListing x)=>SizedBox(width:150,height:120,child:x.imageUrls.isEmpty?const Icon(Icons.phone_android,color:AppColors.gold):Image.network(x.imageUrls.first,fit:BoxFit.contain));
+  DataRow _row(String n,String a,String b,{bool lower=false}){
+    final na=int.tryParse(a.replaceAll(RegExp(r'[^0-9]'),'')),nb=int.tryParse(b.replaceAll(RegExp(r'[^0-9]'),''));
+    final ca=na!=null&&nb!=null&&((lower&&na<nb)||(!lower&&na>nb)),cb=na!=null&&nb!=null&&((lower&&nb<na)||(!lower&&nb>na));
+    return DataRow(cells:[DataCell(Text(a,style:TextStyle(color:ca?AppColors.success:null))),DataCell(Text(b,style:TextStyle(color:cb?AppColors.success:null)))]);
+  }
+}

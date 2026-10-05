@@ -102,7 +102,7 @@ class _ChatScreenState extends State<ChatScreen> {
   Future<void> _cancelRecording() async {if(_recording){_recordTimer?.cancel();await _recorder.cancel();}_recording=false;_recordedPath=null;_recordedDuration=0;if(mounted)setState(() {});}
   Future<void> _sendRecordedVoice() async {
     if(_recordedPath==null||_threadId==null)return;final uid=context.read<AppState>().currentUser!.id;final path='${_threadId!}/${uid}_${DateTime.now().millisecondsSinceEpoch}.m4a';
-    try{await Supabase.instance.client.storage.from('chat-voice').upload(_recordedPath!,path,fileOptions:const FileOptions(contentType:'audio/mp4',upsert:false));await context.read<AppState>().sendVoice(threadId:_threadId!,path:path,durationSeconds:_recordedDuration);_recordedPath=null;_recordedDuration=0;final messages=await context.read<AppState>().loadMessages(_threadId!);if(mounted)setState(()=>_messages=messages);}
+    try{await Supabase.instance.client.storage.from('chat-voice').uploadBinary(path,await File(_recordedPath!).readAsBytes(),fileOptions:const FileOptions(contentType:'audio/mp4',upsert:false));await context.read<AppState>().sendVoice(threadId:_threadId!,path:path,durationSeconds:_recordedDuration);_recordedPath=null;_recordedDuration=0;final messages=await context.read<AppState>().loadMessages(_threadId!);if(mounted)setState(()=>_messages=messages);}
     catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(friendlyError(e,fallback:'تعذر إرسال الرسالة الصوتية.'))));}
   }
   String _duration(int seconds)=>'${(seconds~/60).toString().padLeft(2,'0')}:${(seconds%60).toString().padLeft(2,'0')}';

@@ -226,23 +226,45 @@ class _PhoneDetailsScreenState extends State<PhoneDetailsScreen> {
   }
 
   Future<void> _swap(BuildContext context) async {
-    final model=TextEditingController(); final diff=TextEditingController(text:'0');
-    DeviceCondition condition=DeviceCondition.excellent; String direction='pay'; XFile? image;
-    await showDialog<void>(context:context,builder:(dialog)=>StatefulBuilder(builder:(dialog,setState)=>AlertDialog(
-      title:const Text('اعرض تبديل'),content:SizedBox(width:420,child:SingleChildScrollView(child:Column(children:[
-        TextField(controller:model,maxLength:60,decoration:const InputDecoration(labelText:'موديل هاتفك *')),
-        DropdownButtonFormField<DeviceCondition>(value:condition,decoration:const InputDecoration(labelText:'الحالة'),items:DeviceCondition.values.map((v)=>DropdownMenuItem(value:v,child:Text(v.labelAr))).toList(),onChanged:(v){if(v!=null)setState(()=>condition=v);}),
-        TextField(controller:diff,keyboardType:TextInputType.number,decoration:const InputDecoration(labelText:'فرق السعر (ج.س)')),
-        DropdownButtonFormField<String>(value:direction,decoration:const InputDecoration(labelText:'فرق السعر'),items:const [DropdownMenuItem(value:'pay',child:Text('أدفع الفرق')),DropdownMenuItem(value:'request',child:Text('أطلب الفرق'))],onChanged:(v){if(v!=null)setState(()=>direction=v);}),
-        const SizedBox(height:8),OutlinedButton.icon(onPressed:()async{image=await ImagePicker().pickImage(source:ImageSource.gallery,imageQuality:80,maxWidth:1600);setState((){});},icon:const Icon(Icons.image_outlined),label:Text(image==null?'إضافة صورة اختيارية':'تم اختيار الصورة')),
-      ])),actions:[TextButton(onPressed:()=>Navigator.pop(dialog),child:const Text('إلغاء')),ElevatedButton(onPressed:model.text.trim().isEmpty?null:()async{
-        final amount=int.tryParse(diff.text.trim())??0;if(amount<0)return;String? url;
-        try{if(image!=null){final uid=context.read<AppState>().currentUser!.id;final path='${uid}/swap_${DateTime.now().millisecondsSinceEpoch}.jpg';await Supabase.instance.client.storage.from('listing-images').uploadBinary(path,await image!.readAsBytes(),fileOptions:const FileOptions(upsert:false,contentType:'image/jpeg'));url=Supabase.instance.client.storage.from('listing-images').getPublicUrl(path);}
-          await context.read<AppState>().sendSwap(listing:listing,model:model.text,condition:condition,diffAmount:amount,diffDirection:direction,imageUrl:url);if(context.mounted){Navigator.pop(dialog);ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('تم إرسال عرض التبديل')));}}
-        catch(e){if(context.mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('تعذر إرسال عرض التبديل: $e')));}
-      },child:const Text('إرسال'))],
-    )));
-    model.dispose();diff.dispose();
+    final model = TextEditingController();
+    final diff = TextEditingController(text: '0');
+    DeviceCondition condition = DeviceCondition.excellent;
+    String direction = 'pay'; XFile? image;
+    await showDialog<void>(
+      context: context,
+      builder: (dialog) => StatefulBuilder(
+        builder: (dialog, setDialogState) => AlertDialog(
+          title: const Text('اعرض تبديل'),
+          content: SizedBox(width: 420, child: SingleChildScrollView(child: Column(children: [
+            TextField(controller: model, maxLength: 60, decoration: const InputDecoration(labelText: 'موديل هاتفك *')),
+            DropdownButtonFormField<DeviceCondition>(value: condition, decoration: const InputDecoration(labelText: 'الحالة'), items: DeviceCondition.values.map((v) => DropdownMenuItem(value: v, child: Text(v.labelAr))).toList(), onChanged: (v) { if (v != null) setDialogState(() => condition = v); }),
+            TextField(controller: diff, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'فرق السعر (ج.س)')),
+            DropdownButtonFormField<String>(value: direction, decoration: const InputDecoration(labelText: 'فرق السعر'), items: const [DropdownMenuItem(value: 'pay', child: Text('أدفع الفرق')), DropdownMenuItem(value: 'request', child: Text('أطلب الفرق'))], onChanged: (v) { if (v != null) setDialogState(() => direction = v); }),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(onPressed: () async { image = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 80, maxWidth: 1600); setDialogState(() {}); }, icon: const Icon(Icons.image_outlined), label: Text(image == null ? 'إضافة صورة اختيارية' : 'تم اختيار الصورة')),
+          ]))),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialog), child: const Text('إلغاء')),
+            ElevatedButton(onPressed: () async {
+              final amount = int.tryParse(diff.text.trim()) ?? 0;
+              if (model.text.trim().isEmpty || amount < 0) return;
+              try {
+                String? url;
+                if (image != null) {
+                  final uid = context.read<AppState>().currentUser!.id;
+                  final path = uid + '/swap_' + DateTime.now().millisecondsSinceEpoch.toString() + '.jpg';
+                  await Supabase.instance.client.storage.from('listing-images').uploadBinary(path, await image!.readAsBytes(), fileOptions: const FileOptions(upsert: false, contentType: 'image/jpeg'));
+                  url = Supabase.instance.client.storage.from('listing-images').getPublicUrl(path);
+                }
+                await context.read<AppState>().sendSwap(listing: listing, model: model.text.trim(), condition: condition, diffAmount: amount, diffDirection: direction, imageUrl: url);
+                if (context.mounted) { Navigator.pop(dialog); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم إرسال عرض التبديل'))); }
+              } catch (e) { if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذر إرسال عرض التبديل: $e'))); }
+            }, child: const Text('إرسال')),
+          ],
+        ),
+      ),
+    );
+    model.dispose(); diff.dispose();
   }
 
   void _offer(BuildContext context) {
