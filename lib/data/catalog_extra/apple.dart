@@ -1,4 +1,5 @@
-/// Additional verified catalog entries for apple.\nconst List<String> appleExtraModels = [
+/// Additional verified catalog entries for apple.
+const List<String> appleExtraModels = [
   "iPhone 17 256GB",
   "iPhone 17 8GB RAM 256GB",
   "iPhone 17 512GB",
@@ -199,4 +200,4 @@
   "iPhone 5c 32GB",
   "iPhone 5c 1GB RAM 32GB",
   "iPhone 5 16GB",
-];\n
+];
