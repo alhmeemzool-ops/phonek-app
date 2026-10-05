@@ -572,6 +572,7 @@ class AppState extends ChangeNotifier {
     required String city,
     required String description,
     required List<String> imageUrls,
+    bool acceptsSwap = false,
     List<XFile> newImages = const [],
     List<String> originalImageUrls = const [],
   }) async {
@@ -619,6 +620,7 @@ class AppState extends ChangeNotifier {
         'city': city.trim(),
         'description': description.trim(),
         'image_urls': finalImageUrls,
+        'accepts_swap': acceptsSwap,
       }).eq('id', id).eq('seller_id', userId);
 
       final removedUrls = originalImageUrls.where((url) => !imageUrls.contains(url)).toList();
