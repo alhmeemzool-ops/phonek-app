@@ -6,6 +6,8 @@ import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'badge_model.dart';
+import 'badge_sound_service.dart';
+import 'package:flutter/foundation.dart';
 import 'merchant_badge_art.dart';
 import 'badge_sound_service.dart';
 
