@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'badge_model.dart';
 import 'badge_sound_service.dart';
 import 'merchant_badge_art.dart';
+import 'badge_sound_service.dart';
 
 class MerchantBadgeChip extends StatelessWidget {
   const MerchantBadgeChip({super.key, required this.level, this.compact = false});
