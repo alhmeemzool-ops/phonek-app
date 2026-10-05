@@ -518,10 +518,19 @@ class AppState extends ChangeNotifier {
         }
       }
 
-      final loaded = rawRows
-          .map((row) => _listingFromRow(row, sellerCards[row['seller_id']?.toString()]))
-          .whereType<PhoneListing>()
-          .toList();
+      final offerMap=<String,int>{};
+      final subscriptionShops=<String>{};
+      try {
+        final offers=await Supabase.instance.client.from('shop_offer_items').select('listing_id,shop_offers!inner(discount_percent,starts_at,ends_at)').lte('shop_offers.starts_at',DateTime.now().toUtc().toIso8601String()).gt('shop_offers.ends_at',DateTime.now().toUtc().toIso8601String());
+        for(final x in (offers as List).whereType<Map<String,dynamic>>()){final o=x['shop_offers'] as Map<String,dynamic>;offerMap[x['listing_id'].toString()]=(o['discount_percent'] as num).toInt();}
+      } catch (_) {}
+      try { final subs=await Supabase.instance.client.from('public_active_subscriptions').select('shop_id'); for(final x in (subs as List).whereType<Map<String,dynamic>>())subscriptionShops.add(x['shop_id'].toString()); } catch (_) {}
+      final loaded = rawRows.map((row) {
+        final copy=Map<String,dynamic>.from(row);
+        copy['offer_discount_percent']=offerMap[copy['id']?.toString()];
+        copy['subscription_active']=subscriptionShops.contains(copy['seller_id']?.toString());
+        return _listingFromRow(copy, sellerCards[copy['seller_id']?.toString()]);
+      }).whereType<PhoneListing>().toList();
       _listings
         ..clear()
         ..addAll(loaded);
