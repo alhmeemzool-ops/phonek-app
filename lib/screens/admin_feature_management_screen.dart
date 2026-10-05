@@ -17,7 +17,7 @@ class _AdminFeatureManagementScreenState extends State<AdminFeatureManagementScr
       final a=await Supabase.instance.client.from('accessories').select('*').eq('status','pending_review').order('created_at',ascending:false);
       final s=await Supabase.instance.client.from('shop_subscriptions').select('*').inFilter('status',['pending','active']).order('requested_at',ascending:false);
       final r=await Supabase.instance.client.from('repair_shops').select('*').order('created_at',ascending:false);
-      if(mounted)setState(()=>{accessories=List<Map<String,dynamic>>.from(a),subs=List<Map<String,dynamic>>.from(s),shops=List<Map<String,dynamic>>.from(r)});
+      if(mounted)setState(() { accessories=List<Map<String,dynamic>>.from(a); subs=List<Map<String,dynamic>>.from(s); shops=List<Map<String,dynamic>>.from(r); });
     }catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(friendlyError(e,fallback:'تعذر تحميل إدارة الميزات.'))));}
     finally{if(mounted)setState(()=>loading=false);}
   }
