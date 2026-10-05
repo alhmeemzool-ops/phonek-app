@@ -53,7 +53,7 @@ class PhoneCard extends StatelessWidget {
         Text(listing.title,maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(fontWeight:FontWeight.bold,fontSize:13)),
         if(merchantLevel>0)...[const SizedBox(height:4),Row(children:[MerchantBadgeChip(level:merchantLevel,compact:true),const SizedBox(width:6),Flexible(child:Text(badgeForLevel(merchantLevel).nameAr,overflow:TextOverflow.ellipsis,style:const TextStyle(color:AppColors.textSecondary,fontSize:10,fontWeight:FontWeight.w700)))])],
         const SizedBox(height:3),
-        Text(listing.isIphone&&listing.batteryHealthPercent!=null?'${listing.storage} • بطارية ${listing.batteryHealthPercent}%':'${listing.storage} • ${listing.ram}',style:const TextStyle(color:AppColors.textSecondary,fontSize:11)),
+        Text(listing.isIphone&&listing.batteryHealthPercent!=null?'${listing.storage} • بطارية ${listing.batteryHealthPercent}%':listing.storage,style:const TextStyle(color:AppColors.textSecondary,fontSize:11)),
         const SizedBox(height:4),
         Row(children:[const Icon(Icons.location_on,size:12,color:AppColors.textSecondary),const SizedBox(width:2),Expanded(child:Text(listing.city,style:const TextStyle(color:AppColors.textSecondary,fontSize:10),overflow:TextOverflow.ellipsis))]),
         const SizedBox(height:4),
