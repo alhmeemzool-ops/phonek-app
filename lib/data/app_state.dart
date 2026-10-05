@@ -224,7 +224,7 @@ class AppState extends ChangeNotifier {
   Future<List<ChatMessage>> loadMessages(String threadId) async {
     final rows = await Supabase.instance.client
         .from('chat_messages')
-        .select('id, sender_id, text, type, status, offer_amount, created_at')
+        .select('id, sender_id, text, type, status, offer_amount, payload, created_at')
         .eq('thread_id', threadId)
         .order('created_at', ascending: true);
     return (rows as List).whereType<Map<String, dynamic>>().map(_messageFromRow).toList();
@@ -396,36 +396,23 @@ class AppState extends ChangeNotifier {
 
   RealtimeChannel subscribeToMessages(String threadId, void Function(ChatMessage message) onMessage) {
     final channel = Supabase.instance.client.channel('phonek-chat-$threadId');
-    channel.onPostgresChanges(
-      event: PostgresChangeEvent.insert,
-      schema: 'public',
-      table: 'chat_messages',
-      filter: PostgresChangeFilter(
-        type: PostgresChangeFilterType.eq,
-        column: 'thread_id',
-        value: threadId,
-      ),
-      callback: (payload) => onMessage(_messageFromRow(payload.newRecord)),
-    ).subscribe();
-    _chatChannels.add(channel);
-    return channel;
+    channel.onPostgresChanges(event: PostgresChangeEvent.insert, schema: 'public', table: 'chat_messages', filter: PostgresChangeFilter(type: PostgresChangeFilterType.eq, column: 'thread_id', value: threadId), callback: (payload) => onMessage(_messageFromRow(payload.newRecord)));
+    channel.onPostgresChanges(event: PostgresChangeEvent.update, schema: 'public', table: 'chat_messages', filter: PostgresChangeFilter(type: PostgresChangeFilterType.eq, column: 'thread_id', value: threadId), callback: (payload) => onMessage(_messageFromRow(payload.newRecord)));
+    return channel..subscribe();
   }
 
   ChatMessage _messageFromRow(Map<String, dynamic> row) {
+    final rawType = row['type']?.toString() ?? 'text';
+    final type = MessageType.values.firstWhere((item) => item.value == rawType, orElse: () => MessageType.text);
     return ChatMessage(
       id: row['id'] as String,
-      senderId: row['sender_id'] as String? ?? '',
-      text: row['text'] as String? ?? '',
-      type: MessageType.values.firstWhere(
-        (item) => item.value == row['type'],
-        orElse: () => MessageType.text,
-      ),
-      timestamp: DateTime.tryParse(row['created_at'] as String? ?? '') ?? DateTime.now(),
-      status: MessageStatus.values.firstWhere(
-        (item) => item.value == row['status'],
-        orElse: () => MessageStatus.sent,
-      ),
+      senderId: row['sender_id'] as String,
+      text: row['text']?.toString() ?? '',
+      type: type,
+      timestamp: DateTime.parse(row['created_at'].toString()).toLocal(),
+      status: MessageStatus.values.firstWhere((item) => item.value == row['status'], orElse: () => MessageStatus.sent),
       offerAmount: (row['offer_amount'] as num?)?.toInt(),
+      payload: row['payload'] is Map ? Map<String,dynamic>.from(row['payload'] as Map) : null,
     );
   }
 
@@ -670,6 +657,7 @@ class AppState extends ChangeNotifier {
         viewCount: (row['view_count'] as num?)?.toInt() ?? 0,
         isFeatured: row['is_featured'] as bool? ?? false,
         description: row['description'] as String? ?? '',
+      acceptsSwap: row['accepts_swap'] == true,
       );
     } catch (_) {
       return null;
