@@ -1,8 +1,10 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../theme/app_theme.dart';
 import 'badge_model.dart';
 import 'badge_widgets.dart';
+import 'level_up_celebration.dart';
 
 class MerchantBadgesScreen extends StatefulWidget {
   const MerchantBadgesScreen({super.key, this.shopId});
@@ -65,11 +67,44 @@ class _MerchantBadgesScreenState extends State<MerchantBadgesScreen> {
     return (sales * .55 + days * .45).clamp(0.0, 1.0);
   }
 
+  void _showDebugCelebrationPicker(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (sheetContext) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            const ListTile(title: Text('DEBUG: معاينة احتفال الشارة')),
+            for (var level = 1; level <= 10; level++)
+              ListTile(
+                title: Text('المستوى $level'),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  showDialog<void>(
+                    context: context,
+                    barrierDismissible: false,
+                    builder: (_) => LevelUpCelebration(level: level, previousLevel: level - 1),
+                  );
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final nextBadge = _level < merchantBadges.length ? merchantBadges[_level] : null;
     return Scaffold(
-      appBar: AppBar(title: const Text('شارات المتجر')),
+      appBar: AppBar(
+        title: kDebugMode
+            ? GestureDetector(
+                onLongPress: _showDebugCelebrationPicker,
+                child: const Text('شارات المتجر'),
+              )
+            : const Text('شارات المتجر'),
+      ),
       body: _loading ? const Center(child: CircularProgressIndicator()) : _error != null
           ? Center(child: Padding(padding: const EdgeInsets.all(24), child: Text('تعذر تحميل الشارات:\n$_error', textAlign: TextAlign.center)))
           : RefreshIndicator(
@@ -97,7 +132,7 @@ class _MerchantBadgesScreenState extends State<MerchantBadgesScreen> {
                   ] else ...[const SizedBox(height: 12), const Text('🏆 وصلت إلى أعلى مستوى. جميع الشارات مكتملة.')],
                 ]))),
                 const SizedBox(height: 20),
-                const Text('مسار الشارات', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
+                if (kDebugMode) GestureDetector(onLongPress: () => _showDebugCelebrationPicker(context), child: const Text('مسار الشارات', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900))) else const Text('مسار الشارات', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
                 const SizedBox(height: 10),
                 MerchantBadgeGallery(currentLevel: _level),
               ]),
