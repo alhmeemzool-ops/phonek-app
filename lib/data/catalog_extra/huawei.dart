@@ -1,4 +1,5 @@
-/// Additional verified catalog entries for huawei.\nconst List<String> huaweiExtraModels = [
+/// Additional verified catalog entries for huawei.
+const List<String> huaweiExtraModels = [
   "Huawei Mate 90 Pro Max",
   "Huawei Mate 90 Pro",
   "Huawei Mate 90",
@@ -199,4 +200,4 @@
   "Huawei Mate 50 Pro 512GB",
   "Huawei Mate 50 128GB",
   "Huawei Mate 50 256GB",
-];\n
+];
