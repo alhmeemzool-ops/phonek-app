@@ -452,6 +452,8 @@ class _ListingFormState extends State<ListingForm> {
         existingImageUrls: List.unmodifiable(_existingImages),
         newImages: List.unmodifiable(_newImages),
       ));
+    } catch (_) {
+      // The parent screen is responsible for the user-facing Arabic error.
     } finally {
       if (mounted) setState(() => _saving = false);
     }
