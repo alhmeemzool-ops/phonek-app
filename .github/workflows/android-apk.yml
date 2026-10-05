@@ -1,4 +1,5 @@
 name: Quick Android APK
+# CI trigger: build current versioned APK on main
 
 on:
   push:
