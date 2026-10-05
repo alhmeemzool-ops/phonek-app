@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'badge_model.dart';
 import 'merchant_badge_art.dart';
@@ -89,7 +92,7 @@ class _BadgeCelebrationDialogState extends State<_BadgeCelebrationDialog>
 
   Future<void> _playBadgeSound() async {
     try {
-      await BadgeSoundService.playForLevel(widget.badge.level);
+      await BadgeSoundService.instance.playForLevel(widget.badge.level);
     } catch (error, stackTrace) {
       if (kDebugMode) {
         debugPrint('Badge detail MP3 playback failed: $error');
@@ -146,34 +149,17 @@ class _BadgeCelebrationDialogState extends State<_BadgeCelebrationDialog>
               const SizedBox(height: 4),
               MerchantBadge3DViewer(level: widget.badge.level, size: 180),
               const SizedBox(height: 8),
-              Text(
-                widget.badge.nameAr,
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900),
-              ),
+              Text(widget.badge.nameAr, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900)),
               const SizedBox(height: 3),
-              Text(
-                'المستوى ${widget.badge.level}',
-                style: TextStyle(color: accent, fontSize: 14, fontWeight: FontWeight.w800),
-              ),
+              Text('المستوى ${widget.badge.level}', style: TextStyle(color: accent, fontSize: 14, fontWeight: FontWeight.w800)),
               const SizedBox(height: 8),
               Text(
-                widget.current
-                    ? 'احتفظت بهذه الشارة بجدارة 🎉'
-                    : widget.unlocked
-                        ? 'هذه الشارة مفتوحة في متجرك 🎉'
-                        : 'واصل التقدم لفتحها',
+                widget.current ? 'احتفظت بهذه الشارة بجدارة 🎉' : widget.unlocked ? 'هذه الشارة مفتوحة في متجرك 🎉' : 'واصل التقدم لفتحها',
                 textAlign: TextAlign.center,
                 style: const TextStyle(color: Colors.white70, fontSize: 13, height: 1.4),
               ),
               const SizedBox(height: 14),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('ممتاز'),
-                ),
-              ),
+              SizedBox(width: double.infinity, child: FilledButton(onPressed: () => Navigator.pop(context), child: const Text('ممتاز'))),
             ],
           ),
         ),
