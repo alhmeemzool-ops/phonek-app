@@ -1,9 +1,11 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../theme/app_theme.dart';
 import 'badge_model.dart';
 import 'badge_widgets.dart';
+import 'level_up_celebration.dart';
 import 'level_up_celebration.dart';
 
 class MerchantBadgesScreen extends StatefulWidget {
@@ -101,6 +103,32 @@ class _MerchantBadgesScreenState extends State<MerchantBadgesScreen> {
     );
   }
 
+  void _showDebugCelebrationPicker(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (sheetContext) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            const ListTile(title: Text('DEBUG: معاينة احتفال الشارة')),
+            for (var level = 1; level <= 10; level++)
+              ListTile(
+                title: Text('المستوى $level'),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  showDialog<void>(
+                    context: context,
+                    barrierDismissible: false,
+                    builder: (_) => LevelUpCelebration(level: level, previousLevel: level - 1),
+                  );
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final nextBadge = _level < merchantBadges.length ? merchantBadges[_level] : null;
@@ -140,7 +168,7 @@ class _MerchantBadgesScreenState extends State<MerchantBadgesScreen> {
                   ] else ...[const SizedBox(height: 12), const Text('🏆 وصلت إلى أعلى مستوى. جميع الشارات مكتملة.')],
                 ]))),
                 const SizedBox(height: 20),
-                const Text('مسار الشارات', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
+                if (kDebugMode) GestureDetector(onLongPress: () => _showDebugCelebrationPicker(context), child: const Text('مسار الشارات', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900))) else const Text('مسار الشارات', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
                 const SizedBox(height: 10),
                 MerchantBadgeGallery(currentLevel: _level),
               ]),
