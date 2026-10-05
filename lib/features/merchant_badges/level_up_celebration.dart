@@ -1,11 +1,13 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'badge_model.dart';
 import 'merchant_badge_art.dart';
+import 'badge_sound_service.dart';
 
 class MerchantLevelUpGate extends StatefulWidget {
   const MerchantLevelUpGate({super.key, required this.child});
@@ -78,7 +80,11 @@ class _MerchantLevelUpGateState extends State<MerchantLevelUpGate> with WidgetsB
         );
         _showing = false;
       }
-    } catch (_) {
+    } catch (error, stackTrace) {
+      if (kDebugMode) {
+        debugPrint('MerchantLevelUpGate._checkLevel failed: $error');
+        debugPrintStack(stackTrace: stackTrace);
+      }
       // Celebration is non-critical and must never block the app.
     } finally {
       _checking = false;
@@ -120,11 +126,26 @@ class _LevelUpCelebrationState extends State<LevelUpCelebration> with SingleTick
 
   Future<void> _playNativeSfx() async {
     try {
+      await BadgeSoundService.playForLevel(widget.level);
+      return;
+    } catch (error, stackTrace) {
+      if (kDebugMode) {
+        debugPrint('Badge MP3 playback failed; using native fallback: $error');
+        debugPrintStack(stackTrace: stackTrace);
+      }
+    }
+
+    try {
       await const MethodChannel('phonek/level_up').invokeMethod<void>(
         'playLevelUpSound',
         {'level': widget.level},
       );
-    } catch (_) {}
+    } catch (error, stackTrace) {
+      if (kDebugMode) {
+        debugPrint('Native level-up fallback failed: $error');
+        debugPrintStack(stackTrace: stackTrace);
+      }
+    }
   }
 
   @override
