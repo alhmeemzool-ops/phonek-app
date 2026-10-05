@@ -14,6 +14,22 @@ const String phoneKUpdateManifestUrl =
 const String _releaseAssetPrefix =
     'https://github.com/alhmeemzool-ops/phonek-app/releases/download/';
 
+class PhoneKUpdatePatch {
+  final int baseVersionCode;
+  final String? baseSha256;
+  final String url;
+  final String sha256;
+  final int? size;
+
+  const PhoneKUpdatePatch({
+    required this.baseVersionCode,
+    required this.baseSha256,
+    required this.url,
+    required this.sha256,
+    required this.size,
+  });
+}
+
 class PhoneKUpdate {
   final int versionCode;
   final String versionName;
@@ -25,6 +41,8 @@ class PhoneKUpdate {
   final String? patchUrl;
   final String? patchSha256;
   final int? patchBaseVersionCode;
+  final int? apkSize;
+  final List<PhoneKUpdatePatch> patches;
 
   const PhoneKUpdate({
     required this.versionCode,
@@ -37,18 +55,79 @@ class PhoneKUpdate {
     this.patchUrl,
     this.patchSha256,
     this.patchBaseVersionCode,
+    this.apkSize,
+    this.patches = const <PhoneKUpdatePatch>[],
   });
 
   factory PhoneKUpdate.fromJson(
     Map<String, dynamic> json, {
     int currentBuildNumber = 0,
   }) {
-    final patchUrl = json['patchUrl'] as String?;
     final minSupported = json['minSupportedVersionCode'];
     final minSupportedVersionCode =
         minSupported == null ? null : (minSupported as num).toInt();
-    final patchSha256 = json['patchSha256'] as String?;
-    final patchBase = json['patchBaseVersionCode'];
+
+    String? legacyUrl;
+    String? legacySha;
+    int? legacyBase;
+    final rawLegacyUrl = json['patchUrl'];
+    final rawLegacySha = json['patchSha256'];
+    final rawLegacyBase = json['patchBaseVersionCode'];
+    if (rawLegacyUrl is String &&
+        rawLegacyUrl.isNotEmpty &&
+        rawLegacySha is String &&
+        rawLegacyBase is num &&
+        _isReleaseAssetUrlValue(rawLegacyUrl) &&
+        _isHexSha256Value(rawLegacySha)) {
+      legacyUrl = rawLegacyUrl;
+      legacySha = rawLegacySha.toLowerCase();
+      legacyBase = rawLegacyBase.toInt();
+    } else if (rawLegacyUrl != null ||
+        rawLegacySha != null ||
+        rawLegacyBase != null) {
+      debugPrint('PhoneK update: ignoring malformed legacy patch fields.');
+    }
+
+    final parsedPatches = <PhoneKUpdatePatch>[];
+    final rawPatches = json['patches'];
+    if (rawPatches is List) {
+      for (final raw in rawPatches) {
+        if (raw is! Map) {
+          debugPrint('PhoneK update: ignoring malformed patch entry: $raw');
+          continue;
+        }
+        final base = raw['baseVersionCode'];
+        final baseSha = raw['baseSha256'];
+        final url = raw['url'];
+        final patchSha = raw['sha256'];
+        final size = raw['size'];
+        if (base is! num ||
+            baseSha is! String ||
+            url is! String ||
+            patchSha is! String ||
+            (size != null && size is! num) ||
+            base.toInt() < 0 ||
+            !_isHexSha256Value(baseSha) ||
+            !_isReleaseAssetUrlValue(url) ||
+            !_isHexSha256Value(patchSha) ||
+            (size is num && size < 0)) {
+          debugPrint('PhoneK update: ignoring malformed patch entry: $raw');
+          continue;
+        }
+        parsedPatches.add(
+          PhoneKUpdatePatch(
+            baseVersionCode: base.toInt(),
+            baseSha256: baseSha.toLowerCase(),
+            url: url,
+            sha256: patchSha.toLowerCase(),
+            size: size is num ? size.toInt() : null,
+          ),
+        );
+      }
+    } else if (rawPatches != null) {
+      debugPrint('PhoneK update: ignoring malformed patches field.');
+    }
+
     return PhoneKUpdate(
       versionCode: (json['versionCode'] as num).toInt(),
       versionName: json['versionName'] as String,
@@ -59,19 +138,47 @@ class PhoneKUpdate {
               minSupportedVersionCode > currentBuildNumber),
       notes: (json['notes'] as String?) ?? '',
       minSupportedVersionCode: minSupportedVersionCode,
-      patchUrl: patchUrl != null && patchUrl.isNotEmpty ? patchUrl : null,
-      patchSha256: patchSha256 != null && patchSha256.length == 64
-          ? patchSha256.toLowerCase()
-          : null,
-      patchBaseVersionCode:
-          patchBase == null ? null : (patchBase as num).toInt(),
+      patchUrl: legacyUrl,
+      patchSha256: legacySha,
+      patchBaseVersionCode: legacyBase,
+      apkSize: (json['apkSize'] as num?)?.toInt(),
+      patches: List<PhoneKUpdatePatch>.unmodifiable(parsedPatches),
     );
   }
 
+  static bool _isReleaseAssetUrlValue(String value) =>
+      value.startsWith(_releaseAssetPrefix);
+
+  static bool _isHexSha256Value(String value) =>
+      RegExp(r'^[0-9a-f]{64}$', caseSensitive: false).hasMatch(value);
+
+  PhoneKUpdatePatch? patchForBuild(int currentBuildNumber) =>
+      choosePhoneKUpdatePatch(this, currentBuildNumber);
+
   bool hasUsablePatch(int currentBuildNumber) =>
-      patchUrl != null &&
-      patchSha256 != null &&
-      patchBaseVersionCode == currentBuildNumber;
+      patchForBuild(currentBuildNumber) != null;
+}
+
+PhoneKUpdatePatch? choosePhoneKUpdatePatch(
+  PhoneKUpdate update,
+  int installedBuildNumber,
+) {
+  for (final patch in update.patches) {
+    if (patch.baseVersionCode == installedBuildNumber) return patch;
+  }
+  if (update.patches.isEmpty &&
+      update.patchUrl != null &&
+      update.patchSha256 != null &&
+      update.patchBaseVersionCode == installedBuildNumber) {
+    return PhoneKUpdatePatch(
+      baseVersionCode: installedBuildNumber,
+      baseSha256: null,
+      url: update.patchUrl!,
+      sha256: update.patchSha256!,
+      size: null,
+    );
+  }
+  return null;
 }
 
 /// مراحل التحديث كما تُعرض للمستخدم في نافذة التحديث.
@@ -411,6 +518,9 @@ class PhoneKUpdateService {
           onPhase: onPhase,
         );
         if (!builtFromPatch) {
+          debugPrint(
+            'PhoneK update: full APK used because the selected patch was unavailable or failed validation.',
+          );
           await _downloadFullApk(
             update,
             file,
@@ -448,21 +558,41 @@ class PhoneKUpdateService {
     try {
       final info = await PackageInfo.fromPlatform();
       final current = int.tryParse(info.buildNumber) ?? 0;
-      if (!update.hasUsablePatch(current)) return false;
+      final patch = update.patchForBuild(current);
+      if (patch == null) {
+        debugPrint('PhoneK update: full APK selected; no usable patch for build $current.');
+        return false;
+      }
       final path = await _installedApkPath();
-      if (path == null) return false;
+      if (path == null) {
+        debugPrint('PhoneK update: full APK selected; installed APK path unavailable.');
+        return false;
+      }
       final oldFile = File(path);
-      if (!await oldFile.exists()) return false;
+      if (!await oldFile.exists()) {
+        debugPrint('PhoneK update: full APK selected; installed APK file unavailable.');
+        return false;
+      }
+      if (patch.baseSha256 != null) {
+        final installedBaseSha256 = await _sha256File(oldFile);
+        if (installedBaseSha256 != patch.baseSha256) {
+          debugPrint('PhoneK update: full APK selected; installed base SHA-256 does not match patch base.');
+          return false;
+        }
+      }
 
       onPhase?.call(PhoneKUpdatePhase.downloadingPatch);
       patchFile = File('${outputFile.path}.patch');
       await _downloadWithResume(
-        Uri.parse(update.patchUrl!),
+        Uri.parse(patch.url),
         patchFile,
         onProgress: (value) => onProgress?.call(value * 0.6),
       );
       onPhase?.call(PhoneKUpdatePhase.verifying);
-      if (await _sha256File(patchFile) != update.patchSha256) return false;
+      if (await _sha256File(patchFile) != patch.sha256) {
+        debugPrint('PhoneK update: full APK selected; patch SHA-256 mismatch.');
+        return false;
+      }
       onProgress?.call(0.7);
 
       onPhase?.call(PhoneKUpdatePhase.applyingPatch);
@@ -480,9 +610,10 @@ class PhoneKUpdateService {
         return false;
       }
       onProgress?.call(1.0);
+      debugPrint('PhoneK update: patch used successfully; reconstructed APK SHA-256 matches the manifest.');
       return true;
     } catch (error) {
-      debugPrint('PhoneK update patch failed; using full APK: $error');
+      debugPrint('PhoneK update: full APK selected; patch application failed: $error');
       onProgress?.call(0.0);
       return false;
     } finally {
