@@ -35,8 +35,7 @@ class ListingSettingsScreen extends StatelessWidget {
         originalImageUrls: listing.imageUrls,
       );
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم حفظ تعديلات الإعلان')));
-      Navigator.of(context).pop();
+      Navigator.of(context).pop(true);
     } catch (error) {
       if (!context.mounted) return;
       final message = friendlyError(error, fallback: 'تعذر حفظ تعديلات الإعلان. حاول مرة أخرى.');
