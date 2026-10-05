@@ -270,6 +270,19 @@ class AppState extends ChangeNotifier {
     ));
   }
 
+  Future<void> sendSwap({required PhoneListing listing, required String model, required DeviceCondition condition, required int diffAmount, required String diffDirection, String? imageUrl}) async {
+    final userId=_session?.user.id;
+    if(userId==null) throw const AuthException('سجّل الدخول لإرسال عرض تبديل');
+    if(userId==listing.seller.id) throw const AuthException('لا يمكنك التبديل مع إعلانك');
+    if(!listing.acceptsSwap) throw const AuthException('هذا الإعلان لا يقبل التبديل');
+    final threadId=await ensureChatThread(listing);
+    final inserted=await Supabase.instance.client.from('chat_messages').insert({
+      'thread_id':threadId,'sender_id':userId,'text':'','type':MessageType.swap.value,'status':MessageStatus.sent.value,
+      'payload':{'model':model.trim(),'condition':condition.value,'diff_amount':diffAmount,'diff_direction':diffDirection,'image_url':imageUrl,'status':'pending'},
+    }).select('id').single();
+    unawaited(_sendPushForMessage(threadId:threadId,messageId:inserted['id'] as String));
+  }
+
   Future<void> sendOffer({required PhoneListing listing, required int amount}) async {
     final userId = _session?.user.id;
     if (userId == null) throw const AuthException('سجّل الدخول لإرسال عرض');
