@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'admin_feature_management_screen.dart';
 import '../data/app_state.dart';
 import '../theme/app_theme.dart';
 import 'admin_operations_monitor_screen.dart';
@@ -293,6 +294,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                             const SizedBox(width: 10),
                             Expanded(child: _statCard('طلبات متاجر', '$_pendingShopApplications', Icons.store_mall_directory_outlined)),
                           ]),
+                          Card(child: ListTile(leading: const Icon(Icons.card_membership_outlined,color:AppColors.gold),title: const Text('طلبات اشتراك المعارض'),onTap:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>const AdminFeatureManagementScreen(section:'subscriptions'))))),
+                          Card(child: ListTile(leading: const Icon(Icons.inventory_2_outlined,color:AppColors.gold),title: const Text('إكسسوارات بانتظار المراجعة'),onTap:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>const AdminFeatureManagementScreen(section:'accessories'))))),
+                          Card(child: ListTile(leading: const Icon(Icons.build_outlined,color:AppColors.gold),title: const Text('محلات الصيانة'),onTap:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>const AdminFeatureManagementScreen(section:'repairs'))))),
                           const SizedBox(height: 16),
                           Card(child: ListTile(
                             leading: const Icon(Icons.monitor_heart_outlined, color: AppColors.gold),
