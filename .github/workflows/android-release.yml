@@ -96,6 +96,9 @@ jobs:
       - name: Flutter test
         run: flutter test
 
+      - name: Python patch unit tests
+        run: python3 -m unittest tool/test_make_patches.py
+
       - name: Read app version
         id: version
         shell: bash
@@ -131,19 +134,12 @@ jobs:
             exit 1
           fi
 
-      - name: Read previous manifest
+      - name: Fetch latest update manifest
         if: steps.guard.outputs.skip != 'true'
-        id: previous
         shell: bash
         run: |
-          python3 - <<'PY' >> "$GITHUB_OUTPUT"
-          import json
-          try: d=json.load(open("update.json"))
-          except Exception: d={}
-          print("version_code="+str(d.get("versionCode","")))
-          print("apk_url="+str(d.get("apkUrl","")))
-          print("sha256="+str(d.get("sha256","")))
-          PY
+          git fetch origin main
+          git show origin/main:update.json > latest-update.json
 
       - name: Build release APK (ARM32 + ARM64)
         if: steps.guard.outputs.skip != 'true'
@@ -180,65 +176,14 @@ jobs:
         shell: bash
         run: echo "sha256=$(sha256sum build/app/outputs/flutter-apk/app-release.apk | awk '{print $1}')" >> "$GITHUB_OUTPUT"
 
-      - name: Build and validate incremental patch
+      - name: Build incremental patches
         if: steps.guard.outputs.skip != 'true'
-        id: patch
-        shell: bash
+        continue-on-error: true
+        timeout-minutes: 25
+        env:
+          PHONEK_MAX_PATCH_BASES: 2
         run: |
-          echo "ok=false" >> "$GITHUB_OUTPUT"
-          base_code="${{ steps.previous.outputs.version_code }}"
-          old_url="${{ steps.previous.outputs.apk_url }}"
-          new_code="${{ steps.version.outputs.version_code }}"
-          new_apk="build/app/outputs/flutter-apk/app-release.apk"
-
-          if [ -z "$base_code" ] || [ -z "$old_url" ] || [ "$base_code" = "$new_code" ]; then
-            echo "No compatible previous release was found; full APK fallback will be used."
-            exit 0
-          fi
-
-          curl -fL --retry 5 --retry-delay 3 --retry-all-errors -o old-release.apk "$old_url" || exit 0
-
-          old_sha="${{ steps.previous.outputs.sha256 }}"
-          if [ -n "$old_sha" ] && [ "$(sha256sum old-release.apk | awk '{print $1}')" != "$old_sha" ]; then
-            echo "Previous APK checksum mismatch; patch disabled."
-            exit 0
-          fi
-
-          timeout 900 dart run tool/build_patch.dart old-release.apk "$new_apk" patch.bin || {
-            echo "Patch generation timed out or failed; full APK fallback will be used."
-            exit 0
-          }
-          [ -s patch.bin ] || exit 0
-
-          timeout 900 dart run tool/validate_patch.dart old-release.apk patch.bin reconstructed.apk || {
-            echo "Patch validation timed out or failed; full APK fallback will be used."
-            rm -f patch.bin reconstructed.apk
-            exit 0
-          }
-
-          new_sha="$(sha256sum "$new_apk" | awk '{print $1}')"
-          reconstructed_sha="$(sha256sum reconstructed.apk | awk '{print $1}')"
-          if [ "$new_sha" != "$reconstructed_sha" ]; then
-            echo "Patch validation failed: reconstructed APK SHA-256 differs."
-            rm -f patch.bin reconstructed.apk
-            exit 0
-          fi
-
-          patch_size=$(stat -c '%s' patch.bin)
-          apk_size=$(stat -c '%s' "$new_apk")
-          echo "new_apk_size=$apk_size"
-          echo "patch_size=$patch_size"
-
-          if [ "$patch_size" -ge "$apk_size" ]; then
-            echo "Patch is not smaller than the APK; full APK fallback will be used."
-            rm -f patch.bin reconstructed.apk
-            exit 0
-          fi
-
-          echo "Patch validated successfully: SHA-256 matches the new APK."
-          echo "ok=true" >> "$GITHUB_OUTPUT"
-          echo "sha256=$(sha256sum patch.bin | awk '{print $1}')" >> "$GITHUB_OUTPUT"
-          echo "base_version_code=$base_code" >> "$GITHUB_OUTPUT"
+          python3 tool/make_patches.py build             --manifest latest-update.json             --new-apk build/app/outputs/flutter-apk/app-release.apk             --new-version-code "${{ steps.version.outputs.version_code }}"             --output patch-results.json
 
       - name: Publish PhoneK APK release
         if: steps.guard.outputs.skip != 'true'
@@ -246,68 +191,72 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           tag="v${{ steps.version.outputs.version_name }}"
-          assets="build/app/outputs/flutter-apk/app-release.apk"
-          if [ "${{ steps.patch.outputs.ok }}" = "true" ]; then assets="$assets patch.bin"; fi
-          gh release create "$tag" $assets \
-            --title "PhoneK ${{ steps.version.outputs.version_name }}" \
-            --notes "تحديث PhoneK رقم ${{ steps.version.outputs.version_code }} - ARM32 + ARM64"
+          mapfile -t patch_files < <(python3 - <<'PY'
+          import json
+          d=json.load(open("patch-results.json"))
+          for p in d.get("patches", []):
+              print(p["file"])
+          PY
+          )
+          assets=(build/app/outputs/flutter-apk/app-release.apk)
+          if [ "${#patch_files[@]}" -gt 0 ]; then
+            assets+=( "${patch_files[@]}" )
+          fi
+          gh release create "$tag" "${assets[@]}"             --title "PhoneK ${{ steps.version.outputs.version_name }}"             --notes "تحديث PhoneK رقم ${{ steps.version.outputs.version_code }} - ARM32 + ARM64"
 
       - name: Verify published release assets
         if: steps.guard.outputs.skip != 'true'
-        id: published
         shell: bash
         env:
-          APK_URL: https://github.com/alhmeemzool-ops/phonek-app/releases/download/v${{ steps.version.outputs.version_name }}/app-release.apk
-          PATCH_URL: https://github.com/alhmeemzool-ops/phonek-app/releases/download/v${{ steps.version.outputs.version_name }}/patch.bin
+          GH_TOKEN: ${{ github.token }}
+          VERSION_NAME: ${{ steps.version.outputs.version_name }}
           BUILT_APK_SHA256: ${{ steps.checksum.outputs.sha256 }}
-          BUILT_PATCH_SHA256: ${{ steps.patch.outputs.sha256 }}
-          PATCH_OK: ${{ steps.patch.outputs.ok }}
         run: |
-          curl -fL --retry 5 --retry-delay 3 --retry-all-errors -o published-app-release.apk "$APK_URL"
+          tag="v${VERSION_NAME}"
+          apk_url="https://github.com/alhmeemzool-ops/phonek-app/releases/download/${tag}/app-release.apk"
+          curl -fL --retry 5 --retry-delay 3 --retry-all-errors -o published-app-release.apk "$apk_url"
           published_apk_sha256=$(sha256sum published-app-release.apk | awk '{print $1}')
-          if [ "$published_apk_sha256" != "$BUILT_APK_SHA256" ]; then
+          test "$published_apk_sha256" = "$BUILT_APK_SHA256" || {
             echo "Published APK checksum does not match the built APK."
             exit 1
-          fi
-          echo "apk_sha256=$published_apk_sha256" >> "$GITHUB_OUTPUT"
-
-          if [ "$PATCH_OK" = "true" ]; then
-            curl -fL --retry 5 --retry-delay 3 --retry-all-errors -o published-patch.bin "$PATCH_URL"
-            published_patch_sha256=$(sha256sum published-patch.bin | awk '{print $1}')
-            if [ "$published_patch_sha256" != "$BUILT_PATCH_SHA256" ]; then
-              echo "Published patch checksum does not match the built patch."
-              exit 1
-            fi
-            echo "patch_sha256=$published_patch_sha256" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Update PhoneK update manifest
-        if: steps.guard.outputs.skip != 'true'
-        shell: bash
-        env:
-          APK_SHA256: ${{ steps.published.outputs.apk_sha256 }}
-          PATCH_OK: ${{ steps.patch.outputs.ok }}
-          PATCH_SHA256: ${{ steps.published.outputs.patch_sha256 }}
-          PATCH_BASE: ${{ steps.patch.outputs.base_version_code }}
-        run: |
-          python3 - <<PY
-          import json
-          ok="${{ steps.patch.outputs.ok }}"=="true"
-          d={
-            "versionCode":int("${{ steps.version.outputs.version_code }}"),
-            "versionName":"${{ steps.version.outputs.version_name }}",
-            "apkUrl":"https://github.com/alhmeemzool-ops/phonek-app/releases/download/v${{ steps.version.outputs.version_name }}/app-release.apk",
-            "sha256":"$APK_SHA256",
-            "patchUrl":"https://github.com/alhmeemzool-ops/phonek-app/releases/download/v${{ steps.version.outputs.version_name }}/patch.bin" if ok else None,
-            "patchSha256":"$PATCH_SHA256" if ok else None,
-            "patchBaseVersionCode":int("$PATCH_BASE") if ok else None,
-            "minSupportedVersionCode":58,
-            "mandatory":False,
-            "notes":"تحديث جديد لتحسين PhoneK وإصلاح الأخطاء."
           }
-          with open("update.json","w",encoding="utf-8") as f:
-              json.dump(d,f,ensure_ascii=False,indent=2); f.write("\n")
+          python3 - <<'PY'
+          import hashlib, json, os, subprocess
+          from pathlib import Path
+          path=Path("patch-results.json")
+          data=json.loads(path.read_text())
+          kept=[]
+          tag="v"+os.environ["VERSION_NAME"]
+          for patch in data.get("patches", []):
+              base=int(patch["baseVersionCode"])
+              filename=f"patch-from-{base}.bin"
+              url=f"https://github.com/alhmeemzool-ops/phonek-app/releases/download/{tag}/{filename}"
+              try:
+                  out=Path(f"published-patch-{base}.bin")
+                  subprocess.run(["curl","-fL","--retry","5","--retry-delay","3","--retry-all-errors","-o",str(out),url],check=True)
+                  digest=hashlib.sha256(out.read_bytes()).hexdigest()
+                  if digest == patch["sha256"]:
+                      kept.append(patch)
+                  else:
+                      print(f"Dropping {filename}: published SHA-256 mismatch")
+                      subprocess.run(["gh","release","delete-asset",tag,filename,"--yes"],check=False)
+                  out.unlink(missing_ok=True)
+              except Exception as exc:
+                  print(f"Dropping {filename}: verification failed: {exc}")
+                  subprocess.run(["gh","release","delete-asset",tag,filename,"--yes"],check=False)
+          data["patches"]=kept
+          path.write_text(json.dumps(data,ensure_ascii=False,indent=2)+"\n")
           PY
+
+      - name: Write PhoneK update manifest
+        if: steps.guard.outputs.skip != 'true'
+        env:
+          VERSION_NAME: ${{ steps.version.outputs.version_name }}
+          VERSION_CODE: ${{ steps.version.outputs.version_code }}
+          APK_SHA256: ${{ steps.checksum.outputs.sha256 }}
+        run: |
+          python3 tool/make_patches.py manifest             --manifest latest-update.json             --result patch-results.json             --new-apk build/app/outputs/flutter-apk/app-release.apk             --version-code "$VERSION_CODE"             --version-name "$VERSION_NAME"             --apk-url "https://github.com/alhmeemzool-ops/phonek-app/releases/download/v${VERSION_NAME}/app-release.apk"             --apk-sha256 "$APK_SHA256"             --release-prefix "https://github.com/alhmeemzool-ops/phonek-app/releases/download/v${VERSION_NAME}/"             --output update.json
+
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add update.json
