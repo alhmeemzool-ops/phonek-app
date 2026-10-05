@@ -7,6 +7,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:record/record.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../data/app_state.dart';
 import '../models/chat_model.dart';
 import '../models/phone_model.dart';
@@ -107,6 +109,52 @@ class _ChatScreenState extends State<ChatScreen> {
     catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(friendlyError(e,fallback:'تعذر إرسال الرسالة الصوتية.'))));}
   }
   String _duration(int seconds)=>'${(seconds~/60).toString().padLeft(2,'0')}:${(seconds%60).toString().padLeft(2,'0')}';
+
+  Future<void> _sendLocation() async {
+    if (_threadId == null) return;
+    try {
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('اسمح بالوصول إلى الموقع لإرساله في الدردشة')),
+          );
+        }
+        return;
+      }
+      if (!await Geolocator.isLocationServiceEnabled()) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('فعّل خدمة الموقع في الهاتف ثم حاول مرة أخرى')),
+          );
+        }
+        return;
+      }
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
+      );
+      await context.read<AppState>().sendLocation(
+        threadId: _threadId!,
+        latitude: position.latitude,
+        longitude: position.longitude,
+      );
+      final messages = await context.read<AppState>().loadMessages(_threadId!);
+      if (mounted) {
+        setState(() => _messages = messages);
+        _scrollToBottom();
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(friendlyError(error, fallback: 'تعذر الحصول على الموقع وإرساله.'))),
+        );
+      }
+    }
+  }
   Future<void> _playVoice(ChatMessage m) async {
     final path=m.payload?['path']?.toString();if(path==null)return;
     if(_playingMessageId==m.id){await _player.stop();if(mounted)setState(()=>_playingMessageId=null);return;}
@@ -182,7 +230,28 @@ class _ChatScreenState extends State<ChatScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if(m.type==MessageType.swap) _swapCard(m,isMe) else if(m.type==MessageType.voice) ...[
+            if(m.type==MessageType.swap) _swapCard(m,isMe) else if(m.type==MessageType.location) ...[
+              Row(mainAxisSize: MainAxisSize.min, children: [
+                const Icon(Icons.location_on, size: 22),
+                const SizedBox(width: 6),
+                const Text('موقع', style: TextStyle(fontWeight: FontWeight.w700)),
+                const SizedBox(width: 4),
+                IconButton(
+                  tooltip: 'فتح الموقع',
+                  onPressed: () async {
+                    final p = m.payload ?? const {};
+                    final lat = (p['latitude'] as num?)?.toDouble();
+                    final lng = (p['longitude'] as num?)?.toDouble();
+                    if (lat == null || lng == null) return;
+                    await launchUrl(
+                      Uri.parse('https://www.google.com/maps/search/?api=1&query=$lat,$lng'),
+                      mode: LaunchMode.externalApplication,
+                    );
+                  },
+                  icon: const Icon(Icons.open_in_new, size: 18),
+                ),
+              ]),
+            ] else if(m.type==MessageType.voice) ...[
               Row(mainAxisSize:MainAxisSize.min,children:[IconButton(onPressed:()=>_playVoice(m),icon:Icon(_playingMessageId==m.id?Icons.pause_circle:Icons.play_circle)),Text(_duration((m.payload?['duration_seconds'] as num?)?.toInt()??0))]),
             ] else Text(m.displayText, style: TextStyle(color: isMe ? Colors.black : Colors.white, fontSize: 15, height: 1.45)),
             const SizedBox(height: 2),
@@ -251,13 +320,28 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
           if (_recording || _recordedPath != null)
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               child: Row(children: [
                 if (_recording) const Icon(Icons.fiber_manual_record, color: Colors.red, size: 12),
-                Text(_duration(_recordSeconds)),
+                const SizedBox(width: 6),
+                Text(_duration(_recordSeconds), style: const TextStyle(fontWeight: FontWeight.w700)),
                 const Spacer(),
-                IconButton(onPressed: _cancelRecording, icon: const Icon(Icons.close)),
-                if (!_recording) IconButton(onPressed: _sendRecordedVoice, icon: const Icon(Icons.send, color: AppColors.gold)),
+                IconButton(
+                  tooltip: 'إلغاء التسجيل',
+                  onPressed: _cancelRecording,
+                  icon: const Icon(Icons.close),
+                ),
+                const SizedBox(width: 6),
+                FilledButton.icon(
+                  onPressed: _recording
+                      ? () async {
+                          await _stopRecording();
+                          await _sendRecordedVoice();
+                        }
+                      : _sendRecordedVoice,
+                  icon: const Icon(Icons.send, size: 18),
+                  label: const Text('إرسال'),
+                ),
               ]),
             ),
           if (!_recording && _recordedPath == null)
@@ -266,7 +350,7 @@ class _ChatScreenState extends State<ChatScreen> {
               child: Row(children: [
                 IconButton(
                   icon: const Icon(Icons.location_on_outlined, color: AppColors.gold),
-                  onPressed: _threadId == null ? null : () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('إرسال الموقع سيُفعّل بعد إضافة صلاحية الموقع'))),
+                  onPressed: _threadId == null ? null : _sendLocation,
                 ),
                 IconButton(onPressed: _toggleRecording, icon: const Icon(Icons.mic, color: AppColors.gold)),
                 Expanded(child: TextField(controller: _controller, decoration: const InputDecoration(hintText: 'اكتب رسالتك...'), onSubmitted: (_) => _send())),
