@@ -42,6 +42,7 @@ class PhoneCard extends StatelessWidget {
       ):const _ImagePlaceholder())),
         Positioned(bottom:6,right:6,child:Container(padding:const EdgeInsets.symmetric(horizontal:6,vertical:2),decoration:BoxDecoration(color:Colors.black.withValues(alpha:.55),borderRadius:BorderRadius.circular(4)),child:const Text('PhoneK',style:TextStyle(color:AppColors.gold,fontSize:9)))),
         if(listing.isFeatured)const Positioned(top:6,right:6,child:_Badge(text:'مميز',color:AppColors.gold,textColor:Colors.black)),
+        if(listing.acceptsSwap)const Positioned(top:34,right:6,child:_Badge(text:'يقبل التبديل',color:AppColors.success,textColor:Colors.black)),
         if(listing.status==ListingStatus.sold)const Positioned(top:6,left:6,child:_Badge(text:'تم البيع',color:AppColors.danger,textColor:Colors.white)),
         if(listing.condition==DeviceCondition.cracked)const Positioned(top:6,left:6,child:_Badge(text:'به عيوب',color:AppColors.warning,textColor:Colors.black)),
         Positioned(top:4,left:listing.condition==DeviceCondition.cracked?70:6,child:GestureDetector(onTap:onFavoriteToggle,child:Icon(isFavorite?Icons.favorite:Icons.favorite_border,color:isFavorite?AppColors.danger:Colors.white70,size:20))),
