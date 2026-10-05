@@ -95,9 +95,9 @@ class MakePatchesTest(unittest.TestCase):
                 if args[0] == "curl":
                     old.write_bytes(new_apk.read_bytes())
                 elif "build_patch.dart" in args:
-                    patch.write_bytes(b"12345678")
+                    Path(args[-1]).write_bytes(b"12345678")
                 elif "validate_patch.dart" in args:
-                    rebuilt.write_bytes(new_apk.read_bytes())
+                    Path(args[-1]).write_bytes(new_apk.read_bytes())
                 return mock.Mock(returncode=0)
 
             old_cwd = os.getcwd()
