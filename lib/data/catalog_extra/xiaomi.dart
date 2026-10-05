@@ -1,4 +1,5 @@
-/// Additional verified catalog entries for xiaomi.\nconst List<String> xiaomiExtraModels = [
+/// Additional verified catalog entries for xiaomi.
+const List<String> xiaomiExtraModels = [
   "Xiaomi 17 Ultra",
   "Xiaomi 17 Pro",
   "Xiaomi 17",
@@ -99,4 +100,4 @@
   "Redmi 10 Prime",
   "Redmi 10",
   "Redmi 9 Power",
-];\n
+];
