@@ -1,7 +1,11 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../utils/friendly_error.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:record/record.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'package:path_provider/path_provider.dart';
 import '../data/app_state.dart';
 import '../models/chat_model.dart';
 import '../models/phone_model.dart';
@@ -24,6 +28,10 @@ class _ChatScreenState extends State<ChatScreen> {
   String? _threadId;
   bool _loading = true;
   RealtimeChannel? _channel;
+  final AudioRecorder _recorder=AudioRecorder();
+  final AudioPlayer _player=AudioPlayer();
+  Timer? _recordTimer;
+  bool _recording=false; int _recordSeconds=0; String? _recordedPath; int _recordedDuration=0; String? _playingMessageId;
 
   @override
   void initState() {
@@ -77,6 +85,32 @@ class _ChatScreenState extends State<ChatScreen> {
     } on PostgrestException catch (error) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(friendlyError(error, fallback: 'تعذر إرسال الرسالة.'))));
     }
+  }
+
+  Future<void> _toggleRecording() async {
+    if(_recording){await _stopRecording();return;}
+    if(!await _recorder.hasPermission()){if(mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('لا يمكن التسجيل بدون إذن الميكروفون')));return;}
+    final dir=await getTemporaryDirectory();final uid=context.read<AppState>().currentUser!.id;final path=dir.path+'/phonek_${DateTime.now().millisecondsSinceEpoch}.m4a';
+    await _recorder.start(const RecordConfig(encoder:AudioEncoder.aacLc,bitRate:128000,sampleRate:44100),path:path);
+    setState(()=>{});
+    _recording=true;_recordSeconds=0;_recordTimer=Timer.periodic(const Duration(seconds:1),(t){if(!mounted)return;setState(()=>_recordSeconds++);if(_recordSeconds>=120)_stopRecording();});setState(()=>{});
+  }
+  Future<void> _stopRecording() async {
+    if(!_recording)return;_recordTimer?.cancel();final path=await _recorder.stop();_recording=false;
+    if(path==null||_recordSeconds<1){_recordedPath=null;_recordedDuration=0;}else{_recordedPath=path;_recordedDuration=_recordSeconds;}if(mounted)setState(()=>{});
+  }
+  Future<void> _cancelRecording() async {if(_recording){_recordTimer?.cancel();await _recorder.cancel();}_recording=false;_recordedPath=null;_recordedDuration=0;if(mounted)setState(()=>{});}
+  Future<void> _sendRecordedVoice() async {
+    if(_recordedPath==null||_threadId==null)return;final uid=context.read<AppState>().currentUser!.id;final path='${_threadId!}/${uid}_${DateTime.now().millisecondsSinceEpoch}.m4a';
+    try{await Supabase.instance.client.storage.from('chat-voice').upload(_recordedPath!,path,fileOptions:const FileOptions(contentType:'audio/mp4',upsert:false));await context.read<AppState>().sendVoice(threadId:_threadId!,path:path,durationSeconds:_recordedDuration);_recordedPath=null;_recordedDuration=0;final messages=await context.read<AppState>().loadMessages(_threadId!);if(mounted)setState(()=>_messages=messages);}
+    catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(friendlyError(e,fallback:'تعذر إرسال الرسالة الصوتية.'))));}
+  }
+  String _duration(int seconds)=>'${(seconds~/60).toString().padLeft(2,'0')}:${(seconds%60).toString().padLeft(2,'0')}';
+  Future<void> _playVoice(ChatMessage m) async {
+    final path=m.payload?['path']?.toString();if(path==null)return;
+    if(_playingMessageId==m.id){await _player.stop();if(mounted)setState(()=>_playingMessageId=null);return;}
+    try{final url=await Supabase.instance.client.storage.from('chat-voice').createSignedUrl(path,3600);_playingMessageId=m.id;if(mounted)setState(()=>{});await _player.play(UrlSource(url));_player.onPlayerComplete.listen((_){if(mounted)setState(()=>_playingMessageId=null);});}
+    catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(friendlyError(e,fallback:'تعذر تشغيل الرسالة الصوتية.'))));}
   }
 
   void _scrollToBottom() {
@@ -147,7 +181,9 @@ class _ChatScreenState extends State<ChatScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(m.displayText, style: TextStyle(color: isMe ? Colors.black : Colors.white, fontSize: 15, height: 1.45)),
+            if(m.type==MessageType.voice) ...[
+              Row(mainAxisSize:MainAxisSize.min,children:[IconButton(onPressed:()=>_playVoice(m),icon:Icon(_playingMessageId==m.id?Icons.pause_circle:Icons.play_circle)),Text(_duration((m.payload?['duration_seconds'] as num?)?.toInt()??0))]),
+            ] else Text(m.displayText, style: TextStyle(color: isMe ? Colors.black : Colors.white, fontSize: 15, height: 1.45)),
             const SizedBox(height: 2),
             Row(
               mainAxisSize: MainAxisSize.min,
@@ -178,7 +214,8 @@ class _ChatScreenState extends State<ChatScreen> {
       top: false,
       child: Column(mainAxisSize: MainAxisSize.min, children: [
         if (!_loading) SingleChildScrollView(scrollDirection: Axis.horizontal, padding: const EdgeInsets.symmetric(horizontal: 8), child: Row(children: quick.map((text) => Padding(padding: const EdgeInsets.only(left: 6), child: ActionChip(label: Text(text), onPressed: _threadId == null ? null : () async { await context.read<AppState>().sendMessage(threadId: _threadId!, text: text); final messages = await context.read<AppState>().loadMessages(_threadId!); if (mounted) setState(() => _messages = messages); }))).toList())),
-        Padding(
+        if(_recording||_recordedPath!=null) Padding(padding:const EdgeInsets.symmetric(horizontal:12,vertical:4),child:Row(children:[if(_recording)const Icon(Icons.fiber_manual_record,color:Colors.red,size:12),Text(_duration(_recordSeconds)),const Spacer(),IconButton(onPressed:_cancelRecording,icon:const Icon(Icons.close)),if(!_recording)IconButton(onPressed:_sendRecordedVoice,icon:const Icon(Icons.send,color:AppColors.gold))])),
+        if(!_recording&&_recordedPath==null) Padding(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
         child: Row(
           children: [
@@ -190,6 +227,7 @@ class _ChatScreenState extends State<ChatScreen> {
                         const SnackBar(content: Text('إرسال الموقع سيُفعّل بعد إضافة صلاحية الموقع')),
                       ),
             ),
+            IconButton(onPressed:_toggleRecording,icon:const Icon(Icons.mic,color:AppColors.gold)),
             Expanded(
               child: TextField(
                 controller: _controller,
@@ -218,6 +256,9 @@ class _ChatScreenState extends State<ChatScreen> {
       Supabase.instance.client.removeChannel(_channel!);
     }
     _controller.dispose();
+    _recordTimer?.cancel();
+    _recorder.dispose();
+    _player.dispose();
     _scrollController.dispose();
     super.dispose();
   }
