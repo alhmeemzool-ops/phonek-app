@@ -176,6 +176,7 @@ class _PhoneDetailsScreenState extends State<PhoneDetailsScreen> {
       if (!listing.priceOnCall) ...[const SizedBox(width: 7), Expanded(child: OutlinedButton(onPressed: offline?()=>_offlineMessage(context):() => _offer(context), child: const Text('تقديم عرض')))],
     ])),
   );
+  }
 
   void _offlineMessage(BuildContext context)=>ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('تحتاج إلى اتصال بالإنترنت')));
 
