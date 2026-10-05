@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import '../screens/wanted_screen.dart';
+import '../screens/accessories_screen.dart';
+import '../screens/repair_directory_screen.dart';
 import '../data/app_state.dart';
 import '../data/catalog_data.dart' as catalog;
 import '../models/phone_model.dart';
@@ -139,6 +142,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           ),
+          SliverToBoxAdapter(child: _buildShortcuts(context)),
           SliverToBoxAdapter(child: _buildBrandChips()),
           if (appState.isLoadingListings && listings.isEmpty)
             const SliverFillRemaining(
@@ -203,6 +207,13 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Widget _buildShortcuts(BuildContext context) => SizedBox(height:92,child:ListView(scrollDirection:Axis.horizontal,padding:const EdgeInsets.symmetric(horizontal:12,vertical:8),children:[
+    _shortcut(context,'مطلوب',Icons.assignment_outlined,()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>const WantedScreen()))),
+    _shortcut(context,'إكسسوارات',Icons.cases_outlined,()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>const AccessoriesScreen()))),
+    _shortcut(context,'دليل الصيانة',Icons.build_outlined,()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>const RepairDirectoryScreen()))),
+  ]));
+  Widget _shortcut(BuildContext context,String title,IconData icon,VoidCallback onTap)=>SizedBox(width:125,child:Padding(padding:const EdgeInsets.only(left:8),child:Card(child:InkWell(onTap:onTap,borderRadius:BorderRadius.circular(12),child:Row(mainAxisAlignment:MainAxisAlignment.center,children:[Icon(icon,color:AppColors.gold),const SizedBox(width:7),Text(title,style:const TextStyle(fontWeight:FontWeight.bold))])))));
+  
   Widget _buildBrandChips() {
     return SizedBox(
       height: 44,
