@@ -100,7 +100,7 @@ class _MerchantBadgesScreenState extends State<MerchantBadgesScreen> {
       appBar: AppBar(
         title: kDebugMode
             ? GestureDetector(
-                onLongPress: _showDebugCelebrationPicker,
+                onLongPress: () => _showDebugCelebrationPicker(context),
                 child: const Text('شارات المتجر'),
               )
             : const Text('شارات المتجر'),
