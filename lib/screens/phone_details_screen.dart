@@ -168,14 +168,16 @@ class _PhoneDetailsScreenState extends State<PhoneDetailsScreen> {
     );
   }
 
-  Widget _contactBar(BuildContext context) => Container(
+  Widget _contactBar(BuildContext context) { final offline=context.watch<AppState>().isOffline; return Container(
     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9), decoration: const BoxDecoration(color: AppColors.surface, border: Border(top: BorderSide(color: Colors.white12))),
     child: SafeArea(top: false, child: Row(children: [
-      _action(Icons.call, 'اتصال', () => _tel(context)), _action(Icons.chat, 'واتساب', () => _whatsapp(context)),
-      Expanded(child: ElevatedButton.icon(onPressed: () { _recordContact(); Navigator.push(context, MaterialPageRoute(builder: (_) => ChatScreen(listing: listing))); }, icon: const Icon(Icons.forum, size: 18), label: const Text('محادثة'))),
-      if (!listing.priceOnCall) ...[const SizedBox(width: 7), Expanded(child: OutlinedButton(onPressed: () => _offer(context), child: const Text('تقديم عرض')))],
+      _action(Icons.call, 'اتصال', offline?()=>_offlineMessage(context):() => _tel(context)), _action(Icons.chat, 'واتساب', offline?()=>_offlineMessage(context):() => _whatsapp(context)),
+      Expanded(child: ElevatedButton.icon(onPressed: offline?()=>_offlineMessage(context):() { _recordContact(); Navigator.push(context, MaterialPageRoute(builder: (_) => ChatScreen(listing: listing))); }, icon: const Icon(Icons.forum, size: 18), label: const Text('محادثة'))),
+      if (!listing.priceOnCall) ...[const SizedBox(width: 7), Expanded(child: OutlinedButton(onPressed: offline?()=>_offlineMessage(context):() => _offer(context), child: const Text('تقديم عرض')))],
     ])),
   );
+
+  void _offlineMessage(BuildContext context)=>ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('تحتاج إلى اتصال بالإنترنت')));
 
   Widget _action(IconData icon, String label, VoidCallback onTap) => Padding(padding: const EdgeInsets.only(left: 4), child: InkWell(onTap: onTap, child: Padding(padding: const EdgeInsets.all(5), child: Column(mainAxisSize: MainAxisSize.min, children: [Icon(icon, color: AppColors.gold), Text(label, style: const TextStyle(fontSize: 10))]))));
 
