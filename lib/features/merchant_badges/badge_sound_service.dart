@@ -3,18 +3,21 @@ import 'package:audioplayers/audioplayers.dart';
 class BadgeSoundService {
   BadgeSoundService._();
 
-  static AudioPlayer? _player;
+  static final BadgeSoundService instance = BadgeSoundService._();
+  AudioPlayer? _player;
 
   static const _names = <String>[
     'copper', 'bronze', 'iron', 'silver', 'gold',
     'platinum', 'emerald', 'ruby', 'sapphire', 'diamond',
   ];
 
-  static Future<void> playForLevel(int level) async {
+  Future<void> playForLevel(int level) async {
     final safeLevel = level.clamp(1, 10);
-    final name = _names[safeLevel - 1];
     final filename = 'badge_level_' +
-        safeLevel.toString().padLeft(2, '0') + '_' + name + '.mp3';
+        safeLevel.toString().padLeft(2, '0') +
+        '_' +
+        _names[safeLevel - 1] +
+        '.mp3';
 
     final previous = _player;
     _player = null;
@@ -50,6 +53,15 @@ class BadgeSoundService {
       }
       await player.dispose();
       rethrow;
+    }
+  }
+
+  Future<void> dispose() async {
+    final player = _player;
+    _player = null;
+    if (player != null) {
+      await player.stop();
+      await player.dispose();
     }
   }
 }
