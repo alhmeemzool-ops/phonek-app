@@ -549,6 +549,11 @@ class AppState extends ChangeNotifier {
     };
   }
 
+  Future<void> recordListingEvent(String listingId,String eventType) async {
+    if(_session?.user.id==null)return;
+    await Supabase.instance.client.rpc('record_listing_event',params:{'p_listing_id':listingId,'p_event_type':eventType});
+  }
+
   Future<void> recordListingView(String listingId) async {
     if (_viewedListingIds.contains(listingId)) return;
     _viewedListingIds.add(listingId);
