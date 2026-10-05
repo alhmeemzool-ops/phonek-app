@@ -1,4 +1,5 @@
-/// Additional verified catalog entries for samsung.\nconst List<String> samsungExtraModels = [
+/// Additional verified catalog entries for samsung.
+const List<String> samsungExtraModels = [
   "Galaxy S26 Ultra",
   "Galaxy S26+",
   "Galaxy S24 FE",
@@ -199,4 +200,4 @@
   "Galaxy A04s 64GB",
   "Galaxy A04s 128GB",
   "Galaxy A04e 64GB",
-];\n
+];
