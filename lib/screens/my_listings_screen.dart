@@ -48,7 +48,15 @@ class MyListingsScreen extends StatelessWidget {
   Widget _empty() => ListView(physics: const AlwaysScrollableScrollPhysics(), children: const [SizedBox(height: 160), Icon(Icons.inventory_2_outlined, size: 52, color: AppColors.textSecondary), SizedBox(height: 12), Center(child: Text('لا توجد لديك إعلانات نشطة حالياً')), SizedBox(height: 6), Center(child: Text('يمكنك نشر إعلان جديد من زر إضافة إعلان.', style: TextStyle(color: AppColors.textSecondary)))]);
 
   Future<void> _edit(BuildContext context, PhoneListing listing) async {
-    await Navigator.push(context, MaterialPageRoute(builder: (_) => ListingSettingsScreen(listing: listing)));
+    final saved = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (_) => ListingSettingsScreen(listing: listing)),
+    );
+    if (saved == true && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تم حفظ تعديلات الإعلان')),
+      );
+    }
   }
 
   Future<void> _delete(BuildContext context, PhoneListing listing) async {
