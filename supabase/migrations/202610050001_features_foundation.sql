@@ -220,3 +220,20 @@ with check(bucket_id='subscription-proofs' and (storage.foldername(name))[1]=aut
 drop policy if exists subscription_proof_read on storage.objects;
 create policy subscription_proof_read on storage.objects for select to authenticated
 using(bucket_id='subscription-proofs' and ((storage.foldername(name))[1]=auth.uid()::text or exists(select 1 from public.profiles p where p.id=auth.uid() and public.is_admin())));
+
+
+drop policy if exists shop_subscriptions_owner_insert on public.shop_subscriptions;
+create policy shop_subscriptions_owner_insert on public.shop_subscriptions for insert with check(auth.uid()=shop_id);
+drop policy if exists shop_subscriptions_admin_all on public.shop_subscriptions;
+create policy shop_subscriptions_admin_all on public.shop_subscriptions for all using(public.is_admin()) with check(public.is_admin());
+grant select on public.public_active_subscriptions to anon,authenticated;
+
+drop policy if exists accessories_admin_moderate on public.accessories;
+create policy accessories_admin_moderate on public.accessories for all using(public.is_admin()) with check(public.is_admin());
+
+drop policy if exists repair_shops_admin_write on public.repair_shops;
+create policy repair_shops_admin_write on public.repair_shops for all using(public.is_admin()) with check(public.is_admin());
+
+drop policy if exists shop_offer_items_owner_validated_write on public.shop_offer_items;
+create policy shop_offer_items_owner_validated_write on public.shop_offer_items for insert to authenticated
+with check(exists(select 1 from public.shop_offers o join public.listings l on l.id=listing_id where o.id=offer_id and o.shop_id=auth.uid() and l.seller_id=auth.uid() and l.status='active' and coalesce(l.price_on_call,false)=false));
