@@ -267,6 +267,7 @@ class _PhoneDetailsScreenState extends State<PhoneDetailsScreen> {
     showModalBottomSheet<void>(context: context, builder: (sheetContext) => SafeArea(child: Wrap(children: [
       ListTile(leading: const Icon(Icons.copy, color: AppColors.gold), title: const Text('نسخ رقم الإعلان'), onTap: () async { await Clipboard.setData(ClipboardData(text: listing.id)); if (sheetContext.mounted) Navigator.pop(sheetContext); }),
       ListTile(leading: const Icon(Icons.share, color: AppColors.gold), title: const Text('مشاركة الإعلان'), onTap: () async { Navigator.pop(sheetContext); await Share.share('${listing.title}\n${listing.city}\n$deepLink'); }),
+      ListTile(leading: const Icon(Icons.image_outlined, color: AppColors.gold), title: const Text('مشاركة كصورة'), onTap: () { Navigator.pop(sheetContext); Navigator.push(context, MaterialPageRoute(builder: (_) => _ShareImageScreen(listing: listing, link: deepLink))); } ),
     ])));
   }
 }
