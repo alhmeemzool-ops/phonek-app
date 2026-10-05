@@ -185,6 +185,14 @@ jobs:
         run: |
           python3 tool/make_patches.py build --manifest latest-update.json --new-apk build/app/outputs/flutter-apk/app-release.apk --new-version-code "${{ steps.version.outputs.version_code }}" --output patch-results.json
 
+      - name: Ensure patch result exists
+        if: steps.guard.outputs.skip != 'true'
+        shell: bash
+        run: |
+          if [ ! -s patch-results.json ]; then
+            printf '%s\n' '{"patches":[],"skipped":[{"baseVersionCode":null,"reason":"patch builder failed or timed out"}]}' > patch-results.json
+          fi
+
       - name: Publish PhoneK APK release
         if: steps.guard.outputs.skip != 'true'
         env:
