@@ -127,13 +127,6 @@ jobs:
           path: build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
 
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: phonek-quick-release-apk-${{ steps.version.outputs.version_name }}-${{ steps.version.outputs.version_code }}
-          path: build/app/outputs/flutter-apk/app-release.apk
-          if-no-files-found: error
-
       - name: Fetch latest update manifest
         shell: bash
         run: |
@@ -152,7 +145,7 @@ jobs:
         env:
           PHONEK_MAX_PATCH_BASES: 2
         run: |
-          python3 tool/make_patches.py build             --manifest latest-update.json             --new-apk build/app/outputs/flutter-apk/app-release.apk             --new-version-code "${{ steps.version.outputs.version_code }}"             --output patch-results.json
+          python3 tool/make_patches.py build --manifest latest-update.json --new-apk build/app/outputs/flutter-apk/app-release.apk --new-version-code "${{ steps.version.outputs.version_code }}" --output patch-results.json
 
       - name: Publish versioned Quick Release
         env:
@@ -173,7 +166,7 @@ jobs:
           if [ "${#patch_files[@]}" -gt 0 ]; then
             assets+=( "${patch_files[@]}" )
           fi
-          gh release create "$tag" "${assets[@]}"             --title "PhoneK Quick ${VERSION_NAME}"             --notes "Quick APK update ${VERSION_NAME} (${VERSION_CODE})"
+          gh release create "$tag" "${assets[@]}" --title "PhoneK Quick ${VERSION_NAME}" --notes "Quick APK update ${VERSION_NAME} (${VERSION_CODE})"
 
       - name: Verify published release assets
         shell: bash
@@ -224,7 +217,7 @@ jobs:
           VERSION_CODE: ${{ steps.version.outputs.version_code }}
         run: |
           apk_sha256="$(sha256sum build/app/outputs/flutter-apk/app-release.apk | awk '{print $1}')"
-          python3 tool/make_patches.py manifest             --manifest latest-update.json             --result patch-results.json             --new-apk build/app/outputs/flutter-apk/app-release.apk             --version-code "$VERSION_CODE"             --version-name "$VERSION_NAME"             --apk-url "https://github.com/alhmeemzool-ops/phonek-app/releases/download/quick-v${VERSION_NAME}/app-release.apk"             --apk-sha256 "$apk_sha256"             --release-prefix "https://github.com/alhmeemzool-ops/phonek-app/releases/download/quick-v${VERSION_NAME}/"             --output update.json
+          python3 tool/make_patches.py manifest --manifest latest-update.json --result patch-results.json --new-apk build/app/outputs/flutter-apk/app-release.apk --version-code "$VERSION_CODE" --version-name "$VERSION_NAME" --apk-url "https://github.com/alhmeemzool-ops/phonek-app/releases/download/quick-v${VERSION_NAME}/app-release.apk" --apk-sha256 "$apk_sha256" --release-prefix "https://github.com/alhmeemzool-ops/phonek-app/releases/download/quick-v${VERSION_NAME}/" --output update.json
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
