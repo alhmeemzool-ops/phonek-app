@@ -172,14 +172,17 @@ class _PhoneDetailsScreenState extends State<PhoneDetailsScreen> {
     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9), decoration: const BoxDecoration(color: AppColors.surface, border: Border(top: BorderSide(color: Colors.white12))),
     child: SafeArea(top: false, child: Row(children: [
       _action(Icons.call, 'اتصال', () => _tel(context)), _action(Icons.chat, 'واتساب', () => _whatsapp(context)),
-      Expanded(child: ElevatedButton.icon(onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ChatScreen(listing: listing))), icon: const Icon(Icons.forum, size: 18), label: const Text('محادثة'))),
+      Expanded(child: ElevatedButton.icon(onPressed: () { _recordContact(); Navigator.push(context, MaterialPageRoute(builder: (_) => ChatScreen(listing: listing))); }, icon: const Icon(Icons.forum, size: 18), label: const Text('محادثة'))),
       if (!listing.priceOnCall) ...[const SizedBox(width: 7), Expanded(child: OutlinedButton(onPressed: () => _offer(context), child: const Text('تقديم عرض')))],
     ])),
   );
 
   Widget _action(IconData icon, String label, VoidCallback onTap) => Padding(padding: const EdgeInsets.only(left: 4), child: InkWell(onTap: onTap, child: Padding(padding: const EdgeInsets.all(5), child: Column(mainAxisSize: MainAxisSize.min, children: [Icon(icon, color: AppColors.gold), Text(label, style: const TextStyle(fontSize: 10))]))));
 
+  Future<void> _recordContact() async { try { await context.read<AppState>().recordListingEvent(listing.id,'contact'); } catch (_) {} }
+
   Future<void> _tel(BuildContext context) async {
+    await _recordContact();
     try {
       final contact = await context.read<AppState>().getSellerContact(listing.seller.id);
       final phone = contact['phone'] ?? '';
@@ -245,7 +248,7 @@ class _PhoneDetailsScreenState extends State<PhoneDetailsScreen> {
         ElevatedButton(onPressed: () async {
           final amount = int.tryParse(controller.text.trim()); if (amount == null || amount <= 0) return;
           Navigator.pop(dialogContext);
-          try { await context.read<AppState>().sendOffer(listing: listing, amount: amount); if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم إرسال العرض'))); }
+          try { await _recordContact(); await context.read<AppState>().sendOffer(listing: listing, amount: amount); if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم إرسال العرض'))); }
           catch (e) { if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذر إرسال العرض: $e'))); }
           finally { controller.dispose(); }
         }, child: const Text('إرسال')),
