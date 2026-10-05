@@ -92,14 +92,14 @@ class _ChatScreenState extends State<ChatScreen> {
     if(!await _recorder.hasPermission()){if(mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('لا يمكن التسجيل بدون إذن الميكروفون')));return;}
     final dir=await getTemporaryDirectory();final uid=context.read<AppState>().currentUser!.id;final path=dir.path+'/phonek_${DateTime.now().millisecondsSinceEpoch}.m4a';
     await _recorder.start(const RecordConfig(encoder:AudioEncoder.aacLc,bitRate:128000,sampleRate:44100),path:path);
-    setState(()=>{});
-    _recording=true;_recordSeconds=0;_recordTimer=Timer.periodic(const Duration(seconds:1),(t){if(!mounted)return;setState(()=>_recordSeconds++);if(_recordSeconds>=120)_stopRecording();});setState(()=>{});
+    setState(() {});
+    _recording=true;_recordSeconds=0;_recordTimer=Timer.periodic(const Duration(seconds:1),(t){if(!mounted)return;setState(()=>_recordSeconds++);if(_recordSeconds>=120)_stopRecording();});setState(() {});
   }
   Future<void> _stopRecording() async {
     if(!_recording)return;_recordTimer?.cancel();final path=await _recorder.stop();_recording=false;
-    if(path==null||_recordSeconds<1){_recordedPath=null;_recordedDuration=0;}else{_recordedPath=path;_recordedDuration=_recordSeconds;}if(mounted)setState(()=>{});
+    if(path==null||_recordSeconds<1){_recordedPath=null;_recordedDuration=0;}else{_recordedPath=path;_recordedDuration=_recordSeconds;}if(mounted)setState(() {});
   }
-  Future<void> _cancelRecording() async {if(_recording){_recordTimer?.cancel();await _recorder.cancel();}_recording=false;_recordedPath=null;_recordedDuration=0;if(mounted)setState(()=>{});}
+  Future<void> _cancelRecording() async {if(_recording){_recordTimer?.cancel();await _recorder.cancel();}_recording=false;_recordedPath=null;_recordedDuration=0;if(mounted)setState(() {});}
   Future<void> _sendRecordedVoice() async {
     if(_recordedPath==null||_threadId==null)return;final uid=context.read<AppState>().currentUser!.id;final path='${_threadId!}/${uid}_${DateTime.now().millisecondsSinceEpoch}.m4a';
     try{await Supabase.instance.client.storage.from('chat-voice').upload(_recordedPath!,path,fileOptions:const FileOptions(contentType:'audio/mp4',upsert:false));await context.read<AppState>().sendVoice(threadId:_threadId!,path:path,durationSeconds:_recordedDuration);_recordedPath=null;_recordedDuration=0;final messages=await context.read<AppState>().loadMessages(_threadId!);if(mounted)setState(()=>_messages=messages);}
@@ -109,7 +109,7 @@ class _ChatScreenState extends State<ChatScreen> {
   Future<void> _playVoice(ChatMessage m) async {
     final path=m.payload?['path']?.toString();if(path==null)return;
     if(_playingMessageId==m.id){await _player.stop();if(mounted)setState(()=>_playingMessageId=null);return;}
-    try{final url=await Supabase.instance.client.storage.from('chat-voice').createSignedUrl(path,3600);_playingMessageId=m.id;if(mounted)setState(()=>{});await _player.play(UrlSource(url));_player.onPlayerComplete.listen((_){if(mounted)setState(()=>_playingMessageId=null);});}
+    try{final url=await Supabase.instance.client.storage.from('chat-voice').createSignedUrl(path,3600);_playingMessageId=m.id;if(mounted)setState(() {});await _player.play(UrlSource(url));_player.onPlayerComplete.listen((_){if(mounted)setState(()=>_playingMessageId=null);});}
     catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(friendlyError(e,fallback:'تعذر تشغيل الرسالة الصوتية.'))));}
   }
 
