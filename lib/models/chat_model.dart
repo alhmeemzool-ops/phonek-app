@@ -29,12 +29,16 @@ extension MessageTypeValue on MessageType {
         return 'priceOffer';
       case MessageType.offer:
         return 'offer';
+      case MessageType.swap:
+        return 'swap';
+      case MessageType.voice:
+        return 'voice';
     }
   }
 }
 
 
-enum MessageType { text, image, location, priceOffer, offer }
+enum MessageType { text, image, location, priceOffer, offer, swap, voice }
 
 class ChatMessage {
   final String id;
@@ -44,6 +48,7 @@ class ChatMessage {
   final DateTime timestamp;
   final MessageStatus status;
   final int? offerAmount;
+  final Map<String, dynamic>? payload;
 
   const ChatMessage({
     required this.id,
@@ -53,9 +58,12 @@ class ChatMessage {
     required this.timestamp,
     this.status = MessageStatus.sent,
     this.offerAmount,
+    this.payload,
   });
 
   String get displayText {
+    if (type == MessageType.swap) return 'عرض تبديل';
+    if (type == MessageType.voice) return 'رسالة صوتية';
     if (type == MessageType.offer && offerAmount != null) {
       return 'عرض سعر: ' + NumberFormat.decimalPattern('en_US').format(offerAmount) + ' ج.س';
     }
