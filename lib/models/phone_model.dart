@@ -71,6 +71,8 @@ extension DeviceConditionValue on DeviceCondition {
 
 
 class SellerInfo {
+  Map<String,dynamic> toJson()=>{'id':id,'name':name,'phone':'','whatsapp':whatsapp,'bio':bio,'avatar_url':avatarUrl,'is_verified_store':isVerifiedStore,'is_shop':isShop,'rating':rating,'completed_sales':completedSales,'city':city,'reply_speed_label':replySpeedLabel};
+  factory SellerInfo.fromJson(Map<String,dynamic> j)=>SellerInfo(id:j['id']?.toString()??'',name:j['name']?.toString()??'',phone:'',whatsapp:j['whatsapp']?.toString(),bio:j['bio']?.toString(),avatarUrl:j['avatar_url']?.toString(),isVerifiedStore:j['is_verified_store']==true,isShop:j['is_shop']==true,rating:(j['rating'] as num?)?.toDouble()??0,completedSales:(j['completed_sales'] as num?)?.toInt()??0,city:j['city']?.toString()??'',replySpeedLabel:j['reply_speed_label']?.toString()??'يرد عادة خلال ساعات');
   final String id;
   final String name;
   final String phone;
@@ -157,5 +159,7 @@ class PhoneListing {
     this.description = '',
   });
 
+  Map<String,dynamic> toJson()=>{'id':id,'title':title,'brand':brand,'price':price,'price_is_negotiable':priceIsNegotiable,'price_on_call':priceOnCall,'old_price':oldPrice,'storage':storage,'ram':ram,'battery_health_percent':batteryHealthPercent,'condition':condition.value,'damage_notes':damageNotes,'has_box':hasBox,'has_charger':hasCharger,'has_invoice':hasInvoice,'has_earphones':hasEarphones,'warranty':warranty.value,'city':city,'image_urls':imageUrls,'seller':seller.toJson(),'status':status.value,'created_at':createdAt.toIso8601String(),'view_count':viewCount,'is_featured':isFeatured,'accepts_swap':acceptsSwap,'description':description};
+  factory PhoneListing.fromJson(Map<String,dynamic> j)=>PhoneListing(id:j['id']?.toString()??'',title:j['title']?.toString()??'',brand:j['brand']?.toString()??'',price:(j['price'] as num?)?.toInt()??0,priceIsNegotiable:j['price_is_negotiable']!=false,priceOnCall:j['price_on_call']==true,oldPrice:(j['old_price'] as num?)?.toInt(),storage:j['storage']?.toString()??'',ram:j['ram']?.toString()??'',batteryHealthPercent:(j['battery_health_percent'] as num?)?.toInt(),condition:DeviceCondition.values.firstWhere((v)=>v.value==j['condition'],orElse:()=>DeviceCondition.excellent),damageNotes:j['damage_notes']?.toString(),hasBox:j['has_box']!=false,hasCharger:j['has_charger']!=false,hasInvoice:j['has_invoice']==true,hasEarphones:j['has_earphones']==true,warranty:WarrantyType.values.firstWhere((v)=>v.value==j['warranty'],orElse:()=>WarrantyType.none),city:j['city']?.toString()??'',imageUrls:(j['image_urls'] as List?)?.map((e)=>e.toString()).toList()??const [],seller:SellerInfo.fromJson(Map<String,dynamic>.from(j['seller'] as Map)),status:ListingStatus.values.firstWhere((v)=>v.value==j['status'],orElse:()=>ListingStatus.active),createdAt:DateTime.tryParse(j['created_at']?.toString()??'')??DateTime.now(),viewCount:(j['view_count'] as num?)?.toInt()??0,isFeatured:j['is_featured']==true,acceptsSwap:j['accepts_swap']==true,description:j['description']?.toString()??'');
   bool get isIphone => brand.toLowerCase().contains('iphone') || brand.toLowerCase().contains('apple');
 }
