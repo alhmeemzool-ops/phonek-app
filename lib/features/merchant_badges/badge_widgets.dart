@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'badge_model.dart';
 import 'merchant_badge_art.dart';
+import 'badge_sound_service.dart';
 
 class MerchantBadgeChip extends StatelessWidget {
   const MerchantBadgeChip({super.key, required this.level, this.compact = false});
@@ -82,7 +84,14 @@ class _BadgeCelebrationDialogState extends State<_BadgeCelebrationDialog>
       vsync: this,
       duration: const Duration(milliseconds: 3600),
     )..repeat();
-    SystemSound.play(SystemSoundType.click);
+    if (widget.unlocked) {
+      unawaited(BadgeSoundService.playForLevel(widget.badge.level).catchError((error, stackTrace) {
+        if (kDebugMode) {
+          debugPrint('Badge detail MP3 playback failed: $error');
+          debugPrintStack(stackTrace: stackTrace);
+        }
+      }));
+    }
   }
 
   @override
