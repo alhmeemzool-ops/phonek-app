@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../data/app_state.dart';
 import '../models/phone_model.dart';
@@ -76,8 +78,9 @@ class _PhoneDetailsScreenState extends State<PhoneDetailsScreen> {
               children: [
                 Text(listing.title, style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w800)),
                 const SizedBox(height: 7),
-                Text(listing.priceOnCall ? 'اتصل للسعر' : AppFormatters.priceSDG(listing.price), style: const TextStyle(color: AppColors.gold, fontSize: 23, fontWeight: FontWeight.bold)),
+                Row(children:[Expanded(child:Text(listing.priceOnCall ? 'اتصل للسعر' : AppFormatters.priceSDG(listing.price), style: const TextStyle(color: AppColors.gold, fontSize: 23, fontWeight: FontWeight.bold))),if(listing.acceptsSwap)const Chip(label:Text('يقبل التبديل'))]),
                 const SizedBox(height: 8),
+                if(listing.acceptsSwap && !isOwner) Align(alignment:Alignment.centerRight,child:OutlinedButton.icon(onPressed:()=>_swap(context),icon:const Icon(Icons.swap_horiz),label:const Text('اعرض تبديل'))),
                 Text('${listing.city}  •  ${listing.viewCount} مشاهدة  •  ${AppFormatters.timeAgo(listing.createdAt)}', style: const TextStyle(color: AppColors.textSecondary)),
                 const SizedBox(height: 18),
                 _section('المواصفات'),
@@ -209,6 +212,26 @@ class _PhoneDetailsScreenState extends State<PhoneDetailsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذر الحصول على رقم البائع: ' + e.toString())));
       }
     }
+  }
+
+  Future<void> _swap(BuildContext context) async {
+    final model=TextEditingController(); final diff=TextEditingController(text:'0');
+    DeviceCondition condition=DeviceCondition.excellent; String direction='pay'; XFile? image;
+    await showDialog<void>(context:context,builder:(dialog)=>StatefulBuilder(builder:(dialog,setState)=>AlertDialog(
+      title:const Text('اعرض تبديل'),content:SizedBox(width:420,child:SingleChildScrollView(child:Column(children:[
+        TextField(controller:model,maxLength:60,decoration:const InputDecoration(labelText:'موديل هاتفك *')),
+        DropdownButtonFormField<DeviceCondition>(value:condition,decoration:const InputDecoration(labelText:'الحالة'),items:DeviceCondition.values.map((v)=>DropdownMenuItem(value:v,child:Text(v.labelAr))).toList(),onChanged:(v){if(v!=null)setState(()=>condition=v);}),
+        TextField(controller:diff,keyboardType:TextInputType.number,decoration:const InputDecoration(labelText:'فرق السعر (ج.س)')),
+        DropdownButtonFormField<String>(value:direction,decoration:const InputDecoration(labelText:'فرق السعر'),items:const [DropdownMenuItem(value:'pay',child:Text('أدفع الفرق')),DropdownMenuItem(value:'request',child:Text('أطلب الفرق'))],onChanged:(v){if(v!=null)setState(()=>direction=v);}),
+        const SizedBox(height:8),OutlinedButton.icon(onPressed:()async{image=await ImagePicker().pickImage(source:ImageSource.gallery,imageQuality:80,maxWidth:1600);setState((){});},icon:const Icon(Icons.image_outlined),label:Text(image==null?'إضافة صورة اختيارية':'تم اختيار الصورة')),
+      ])),actions:[TextButton(onPressed:()=>Navigator.pop(dialog),child:const Text('إلغاء')),ElevatedButton(onPressed:model.text.trim().isEmpty?null:()async{
+        final amount=int.tryParse(diff.text.trim())??0;if(amount<0)return;String? url;
+        try{if(image!=null){final uid=context.read<AppState>().currentUser!.id;final path='${uid}/swap_${DateTime.now().millisecondsSinceEpoch}.jpg';await Supabase.instance.client.storage.from('listing-images').uploadBinary(path,await image!.readAsBytes(),fileOptions:const FileOptions(upsert:false,contentType:'image/jpeg'));url=Supabase.instance.client.storage.from('listing-images').getPublicUrl(path);}
+          await context.read<AppState>().sendSwap(listing:listing,model:model.text,condition:condition,diffAmount:amount,diffDirection:direction,imageUrl:url);if(context.mounted){Navigator.pop(dialog);ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('تم إرسال عرض التبديل')));}}
+        catch(e){if(context.mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('تعذر إرسال عرض التبديل: $e')));}
+      },child:const Text('إرسال'))],
+    )));
+    model.dispose();diff.dispose();
   }
 
   void _offer(BuildContext context) {
