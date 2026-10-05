@@ -76,12 +76,16 @@ class AppState extends ChangeNotifier {
   bool isFavorite(String id) => _favoriteIds.contains(id);
 
   void toggleFavorite(String id) {
-    if (_favoriteIds.contains(id)) {
-      _favoriteIds.remove(id);
-    } else {
-      _favoriteIds.add(id);
-    }
+    final adding=!_favoriteIds.contains(id);
+    if(adding){_favoriteIds.add(id);}else{_favoriteIds.remove(id);}
     unawaited(_persistFavorites());
+    final uid=_session?.user.id;
+    if(uid!=null)unawaited((() async {
+      try {
+        if(adding){await Supabase.instance.client.from('favorites').upsert({'user_id':uid,'listing_id':id});await Supabase.instance.client.rpc('record_listing_event',params:{'p_listing_id':id,'p_event_type':'favorite'});}
+        else{await Supabase.instance.client.from('favorites').delete().eq('user_id',uid).eq('listing_id',id);}
+      } catch(error){debugPrint('PhoneK favorite sync failed: $error');}
+    })());
     notifyListeners();
   }
 
