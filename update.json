@@ -2,35 +2,35 @@
   "versionCode": 87,
   "versionName": "1.0.87",
   "apkUrl": "https://github.com/alhmeemzool-ops/phonek-app/releases/download/quick-v1.0.87/app-release.apk",
-  "sha256": "eb10d1e916f1b10cf20ba81a27665c2ac82e860b92421f7d903fddec24adea3e",
+  "sha256": "87ec44057f30457dde743e76043cbe7d6901709fd1330afc5eb2abd19a98c2f1",
   "patchUrl": "https://github.com/alhmeemzool-ops/phonek-app/releases/download/quick-v1.0.87/patch-from-86.bin",
-  "patchSha256": "3be81005670210cadfe5e94c8a5b27029564f399c3f8f6fefcee94050b60240d",
+  "patchSha256": "cac66a3f81846a0ad2ef1ee2d8e179f9ccc39de1d69994b7a3bed1b511d84150",
   "patchBaseVersionCode": 86,
   "minSupportedVersionCode": 58,
   "mandatory": false,
   "notes": "تحديث سريع جديد لـ PhoneK.",
-  "apkSize": 47841964,
+  "apkSize": 47842024,
   "patches": [
     {
       "baseVersionCode": 86,
       "baseSha256": "84b7dd1cd96200ca8864403a231ec172758ddccfb892770c32d9a0cdf24f9b45",
       "url": "https://github.com/alhmeemzool-ops/phonek-app/releases/download/quick-v1.0.87/patch-from-86.bin",
-      "sha256": "3be81005670210cadfe5e94c8a5b27029564f399c3f8f6fefcee94050b60240d",
-      "size": 4559500
+      "sha256": "cac66a3f81846a0ad2ef1ee2d8e179f9ccc39de1d69994b7a3bed1b511d84150",
+      "size": 4568353
     },
     {
       "baseVersionCode": 85,
       "baseSha256": "22ed9598a3bb1d90bd50da60feec98239a9a17c409543e96f6edc12195abf02d",
       "url": "https://github.com/alhmeemzool-ops/phonek-app/releases/download/quick-v1.0.87/patch-from-85.bin",
-      "sha256": "529a12722571d4f941e70ebe1c0dd99c22332e6dd0f8d9a7d7056952f1ed33eb",
-      "size": 4560174
+      "sha256": "e208af9d8afb114efe70019d4afba78487ff4182eac87e35375816ad6224fa19",
+      "size": 4568041
     }
   ],
   "history": [
     {
       "versionCode": 87,
       "apkUrl": "https://github.com/alhmeemzool-ops/phonek-app/releases/download/quick-v1.0.87/app-release.apk",
-      "sha256": "eb10d1e916f1b10cf20ba81a27665c2ac82e860b92421f7d903fddec24adea3e"
+      "sha256": "87ec44057f30457dde743e76043cbe7d6901709fd1330afc5eb2abd19a98c2f1"
     },
     {
       "versionCode": 86,
