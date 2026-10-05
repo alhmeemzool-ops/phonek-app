@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:phonek/data/catalog_data.dart';
+import 'package:phonek_app/data/catalog_data.dart';
 
 void main() {
   test('expanded catalog has exact requested additions and no duplicates', () {
