@@ -542,6 +542,7 @@ class AppState extends ChangeNotifier {
       _listings
         ..clear()
         ..addAll(loaded);
+      for (final listing in loaded) { unawaited(_saveOfflineListing(listing)); }
       if (_session != null) unawaited(loadChatThreads());
     } on PostgrestException catch (error) {
       _listingsError = error.message;
@@ -579,6 +580,7 @@ class AppState extends ChangeNotifier {
         'increment_listing_view',
         params: {'p_listing_id': listingId},
       );
+      unawaited(recordListingEvent(listingId, 'view'));
     } catch (error) {
       debugPrint('PhoneK listing view increment failed: $error');
       _viewedListingIds.remove(listingId);
