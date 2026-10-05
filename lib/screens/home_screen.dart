@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import '../screens/wanted_screen.dart';
+import '../screens/accessories_screen.dart';
+import '../screens/repair_directory_screen.dart';
 import '../data/app_state.dart';
 import '../data/catalog_data.dart' as catalog;
 import '../models/phone_model.dart';
@@ -28,6 +31,7 @@ class _HomeScreenState extends State<HomeScreen> {
   String? _selectedCity;
   String? _selectedBrand;
   SortOption _sortOption = SortOption.newest;
+  bool _swapOnly = false;
   final TextEditingController _searchController = TextEditingController();
   String _appVersion = '';
 
@@ -50,18 +54,18 @@ class _HomeScreenState extends State<HomeScreen> {
           p.brand.toLowerCase().contains(_searchQuery.toLowerCase());
       final matchesCity = _selectedCity == null || p.city == _selectedCity;
       final matchesBrand = _selectedBrand == null || p.brand == _selectedBrand;
-      return matchesQuery && matchesCity && matchesBrand && p.status != ListingStatus.sold;
+      return matchesQuery && matchesCity && matchesBrand && (!_swapOnly || p.acceptsSwap) && p.status != ListingStatus.sold;
     }).toList();
 
     switch (_sortOption) {
       case SortOption.newest:
-        list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        list.sort((a, b) { if(a.subscriptionActive != b.subscriptionActive) return a.subscriptionActive ? -1 : 1; return b.createdAt.compareTo(a.createdAt); });
         break;
       case SortOption.priceLowHigh:
-        list.sort((a, b) => a.price.compareTo(b.price));
+        list.sort((a, b) => a.displayedPrice.compareTo(b.displayedPrice));
         break;
       case SortOption.priceHighLow:
-        list.sort((a, b) => b.price.compareTo(a.price));
+        list.sort((a, b) => b.displayedPrice.compareTo(a.displayedPrice));
         break;
     }
     return list;
@@ -139,7 +143,10 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           ),
+          if(appState.isOffline) SliverToBoxAdapter(child: Container(padding:const EdgeInsets.all(10),color:AppColors.warning,child:const Text('أنت غير متصل',textAlign:TextAlign.center,style:TextStyle(color:Colors.black,fontWeight:FontWeight.bold)))),
+          SliverToBoxAdapter(child: _buildShortcuts(context)),
           SliverToBoxAdapter(child: _buildBrandChips()),
+          if(appState.isOffline && appState.recentOfflineListings.isNotEmpty) SliverToBoxAdapter(child: Column(crossAxisAlignment:CrossAxisAlignment.start,children:[const Padding(padding:EdgeInsets.fromLTRB(12,12,12,4),child:Text('آخر ما شاهدته',style:TextStyle(fontSize:18,fontWeight:FontWeight.bold))),SizedBox(height:230,child:ListView.builder(scrollDirection:Axis.horizontal,itemCount:appState.recentOfflineListings.length,itemBuilder:(_,i)=>SizedBox(width:170,child:Padding(padding:const EdgeInsets.only(left:8),child:PhoneCard(listing:appState.recentOfflineListings[i],onTap:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>PhoneDetailsScreen(listing:appState.recentOfflineListings[i])))))))])),
           if (appState.isLoadingListings && listings.isEmpty)
             const SliverFillRemaining(
               hasScrollBody: false,
@@ -203,6 +210,13 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Widget _buildShortcuts(BuildContext context) => SizedBox(height:92,child:ListView(scrollDirection:Axis.horizontal,padding:const EdgeInsets.symmetric(horizontal:12,vertical:8),children:[
+    _shortcut(context,'مطلوب',Icons.assignment_outlined,()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>const WantedScreen()))),
+    _shortcut(context,'إكسسوارات',Icons.cases_outlined,()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>const AccessoriesScreen()))),
+    _shortcut(context,'دليل الصيانة',Icons.build_outlined,()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>const RepairDirectoryScreen()))),
+  ]));
+  Widget _shortcut(BuildContext context,String title,IconData icon,VoidCallback onTap)=>SizedBox(width:125,child:Padding(padding:const EdgeInsets.only(left:8),child:Card(child:InkWell(onTap:onTap,borderRadius:BorderRadius.circular(12),child:Row(mainAxisAlignment:MainAxisAlignment.center,children:[Icon(icon,color:AppColors.gold),const SizedBox(width:7),Text(title,style:const TextStyle(fontWeight:FontWeight.bold))])))));
+  
   Widget _buildBrandChips() {
     return SizedBox(
       height: 44,
@@ -278,6 +292,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ],
                   ),
+                  SwitchListTile(value:_swapOnly,onChanged:(v)=>setSheetState(()=>_swapOnly=v),title:const Text('يقبل التبديل فقط'),contentPadding:EdgeInsets.zero),
                   const SizedBox(height: 20),
                   SizedBox(
                     width: double.infinity,

@@ -14,6 +14,7 @@ class ListingFormData {
   final int price;
   final bool priceNegotiable;
   final bool priceOnCall;
+  final bool acceptsSwap;
   final String storage;
   final String ram;
   final int? batteryHealth;
@@ -31,7 +32,7 @@ class ListingFormData {
 
   const ListingFormData({
     required this.title, required this.brand, required this.price,
-    required this.priceNegotiable, required this.priceOnCall,
+    required this.priceNegotiable, required this.priceOnCall, required this.acceptsSwap,
     required this.storage, required this.ram, required this.batteryHealth,
     required this.condition, required this.hasDamage, required this.damageNotes,
     required this.hasBox, required this.hasCharger, required this.hasInvoice,
@@ -74,6 +75,7 @@ class _ListingFormState extends State<ListingForm> {
   DeviceCondition _condition = DeviceCondition.excellent;
   bool _priceNegotiable = true;
   bool _priceOnCall = false;
+  bool _acceptsSwap = false;
   bool _hasBox = true;
   bool _hasCharger = true;
   bool _hasInvoice = false;
@@ -105,6 +107,7 @@ class _ListingFormState extends State<ListingForm> {
     _condition = listing.condition;
     _priceNegotiable = listing.priceIsNegotiable;
     _priceOnCall = listing.priceOnCall;
+    _acceptsSwap = listing.acceptsSwap;
     _hasBox = listing.hasBox;
     _hasCharger = listing.hasCharger;
     _hasInvoice = listing.hasInvoice;
@@ -200,6 +203,7 @@ class _ListingFormState extends State<ListingForm> {
             ],
           ),
           const SizedBox(height: 8),
+          SwitchListTile(contentPadding: EdgeInsets.zero, value: _acceptsSwap, onChanged: _saving ? null : (v)=>setState(()=>_acceptsSwap=v), title: const Text('أقبل التبديل بهاتف آخر', style: TextStyle(fontSize: 13))),
           _label('التخزين'),
           Wrap(
             spacing: 8,
@@ -443,7 +447,7 @@ class _ListingFormState extends State<ListingForm> {
     try {
       await widget.onSubmit(ListingFormData(
         title: _phoneModel!.trim(), brand: _brand!, price: price,
-        priceNegotiable: _priceNegotiable, priceOnCall: _priceOnCall,
+        priceNegotiable: _priceNegotiable, priceOnCall: _priceOnCall, acceptsSwap: _acceptsSwap,
         storage: _storage, ram: _ram, batteryHealth: _isIphone ? _batteryHealth : null,
         condition: _condition, hasDamage: _hasDamage,
         damageNotes: _hasDamage ? _damageController.text.trim() : null,

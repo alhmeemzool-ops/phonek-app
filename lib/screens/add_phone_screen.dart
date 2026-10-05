@@ -38,6 +38,7 @@ class AddPhoneScreen extends StatelessWidget {
         'price': data.price,
         'price_is_negotiable': data.priceNegotiable,
         'price_on_call': data.priceOnCall,
+        'accepts_swap': data.acceptsSwap,
         'storage': data.storage,
         'ram': data.ram,
         'battery_health_percent': data.batteryHealth,

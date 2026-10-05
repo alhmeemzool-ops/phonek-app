@@ -12,6 +12,9 @@ import '../models/phone_model.dart';
 import '../theme/app_theme.dart';
 import 'shop_application_screen.dart';
 import 'shop_profile_screen.dart';
+import 'merchant_stats_screen.dart';
+import 'shop_offers_screen.dart';
+import 'shop_subscription_screen.dart';
 
 class ShopAccountScreen extends StatefulWidget {
   const ShopAccountScreen({super.key});
@@ -211,6 +214,9 @@ class _ShopAccountScreenState extends State<ShopAccountScreen> {
                 MaterialPageRoute(builder: (_) => const MerchantBadgesScreen()),
               ),
             ),
+            _tool(context,Icons.insights_outlined,'إحصائيات المتجر','مشاهدات ومفضلة وتواصل',()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>const MerchantStatsScreen()))),
+            _tool(context,Icons.local_offer_outlined,'عروض المعرض','إنشاء وإدارة العروض',()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>const ShopOffersScreen()))),
+            _tool(context,Icons.card_membership_outlined,'اشتراك المعرض','طلب الاشتراك وإثبات الدفع',()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>const ShopSubscriptionScreen()))),
             _tool(
               context,
               Icons.storefront_outlined,

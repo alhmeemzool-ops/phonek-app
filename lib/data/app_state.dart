@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -11,9 +13,6 @@ import '../services/notification_service.dart';
 
 /// Global application state for authentication, listings, favorites, and account role.
 class AppState extends ChangeNotifier {
-  // UI compatibility fallback for the existing PhoneK admin account.
-  // Database writes and reads remain protected by Supabase RLS and is_admin().
-  static const adminUserId = '2fbf66e9-9234-4ad4-8d33-6db4603530f8';
   AppState() {
     _authSubscription = Supabase.instance.client.auth.onAuthStateChange.listen((data) {
       _session = data.session;
@@ -51,6 +50,8 @@ class AppState extends ChangeNotifier {
       unawaited(loadChatThreads());
     }
 
+    unawaited(_loadDataSaver());
+    unawaited(_initConnectivity());
     unawaited(loadListings());
   }
 
@@ -66,17 +67,25 @@ class AppState extends ChangeNotifier {
   String? _shopName;
   String? _userName;
   bool _isLoadingListings = false;
+  bool _dataSaver = false;
+  bool _offline = false;
+  List<PhoneListing> _recentOfflineListings = [];
+  StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
   String? _listingsError;
 
   bool isFavorite(String id) => _favoriteIds.contains(id);
 
   void toggleFavorite(String id) {
-    if (_favoriteIds.contains(id)) {
-      _favoriteIds.remove(id);
-    } else {
-      _favoriteIds.add(id);
-    }
+    final adding=!_favoriteIds.contains(id);
+    if(adding){_favoriteIds.add(id);}else{_favoriteIds.remove(id);}
     unawaited(_persistFavorites());
+    final uid=_session?.user.id;
+    if(uid!=null)unawaited((() async {
+      try {
+        if(adding){await Supabase.instance.client.from('favorites').upsert({'user_id':uid,'listing_id':id});await Supabase.instance.client.rpc('record_listing_event',params:{'p_listing_id':id,'p_event_type':'favorite'});}
+        else{await Supabase.instance.client.from('favorites').delete().eq('user_id',uid).eq('listing_id',id);}
+      } catch(error){debugPrint('PhoneK favorite sync failed: $error');}
+    })());
     notifyListeners();
   }
 
@@ -90,6 +99,46 @@ class AppState extends ChangeNotifier {
   String? get userEmail => _session?.user.email;
   bool get isAdmin => _isAdmin;
   bool get isShopOwner => _isShopOwner;
+  bool get dataSaverEnabled => _dataSaver;
+  bool get isOffline => _offline;
+  List<PhoneListing> get recentOfflineListings => List.unmodifiable(_recentOfflineListings);
+
+  Future<void> _initConnectivity() async {
+    final result=await Connectivity().checkConnectivity();
+    _offline=result.contains(ConnectivityResult.none);
+    _connectivitySubscription=Connectivity().onConnectivityChanged.listen((items){
+      final next=items.contains(ConnectivityResult.none);
+      final wasOffline=_offline; _offline=next; notifyListeners();
+      if(wasOffline && !next) unawaited(loadListings());
+    });
+    await _loadOfflineCache();
+  }
+
+  Future<void> _loadOfflineCache() async {
+    final prefs=await SharedPreferences.getInstance();
+    final raw=prefs.getStringList('phonek_recent_listings')??const <String>[];
+    _recentOfflineListings=raw.map((s){try{return PhoneListing.fromJson(jsonDecode(s) as Map<String,dynamic>);}catch(_){return null;}}).whereType<PhoneListing>().take(20).toList();
+    notifyListeners();
+  }
+
+  Future<void> _saveOfflineListing(PhoneListing listing) async {
+    final prefs=await SharedPreferences.getInstance();
+    final items=<String>[jsonEncode(listing.toJson()),...((prefs.getStringList('phonek_recent_listings')??const <String>[]).where((s){try{return (jsonDecode(s) as Map<String,dynamic>)['id']!=listing.id;}catch(_){return true;}}))].take(20).toList();
+    await prefs.setStringList('phonek_recent_listings',items);
+  }
+
+  Future<void> _loadDataSaver() async {
+    final prefs = await SharedPreferences.getInstance();
+    _dataSaver = prefs.getBool('phonek_data_saver') ?? false;
+    notifyListeners();
+  }
+
+  Future<void> setDataSaverEnabled(bool enabled) async {
+    _dataSaver = enabled;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('phonek_data_saver', enabled);
+    notifyListeners();
+  }
   String? get shopName => _shopName;
   User? get currentUser => _session?.user;
 
@@ -227,7 +276,7 @@ class AppState extends ChangeNotifier {
   Future<List<ChatMessage>> loadMessages(String threadId) async {
     final rows = await Supabase.instance.client
         .from('chat_messages')
-        .select('id, sender_id, text, type, status, offer_amount, created_at')
+        .select('id, sender_id, text, type, status, offer_amount, payload, created_at')
         .eq('thread_id', threadId)
         .order('created_at', ascending: true);
     return (rows as List).whereType<Map<String, dynamic>>().map(_messageFromRow).toList();
@@ -255,6 +304,33 @@ class AppState extends ChangeNotifier {
       threadId: threadId,
       messageId: inserted['id'] as String,
     ));
+  }
+
+  Future<String> startWantedChat({required String requestId,required String listingId}) async {
+    final uid=_session?.user.id;if(uid==null)throw const AuthException('سجّل الدخول');
+    final tid=(await Supabase.instance.client.rpc('start_wanted_chat',params:{'p_request_id':requestId,'p_listing_id':listingId})).toString();
+    final msg=await Supabase.instance.client.from('chat_messages').select('id').eq('thread_id',tid).eq('sender_id',uid).eq('type','text').order('created_at',ascending:false).limit(1).maybeSingle();
+    if(msg?['id']!=null)unawaited(_sendPushForMessage(threadId:tid,messageId:msg!['id'] as String));
+    return tid;
+  }
+
+  Future<void> sendVoice({required String threadId,required String path,required int durationSeconds}) async {
+    final uid=_session?.user.id;if(uid==null)throw const AuthException('سجّل الدخول لإرسال رسالة صوتية');
+    final inserted=await Supabase.instance.client.from('chat_messages').insert({'thread_id':threadId,'sender_id':uid,'text':'','type':MessageType.voice.value,'status':MessageStatus.sent.value,'payload':{'path':path,'duration_seconds':durationSeconds}}).select('id').single();
+    unawaited(_sendPushForMessage(threadId:threadId,messageId:inserted['id'] as String));
+  }
+
+  Future<void> sendSwap({required PhoneListing listing, required String model, required DeviceCondition condition, required int diffAmount, required String diffDirection, String? imageUrl}) async {
+    final userId=_session?.user.id;
+    if(userId==null) throw const AuthException('سجّل الدخول لإرسال عرض تبديل');
+    if(userId==listing.seller.id) throw const AuthException('لا يمكنك التبديل مع إعلانك');
+    if(!listing.acceptsSwap) throw const AuthException('هذا الإعلان لا يقبل التبديل');
+    final threadId=await ensureChatThread(listing);
+    final inserted=await Supabase.instance.client.from('chat_messages').insert({
+      'thread_id':threadId,'sender_id':userId,'text':'','type':MessageType.swap.value,'status':MessageStatus.sent.value,
+      'payload':{'model':model.trim(),'condition':condition.value,'diff_amount':diffAmount,'diff_direction':diffDirection,'image_url':imageUrl,'status':'pending'},
+    }).select('id').single();
+    unawaited(_sendPushForMessage(threadId:threadId,messageId:inserted['id'] as String));
   }
 
   Future<void> sendOffer({required PhoneListing listing, required int amount}) async {
@@ -399,36 +475,23 @@ class AppState extends ChangeNotifier {
 
   RealtimeChannel subscribeToMessages(String threadId, void Function(ChatMessage message) onMessage) {
     final channel = Supabase.instance.client.channel('phonek-chat-$threadId');
-    channel.onPostgresChanges(
-      event: PostgresChangeEvent.insert,
-      schema: 'public',
-      table: 'chat_messages',
-      filter: PostgresChangeFilter(
-        type: PostgresChangeFilterType.eq,
-        column: 'thread_id',
-        value: threadId,
-      ),
-      callback: (payload) => onMessage(_messageFromRow(payload.newRecord)),
-    ).subscribe();
-    _chatChannels.add(channel);
-    return channel;
+    channel.onPostgresChanges(event: PostgresChangeEvent.insert, schema: 'public', table: 'chat_messages', filter: PostgresChangeFilter(type: PostgresChangeFilterType.eq, column: 'thread_id', value: threadId), callback: (payload) => onMessage(_messageFromRow(payload.newRecord)));
+    channel.onPostgresChanges(event: PostgresChangeEvent.update, schema: 'public', table: 'chat_messages', filter: PostgresChangeFilter(type: PostgresChangeFilterType.eq, column: 'thread_id', value: threadId), callback: (payload) => onMessage(_messageFromRow(payload.newRecord)));
+    return channel..subscribe();
   }
 
   ChatMessage _messageFromRow(Map<String, dynamic> row) {
+    final rawType = row['type']?.toString() ?? 'text';
+    final type = MessageType.values.firstWhere((item) => item.value == rawType, orElse: () => MessageType.text);
     return ChatMessage(
       id: row['id'] as String,
-      senderId: row['sender_id'] as String? ?? '',
-      text: row['text'] as String? ?? '',
-      type: MessageType.values.firstWhere(
-        (item) => item.value == row['type'],
-        orElse: () => MessageType.text,
-      ),
-      timestamp: DateTime.tryParse(row['created_at'] as String? ?? '') ?? DateTime.now(),
-      status: MessageStatus.values.firstWhere(
-        (item) => item.value == row['status'],
-        orElse: () => MessageStatus.sent,
-      ),
+      senderId: row['sender_id'] as String,
+      text: row['text']?.toString() ?? '',
+      type: type,
+      timestamp: DateTime.parse(row['created_at'].toString()).toLocal(),
+      status: MessageStatus.values.firstWhere((item) => item.value == row['status'], orElse: () => MessageStatus.sent),
       offerAmount: (row['offer_amount'] as num?)?.toInt(),
+      payload: row['payload'] is Map ? Map<String,dynamic>.from(row['payload'] as Map) : null,
     );
   }
 
@@ -463,13 +526,23 @@ class AppState extends ChangeNotifier {
         }
       }
 
-      final loaded = rawRows
-          .map((row) => _listingFromRow(row, sellerCards[row['seller_id']?.toString()]))
-          .whereType<PhoneListing>()
-          .toList();
+      final offerMap=<String,int>{};
+      final subscriptionShops=<String>{};
+      try {
+        final offers=await Supabase.instance.client.from('shop_offer_items').select('listing_id,shop_offers!inner(discount_percent,starts_at,ends_at)').lte('shop_offers.starts_at',DateTime.now().toUtc().toIso8601String()).gt('shop_offers.ends_at',DateTime.now().toUtc().toIso8601String());
+        for(final x in (offers as List).whereType<Map<String,dynamic>>()){final o=x['shop_offers'] as Map<String,dynamic>;offerMap[x['listing_id'].toString()]=(o['discount_percent'] as num).toInt();}
+      } catch (_) {}
+      try { final subs=await Supabase.instance.client.from('public_active_subscriptions').select('shop_id'); for(final x in (subs as List).whereType<Map<String,dynamic>>())subscriptionShops.add(x['shop_id'].toString()); } catch (_) {}
+      final loaded = rawRows.map((row) {
+        final copy=Map<String,dynamic>.from(row);
+        copy['offer_discount_percent']=offerMap[copy['id']?.toString()];
+        copy['subscription_active']=subscriptionShops.contains(copy['seller_id']?.toString());
+        return _listingFromRow(copy, sellerCards[copy['seller_id']?.toString()]);
+      }).whereType<PhoneListing>().toList();
       _listings
         ..clear()
         ..addAll(loaded);
+      for (final listing in loaded) { unawaited(_saveOfflineListing(listing)); }
       if (_session != null) unawaited(loadChatThreads());
     } on PostgrestException catch (error) {
       _listingsError = error.message;
@@ -494,6 +567,11 @@ class AppState extends ChangeNotifier {
     };
   }
 
+  Future<void> recordListingEvent(String listingId,String eventType) async {
+    if(_session?.user.id==null)return;
+    await Supabase.instance.client.rpc('record_listing_event',params:{'p_listing_id':listingId,'p_event_type':eventType});
+  }
+
   Future<void> recordListingView(String listingId) async {
     if (_viewedListingIds.contains(listingId)) return;
     _viewedListingIds.add(listingId);
@@ -502,6 +580,7 @@ class AppState extends ChangeNotifier {
         'increment_listing_view',
         params: {'p_listing_id': listingId},
       );
+      unawaited(recordListingEvent(listingId, 'view'));
     } catch (error) {
       debugPrint('PhoneK listing view increment failed: $error');
       _viewedListingIds.remove(listingId);
@@ -527,6 +606,7 @@ class AppState extends ChangeNotifier {
     required String city,
     required String description,
     required List<String> imageUrls,
+    bool acceptsSwap = false,
     List<XFile> newImages = const [],
     List<String> originalImageUrls = const [],
   }) async {
@@ -574,6 +654,7 @@ class AppState extends ChangeNotifier {
         'city': city.trim(),
         'description': description.trim(),
         'image_urls': finalImageUrls,
+        'accepts_swap': acceptsSwap,
       }).eq('id', id).eq('seller_id', userId);
 
       final removedUrls = originalImageUrls.where((url) => !imageUrls.contains(url)).toList();
@@ -673,6 +754,7 @@ class AppState extends ChangeNotifier {
         viewCount: (row['view_count'] as num?)?.toInt() ?? 0,
         isFeatured: row['is_featured'] as bool? ?? false,
         description: row['description'] as String? ?? '',
+      acceptsSwap: row['accepts_swap'] == true,
       );
     } catch (_) {
       return null;
@@ -773,12 +855,12 @@ class AppState extends ChangeNotifier {
     try {
       final adminResult = await Supabase.instance.client.rpc('is_admin');
       if (_session?.user.id != userId) return;
-      _isAdmin = adminResult == true || userId == adminUserId;
+      _isAdmin = adminResult == true;
       notifyListeners();
     } catch (_) {
       if (_session?.user.id != userId) return;
-      _isAdmin = userId == adminUserId;
-      // The admin RPC may be unavailable during an initial setup.
+      _isAdmin = false;
+      // Fail closed if the admin RPC is unavailable.
       notifyListeners();
     }
   }
