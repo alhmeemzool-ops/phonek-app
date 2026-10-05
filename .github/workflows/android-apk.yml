@@ -127,6 +127,33 @@ jobs:
           path: build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
 
+      - name: Fetch latest update manifest
+        shell: bash
+        run: |
+          git fetch origin main
+          git show origin/main:update.json > latest-update.json || cp update.json latest-update.json
+
+      - name: Run incremental update tests
+        shell: bash
+        run: |
+          python3 -m unittest tool/test_make_patches.py
+          flutter test test/update_manifest_test.dart
+
+      - name: Build candidate incremental patches
+        continue-on-error: true
+        timeout-minutes: 25
+        env:
+          PHONEK_MAX_PATCH_BASES: 2
+        run: |
+          python3 tool/make_patches.py build --manifest latest-update.json --new-apk build/app/outputs/flutter-apk/app-release.apk --new-version-code "${{ steps.version.outputs.version_code }}" --output patch-results.json
+
+      - name: Ensure patch result exists
+        shell: bash
+        run: |
+          if [ ! -s patch-results.json ]; then
+            printf '%s\n' '{"patches":[],"skipped":[{"baseVersionCode":null,"reason":"patch builder failed or timed out"}]}' > patch-results.json
+          fi
+
       - name: Publish versioned Quick Release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -135,36 +162,83 @@ jobs:
         run: |
           tag="quick-v${VERSION_NAME}"
           gh release delete "$tag" --yes --cleanup-tag 2>/dev/null || true
-          gh release create "$tag" build/app/outputs/flutter-apk/app-release.apk \
-            --title "PhoneK Quick ${VERSION_NAME}" \
-            --notes "Quick APK update ${VERSION_NAME} (${VERSION_CODE})"
+          mapfile -t patch_files < <(python3 - <<'PY'
+          import json
+          d=json.load(open("patch-results.json"))
+          for p in d.get("patches", []):
+              print(p["file"])
+          PY
+          )
+          assets=(build/app/outputs/flutter-apk/app-release.apk)
+          if [ "${#patch_files[@]}" -gt 0 ]; then
+            assets+=( "${patch_files[@]}" )
+          fi
+          gh release create "$tag" "${assets[@]}" --title "PhoneK Quick ${VERSION_NAME}" --notes "Quick APK update ${VERSION_NAME} (${VERSION_CODE})"
 
-      - name: Update Quick update manifest
+      - name: Verify published release assets
+        shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION_NAME: ${{ steps.version.outputs.version_name }}
+        run: |
+          tag="quick-v${VERSION_NAME}"
+          apk_url="https://github.com/alhmeemzool-ops/phonek-app/releases/download/${tag}/app-release.apk"
+          curl -fL --retry 5 --retry-delay 3 --retry-all-errors -o published-app-release.apk "$apk_url"
+          built_apk_sha256="$(sha256sum build/app/outputs/flutter-apk/app-release.apk | awk '{print $1}')"
+          published_apk_sha256="$(sha256sum published-app-release.apk | awk '{print $1}')"
+          test "$published_apk_sha256" = "$built_apk_sha256" || {
+            echo "Published APK checksum does not match the built APK."
+            exit 1
+          }
+          python3 - <<'PY'
+          import hashlib, json, os, subprocess
+          from pathlib import Path
+          path=Path("patch-results.json")
+          data=json.loads(path.read_text())
+          kept=[]
+          tag="quick-v"+os.environ["VERSION_NAME"]
+          for patch in data.get("patches", []):
+              base=int(patch["baseVersionCode"])
+              filename=f"patch-from-{base}.bin"
+              url=f"https://github.com/alhmeemzool-ops/phonek-app/releases/download/{tag}/{filename}"
+              try:
+                  out=Path(f"published-patch-{base}.bin")
+                  subprocess.run(["curl","-fL","--retry","5","--retry-delay","3","--retry-all-errors","-o",str(out),url],check=True)
+                  digest=hashlib.sha256(out.read_bytes()).hexdigest()
+                  if digest == patch["sha256"]:
+                      kept.append(patch)
+                  else:
+                      print(f"Dropping {filename}: published SHA-256 mismatch")
+                      subprocess.run(["gh","release","delete-asset",tag,filename,"--yes"],check=False)
+                  out.unlink(missing_ok=True)
+              except Exception as exc:
+                  print(f"Dropping {filename}: verification failed: {exc}")
+                  subprocess.run(["gh","release","delete-asset",tag,filename,"--yes"],check=False)
+          data["patches"]=kept
+          path.write_text(json.dumps(data,ensure_ascii=False,indent=2)+"\n")
+          PY
+
+      - name: Write Quick update manifest
+        env:
+          VERSION_NAME: ${{ steps.version.outputs.version_name }}
           VERSION_CODE: ${{ steps.version.outputs.version_code }}
         run: |
-          sha256=$(sha256sum build/app/outputs/flutter-apk/app-release.apk | awk '{print $1}')
-          python3 - <<PY
-          import json, os
-          d = {
-            "versionCode": int(os.environ["VERSION_CODE"]),
-            "versionName": os.environ["VERSION_NAME"],
-            "apkUrl": f"https://github.com/alhmeemzool-ops/phonek-app/releases/download/quick-v{os.environ['VERSION_NAME']}/app-release.apk",
-            "sha256": "${sha256}",
-            "patchUrl": None,
-            "patchSha256": None,
-            "patchBaseVersionCode": None,
-            "minSupportedVersionCode": 58,
-            "mandatory": False,
-            "notes": "تحديث سريع جديد لـ PhoneK."
-          }
-          with open("update.json", "w", encoding="utf-8") as f:
-              json.dump(d, f, ensure_ascii=False, indent=2); f.write("\n")
-          PY
+          apk_sha256="$(sha256sum build/app/outputs/flutter-apk/app-release.apk | awk '{print $1}')"
+          python3 tool/make_patches.py manifest --manifest latest-update.json --result patch-results.json --new-apk build/app/outputs/flutter-apk/app-release.apk --version-code "$VERSION_CODE" --version-name "$VERSION_NAME" --apk-url "https://github.com/alhmeemzool-ops/phonek-app/releases/download/quick-v${VERSION_NAME}/app-release.apk" --apk-sha256 "$apk_sha256" --release-prefix "https://github.com/alhmeemzool-ops/phonek-app/releases/download/quick-v${VERSION_NAME}/" --output update.json
+
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add update.json
           git commit -m "Update PhoneK quick update manifest"
-          git push origin HEAD:main
+          git status --short
+          git reset --hard HEAD
+
+          for attempt in 1 2 3; do
+            if git pull --rebase origin main && git push origin HEAD:main; then
+              exit 0
+            fi
+            git rebase --abort 2>/dev/null || true
+            sleep $((attempt * 5))
+          done
+          echo "Failed to push update manifest after 3 attempts."
+          exit 1
