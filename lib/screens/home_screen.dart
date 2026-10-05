@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import '../data/app_state.dart';
-import '../data/catalog_data.dart';
+import '../data/catalog_data.dart' as catalog;
 import '../models/phone_model.dart';
 import '../theme/app_theme.dart';
 import '../widgets/phone_card.dart';
@@ -210,7 +210,7 @@ class _HomeScreenState extends State<HomeScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 12),
         children: [
           _brandChip(null, 'الكل'),
-          ...CatalogData.brands.map((b) => _brandChip(b, b)),
+          ...catalog.CatalogData.brands.map((b) => _brandChip(b, b)),
         ],
       ),
     );
@@ -254,7 +254,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         selected: _selectedCity == null,
                         onSelected: (_) => setSheetState(() => _selectedCity = null),
                       ),
-                      ...CatalogData.cities.map((c) => ChoiceChip(
+                      ...catalog.CatalogData.cities.map((c) => ChoiceChip(
                             label: Text(c),
                             selected: _selectedCity == c,
                             onSelected: (_) => setSheetState(() => _selectedCity = c),
