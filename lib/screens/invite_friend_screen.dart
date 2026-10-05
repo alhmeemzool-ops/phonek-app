@@ -20,7 +20,7 @@ class _InviteFriendScreenState extends State<InviteFriendScreen>{
       final uid=context.read<AppState>().currentUser!.id;
       final refs=await db.from('referrals').select('invitee_id').eq('inviter_id',uid);
       final credit=await db.from('feature_credits').select('days_available').eq('user_id',uid).maybeSingle();
-      if(mounted)setState(()=>{_code:code.toString(),_friends:(refs as List).length,_days:(credit?['days_available'] as num?)?.toInt()??0});
+      if(mounted)setState((){_code=code.toString();_friends=(refs as List).length;_days=(credit?['days_available'] as num?)?.toInt()??0;});
     }catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(friendlyError(e,fallback:'تعذر تحميل الدعوة.'))));}
     finally{if(mounted)setState(()=>_loading=false);}
   }
