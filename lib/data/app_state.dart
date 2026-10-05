@@ -48,6 +48,7 @@ class AppState extends ChangeNotifier {
       unawaited(loadChatThreads());
     }
 
+    unawaited(_loadDataSaver());
     unawaited(loadListings());
   }
 
@@ -63,6 +64,7 @@ class AppState extends ChangeNotifier {
   String? _shopName;
   String? _userName;
   bool _isLoadingListings = false;
+  bool _dataSaver = false;
   String? _listingsError;
 
   bool isFavorite(String id) => _favoriteIds.contains(id);
@@ -87,6 +89,20 @@ class AppState extends ChangeNotifier {
   String? get userEmail => _session?.user.email;
   bool get isAdmin => _isAdmin;
   bool get isShopOwner => _isShopOwner;
+  bool get dataSaverEnabled => _dataSaver;
+
+  Future<void> _loadDataSaver() async {
+    final prefs = await SharedPreferences.getInstance();
+    _dataSaver = prefs.getBool('phonek_data_saver') ?? false;
+    notifyListeners();
+  }
+
+  Future<void> setDataSaverEnabled(bool enabled) async {
+    _dataSaver = enabled;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('phonek_data_saver', enabled);
+    notifyListeners();
+  }
   String? get shopName => _shopName;
   User? get currentUser => _session?.user;
 
