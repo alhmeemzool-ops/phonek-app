@@ -181,7 +181,7 @@ class _ChatScreenState extends State<ChatScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if(m.type==MessageType.voice) ...[
+            if(m.type==MessageType.swap) _swapCard(m,isMe) else if(m.type==MessageType.voice) ...[
               Row(mainAxisSize:MainAxisSize.min,children:[IconButton(onPressed:()=>_playVoice(m),icon:Icon(_playingMessageId==m.id?Icons.pause_circle:Icons.play_circle)),Text(_duration((m.payload?['duration_seconds'] as num?)?.toInt()??0))]),
             ] else Text(m.displayText, style: TextStyle(color: isMe ? Colors.black : Colors.white, fontSize: 15, height: 1.45)),
             const SizedBox(height: 2),
@@ -206,6 +206,21 @@ class _ChatScreenState extends State<ChatScreen> {
         ),
       ),
     );
+  }
+
+  Widget _swapCard(ChatMessage m,bool isMe) {
+    final p=m.payload??{};final status=p['status']?.toString()??'pending';final sellerIsCurrent=context.read<AppState>().currentUser?.id==widget.listing.seller.id;
+    final statusText=status=='accepted'?'تم القبول':status=='rejected'?'تم الرفض':'بانتظار الرد';
+    return Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+      const Text('عرض تبديل',style:TextStyle(fontWeight:FontWeight.bold)),
+      Text('الموديل: '+(p['model']?.toString()??'—')),Text('الحالة: '+(p['condition']?.toString()??'—')),
+      Text((p['diff_amount']??0).toString()=='0'?'بدون فرق':(p['diff_direction']=='pay'?'أدفع الفرق: ':'أطلب الفرق: ')+(p['diff_amount']??0).toString()+' ج.س'),
+      const SizedBox(height:4),Text(statusText,style:const TextStyle(color:AppColors.gold,fontWeight:FontWeight.bold)),
+      if(sellerIsCurrent&&status=='pending')Row(children:[TextButton(onPressed:()=>_respondSwap(m,true),child:const Text('قبول')),TextButton(onPressed:()=>_respondSwap(m,false),child:const Text('رفض'))]),
+    ]);
+  }
+  Future<void> _respondSwap(ChatMessage m,bool accept) async {
+    try{await Supabase.instance.client.rpc('respond_to_swap',params:{'p_message_id':m.id,'p_accept':accept});final messages=await context.read<AppState>().loadMessages(_threadId!);if(mounted)setState(()=>_messages=messages);}catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(friendlyError(e,fallback:'تعذر تحديث عرض التبديل.'))));}
   }
 
   Widget _composer() {
