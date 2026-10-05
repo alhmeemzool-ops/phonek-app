@@ -31,6 +31,7 @@ class ListingSettingsScreen extends StatelessWidget {
         city: data.city,
         description: data.description,
         imageUrls: data.existingImageUrls,
+        acceptsSwap: data.acceptsSwap,
         newImages: data.newImages,
         originalImageUrls: listing.imageUrls,
       );
