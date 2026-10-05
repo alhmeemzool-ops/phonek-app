@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';import 'package:supabase_flutter/supabase_flutter.dart';import '../data/app_state.dart';import '../theme/app_theme.dart';
+import 'package:flutter/material.dart';import 'package:provider/provider.dart';import 'package:supabase_flutter/supabase_flutter.dart';import '../data/app_state.dart';import '../theme/app_theme.dart';
 class ShopOffersScreen extends StatefulWidget{const ShopOffersScreen({super.key});@override State<ShopOffersScreen> createState()=>_ShopOffersScreenState();}
 class _ShopOffersScreenState extends State<ShopOffersScreen>{List<Map<String,dynamic>> _offers=[];bool _loading=true;Future<void> _load()async{final uid=Supabase.instance.client.auth.currentUser!.id;final rows=await Supabase.instance.client.from('shop_offers').select('*,shop_offer_items(listing_id)').eq('shop_id',uid).order('starts_at',ascending:false);if(mounted)setState(()=>_offers=List<Map<String,dynamic>>.from(rows));setState(()=>_loading=false);}
 @override void initState(){super.initState();_load();}
