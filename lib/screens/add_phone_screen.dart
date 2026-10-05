@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../data/app_state.dart';
 import '../models/phone_model.dart';
+import '../utils/friendly_error.dart';
 import '../widgets/listing_form.dart';
 
 class AddPhoneScreen extends StatelessWidget {
@@ -56,9 +57,16 @@ class AddPhoneScreen extends StatelessWidget {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم إرسال الإعلان للمراجعة قبل النشر')));
       Navigator.of(context).pop();
-    } catch (_) {
-      if (uploadedPaths.isNotEmpty) await client.storage.from('listing-images').remove(uploadedPaths);
-      rethrow;
+    } catch (error) {
+      if (uploadedPaths.isNotEmpty) {
+        try {
+          await client.storage.from('listing-images').remove(uploadedPaths);
+        } catch (_) {}
+      }
+      if (context.mounted) {
+        final message = friendlyError(error, fallback: 'تعذر نشر الإعلان. حاول مرة أخرى.');
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+      }
     }
   }
 
