@@ -282,11 +282,11 @@ class AppState extends ChangeNotifier {
     return (rows as List).whereType<Map<String, dynamic>>().map(_messageFromRow).toList();
   }
 
-  Future<void> sendMessage({required String threadId, required String text}) async {
+  Future<ChatMessage?> sendMessage({required String threadId, required String text}) async {
     final userId = _session?.user.id;
     if (userId == null) throw const AuthException('سجّل الدخول لإرسال رسالة');
     final cleanText = text.trim();
-    if (cleanText.isEmpty) return;
+    if (cleanText.isEmpty) return null;
 
     final inserted = await Supabase.instance.client
         .from('chat_messages')
@@ -297,13 +297,15 @@ class AppState extends ChangeNotifier {
           'type': MessageType.text.value,
           'status': MessageStatus.sent.value,
         })
-        .select('id')
+        .select('id, sender_id, text, type, status, offer_amount, payload, created_at')
         .single();
 
+    final message = _messageFromRow(Map<String, dynamic>.from(inserted));
     unawaited(_sendPushForMessage(
       threadId: threadId,
-      messageId: inserted['id'] as String,
+      messageId: message.id,
     ));
+    return message;
   }
 
   Future<String> startWantedChat({required String requestId,required String listingId}) async {
