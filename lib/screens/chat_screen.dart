@@ -39,8 +39,11 @@ class _ChatScreenState extends State<ChatScreen> {
       _threadId ??= await appState.ensureChatThread(widget.listing);
       final messages = await appState.loadMessages(_threadId!);
       _channel = appState.subscribeToMessages(_threadId!, (message) {
-        if (!mounted || _messages.any((item) => item.id == message.id)) return;
-        setState(() => _messages.add(message));
+        if (!mounted) return;
+        setState(() {
+          final index = _messages.indexWhere((item) => item.id == message.id);
+          if (index >= 0) { _messages[index] = message; } else { _messages.add(message); }
+        });
         _scrollToBottom();
       });
       if (mounted) setState(() { _messages = messages; _loading = false; });
@@ -170,9 +173,12 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Widget _composer() {
+    final quick = const ['متاح؟', 'آخر سعر؟', 'وين الموقع؟'];
     return SafeArea(
       top: false,
-      child: Padding(
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        if (!_loading) SingleChildScrollView(scrollDirection: Axis.horizontal, padding: const EdgeInsets.symmetric(horizontal: 8), child: Row(children: quick.map((text) => Padding(padding: const EdgeInsets.only(left: 6), child: ActionChip(label: Text(text), onPressed: _threadId == null ? null : () async { await context.read<AppState>().sendMessage(threadId: _threadId!, text: text); final messages = await context.read<AppState>().loadMessages(_threadId!); if (mounted) setState(() => _messages = messages); }))).toList())),
+        Padding(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
         child: Row(
           children: [
@@ -201,7 +207,8 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
           ],
         ),
-      ),
+        ),
+      ],
     );
   }
 
