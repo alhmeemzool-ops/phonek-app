@@ -1,6 +1,7 @@
-import 'package:flutter/material.dart';
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
+import 'package:flutter/material.dart';
 import 'badge_model.dart';
 import 'merchant_badge_art.dart';
 import 'badge_sound_service.dart';
