@@ -91,7 +91,7 @@ class _ChatScreenState extends State<ChatScreen> {
     if(_recording){await _stopRecording();return;}
     if(!await _recorder.hasPermission()){if(mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('لا يمكن التسجيل بدون إذن الميكروفون')));return;}
     final dir=await getTemporaryDirectory();final uid=context.read<AppState>().currentUser!.id;final path=dir.path+'/phonek_${DateTime.now().millisecondsSinceEpoch}.m4a';
-    await _recorder.start(const RecordConfig(encoder:AudioEncoder.aacLc,bitRate:128000,sampleRate:44100),path:path);
+    await _recorder.start(const RecordConfig(encoder:AudioEncoder.aacLc,bitRate:128000,sampleRate:44100), path: path);
     setState(() {});
     _recording=true;_recordSeconds=0;_recordTimer=Timer.periodic(const Duration(seconds:1),(t){if(!mounted)return;setState(()=>_recordSeconds++);if(_recordSeconds>=120)_stopRecording();});setState(() {});
   }
