@@ -183,7 +183,7 @@ jobs:
         env:
           PHONEK_MAX_PATCH_BASES: 2
         run: |
-          python3 tool/make_patches.py build             --manifest latest-update.json             --new-apk build/app/outputs/flutter-apk/app-release.apk             --new-version-code "${{ steps.version.outputs.version_code }}"             --output patch-results.json
+          python3 tool/make_patches.py build --manifest latest-update.json --new-apk build/app/outputs/flutter-apk/app-release.apk --new-version-code "${{ steps.version.outputs.version_code }}" --output patch-results.json
 
       - name: Publish PhoneK APK release
         if: steps.guard.outputs.skip != 'true'
@@ -202,7 +202,7 @@ jobs:
           if [ "${#patch_files[@]}" -gt 0 ]; then
             assets+=( "${patch_files[@]}" )
           fi
-          gh release create "$tag" "${assets[@]}"             --title "PhoneK ${{ steps.version.outputs.version_name }}"             --notes "تحديث PhoneK رقم ${{ steps.version.outputs.version_code }} - ARM32 + ARM64"
+          gh release create "$tag" "${assets[@]}" --title "PhoneK ${{ steps.version.outputs.version_name }}" --notes "تحديث PhoneK رقم ${{ steps.version.outputs.version_code }} - ARM32 + ARM64"
 
       - name: Verify published release assets
         if: steps.guard.outputs.skip != 'true'
@@ -255,7 +255,7 @@ jobs:
           VERSION_CODE: ${{ steps.version.outputs.version_code }}
           APK_SHA256: ${{ steps.checksum.outputs.sha256 }}
         run: |
-          python3 tool/make_patches.py manifest             --manifest latest-update.json             --result patch-results.json             --new-apk build/app/outputs/flutter-apk/app-release.apk             --version-code "$VERSION_CODE"             --version-name "$VERSION_NAME"             --apk-url "https://github.com/alhmeemzool-ops/phonek-app/releases/download/v${VERSION_NAME}/app-release.apk"             --apk-sha256 "$APK_SHA256"             --release-prefix "https://github.com/alhmeemzool-ops/phonek-app/releases/download/v${VERSION_NAME}/"             --output update.json
+          python3 tool/make_patches.py manifest --manifest latest-update.json --result patch-results.json --new-apk build/app/outputs/flutter-apk/app-release.apk --version-code "$VERSION_CODE" --version-name "$VERSION_NAME" --apk-url "https://github.com/alhmeemzool-ops/phonek-app/releases/download/v${VERSION_NAME}/app-release.apk" --apk-sha256 "$APK_SHA256" --release-prefix "https://github.com/alhmeemzool-ops/phonek-app/releases/download/v${VERSION_NAME}/" --output update.json
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
