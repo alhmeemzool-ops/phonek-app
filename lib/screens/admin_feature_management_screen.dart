@@ -78,7 +78,7 @@ class _AdminFeatureManagementScreenState extends State<AdminFeatureManagementScr
         ]),
       )));
     }
-    return Scaffold(appBar: AppBar(title: const Text('إدارة الميزات')), body: ListView(padding: const EdgeInsets.all(12), children: children);
+    return Scaffold(appBar: AppBar(title: const Text('إدارة الميزات')), body: ListView(padding: const EdgeInsets.all(12), children: children));
   }
 
 }
