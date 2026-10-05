@@ -143,8 +143,10 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           ),
+          if(appState.isOffline) SliverToBoxAdapter(child: Container(padding:const EdgeInsets.all(10),color:AppColors.warning,child:const Text('أنت غير متصل',textAlign:TextAlign.center,style:TextStyle(color:Colors.black,fontWeight:FontWeight.bold)))),
           SliverToBoxAdapter(child: _buildShortcuts(context)),
           SliverToBoxAdapter(child: _buildBrandChips()),
+          if(appState.isOffline && appState.recentOfflineListings.isNotEmpty) SliverToBoxAdapter(child: Column(crossAxisAlignment:CrossAxisAlignment.start,children:[const Padding(padding:EdgeInsets.fromLTRB(12,12,12,4),child:Text('آخر ما شاهدته',style:TextStyle(fontSize:18,fontWeight:FontWeight.bold))),SizedBox(height:230,child:ListView.builder(scrollDirection:Axis.horizontal,itemCount:appState.recentOfflineListings.length,itemBuilder:(_,i)=>SizedBox(width:170,child:Padding(padding:const EdgeInsets.only(left:8),child:PhoneCard(listing:appState.recentOfflineListings[i],onTap:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>PhoneDetailsScreen(listing:appState.recentOfflineListings[i])))))))])),
           if (appState.isLoadingListings && listings.isEmpty)
             const SliverFillRemaining(
               hasScrollBody: false,
@@ -290,6 +292,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ],
                   ),
+                  SwitchListTile(value:_swapOnly,onChanged:(v)=>setSheetState(()=>_swapOnly=v),title:const Text('يقبل التبديل فقط'),contentPadding:EdgeInsets.zero),
                   const SizedBox(height: 20),
                   SizedBox(
                     width: double.infinity,
