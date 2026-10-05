@@ -16,6 +16,7 @@ import '../features/merchant_badges/badge_widgets.dart';
 import 'chat_screen.dart';
 import 'listing_settings_screen.dart';
 import 'shop_profile_screen.dart';
+import 'compare_screen.dart';
 
 class PhoneDetailsScreen extends StatefulWidget {
   const PhoneDetailsScreen({super.key, required this.listing});
@@ -80,6 +81,7 @@ class _PhoneDetailsScreenState extends State<PhoneDetailsScreen> {
                 const SizedBox(height: 7),
                 Row(children:[Expanded(child:Text(listing.priceOnCall ? 'اتصل للسعر' : AppFormatters.priceSDG(listing.price), style: const TextStyle(color: AppColors.gold, fontSize: 23, fontWeight: FontWeight.bold))),if(listing.acceptsSwap)const Chip(label:Text('يقبل التبديل'))]),
                 const SizedBox(height: 8),
+                if(!isOwner) Align(alignment:Alignment.centerRight,child:TextButton.icon(onPressed:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>CompareScreen(first:listing,candidates:context.read<AppState>().listings.where((x)=>x.id!=listing.id&&x.status==ListingStatus.active).toList()))),icon:const Icon(Icons.compare_arrows),label:const Text('قارن'))),
                 if(listing.acceptsSwap && !isOwner) Align(alignment:Alignment.centerRight,child:OutlinedButton.icon(onPressed:()=>_swap(context),icon:const Icon(Icons.swap_horiz),label:const Text('اعرض تبديل'))),
                 Text('${listing.city}  •  ${listing.viewCount} مشاهدة  •  ${AppFormatters.timeAgo(listing.createdAt)}', style: const TextStyle(color: AppColors.textSecondary)),
                 const SizedBox(height: 18),
