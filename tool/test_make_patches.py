@@ -51,14 +51,16 @@ class MakePatchesTest(unittest.TestCase):
     def test_replacing_same_version_and_trimming_to_five(self):
         history = [
             {"versionCode": i, "apkUrl": f"{MODULE.PREFIX}v1.0.{i}/app-release.apk", "sha256": str(i) * 64}
-            for i in range(1, 6)
+            for i in range(3, 8)
         ]
+        history.append({"versionCode": 8, "apkUrl": f"{MODULE.PREFIX}v1.0.8/app-release.apk", "sha256": "8" * 64})
         out = self.run_manifest(
-            {"versionCode": 6, "versionName": "1.0.6", "apkUrl": history[-1]["apkUrl"], "sha256": "a" * 64, "history": history},
+            {"versionCode": 7, "versionName": "1.0.7", "apkUrl": history[0]["apkUrl"], "sha256": "a" * 64, "history": history},
             {"patches": [], "skipped": []}, version=7)
         self.assertEqual(len(out["history"]), 5)
         self.assertEqual(out["history"][0]["versionCode"], 7)
         self.assertEqual(out["history"][0]["sha256"], out["sha256"])
+        self.assertEqual(len({x["versionCode"] for x in out["history"]}), 5)
 
     def test_legacy_fields_use_highest_base(self):
         out = self.run_manifest(
