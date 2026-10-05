@@ -56,7 +56,7 @@ class AddPhoneScreen extends StatelessWidget {
       await appState.loadListings();
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم إرسال الإعلان للمراجعة قبل النشر')));
-      Navigator.of(context).pop();
+      // Keep the add tab open so the user can publish another listing.
     } catch (error) {
       if (uploadedPaths.isNotEmpty) {
         try {
