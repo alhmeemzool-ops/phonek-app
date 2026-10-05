@@ -29,6 +29,7 @@ class _PhoneKUpdateDialogState extends State<PhoneKUpdateDialog>
   bool _softError = false;
   bool _copied = false;
   String? _currentVersion;
+  int? _currentBuildNumber;
 
   @override
   void initState() {
@@ -48,7 +49,12 @@ class _PhoneKUpdateDialogState extends State<PhoneKUpdateDialog>
   Future<void> _loadCurrentVersion() async {
     try {
       final info = await PackageInfo.fromPlatform();
-      if (mounted) setState(() => _currentVersion = info.version);
+      if (mounted) {
+        setState(() {
+          _currentVersion = info.version;
+          _currentBuildNumber = int.tryParse(info.buildNumber);
+        });
+      }
     } catch (_) {
       // عرض الإصدار الحالي اختياري.
     }
@@ -275,6 +281,29 @@ class _PhoneKUpdateDialogState extends State<PhoneKUpdateDialog>
     );
   }
 
+  String _formatSize(int bytes) {
+    if (bytes < 1024 * 1024) {
+      return '${(bytes / 1024).toStringAsFixed(0)} KB';
+    }
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+  }
+
+  String? _downloadSizeLabel() {
+    final build = _currentBuildNumber;
+    if (_phase == PhoneKUpdatePhase.downloadingApk) {
+      final size = widget.update.apkSize;
+      return size == null ? null : 'حجم التحديث: ${_formatSize(size)}';
+    }
+    final patch = build == null ? null : widget.update.patchForBuild(build);
+    if (patch != null && patch.size != null && widget.update.apkSize != null) {
+      return 'حجم التحديث: ${_formatSize(patch.size!)} بدل ${_formatSize(widget.update.apkSize!)}';
+    }
+    if (widget.update.apkSize != null) {
+      return 'حجم التحديث: ${_formatSize(widget.update.apkSize!)}';
+    }
+    return null;
+  }
+
   Widget _progressBlock() {
     final determinate = (_phase == PhoneKUpdatePhase.downloadingPatch ||
             _phase == PhoneKUpdatePhase.downloadingApk) &&
@@ -294,6 +323,17 @@ class _PhoneKUpdateDialogState extends State<PhoneKUpdateDialog>
         ),
         const SizedBox(height: 8),
         Text(label, textAlign: TextAlign.center),
+        if (_downloadSizeLabel() != null) ...[
+          const SizedBox(height: 4),
+          Text(
+            _downloadSizeLabel()!,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 12,
+            ),
+          ),
+        ],
         const SizedBox(height: 4),
         const Text(
           'لا تغلق التطبيق أثناء التحديث',
