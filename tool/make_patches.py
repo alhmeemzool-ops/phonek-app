@@ -68,6 +68,7 @@ def build_one(item, new_apk, new_sha, started):
     rebuilt = Path(f"reconstructed-{base}.apk")
     began = time.monotonic()
     old_size = 0
+    kept = False
     try:
         if time.monotonic() - started >= BUDGET:
             return None, {"baseVersionCode": base, "reason": "20-minute budget exceeded"}
@@ -94,6 +95,7 @@ def build_one(item, new_apk, new_sha, started):
         ratio = patch_size / new_size
         if ratio > 0.70:
             return None, {"baseVersionCode": base, "reason": f"patch ratio {ratio * 100:.2f}% exceeds 70%"}
+        kept = True
         return {
             "baseVersionCode": base, "baseSha256": item["sha256"],
             "file": str(patch), "sha256": sha256_file(patch), "size": patch_size,
@@ -110,10 +112,9 @@ def build_one(item, new_apk, new_sha, started):
                 pass
             except Exception:
                 pass
-        if patch.exists():
+        if patch.exists() and not kept:
             try:
-                if not patch.stat().st_size or not (patch.name.startswith("patch-from-") and not patch.name.endswith(".bin.tmp")):
-                    patch.unlink()
+                patch.unlink()
             except Exception:
                 pass
 
