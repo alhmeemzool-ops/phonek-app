@@ -1,8 +1,10 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../theme/app_theme.dart';
 import 'badge_model.dart';
 import 'badge_widgets.dart';
+import 'level_up_celebration.dart';
 
 class MerchantBadgesScreen extends StatefulWidget {
   const MerchantBadgesScreen({super.key, this.shopId});
@@ -65,11 +67,52 @@ class _MerchantBadgesScreenState extends State<MerchantBadgesScreen> {
     return (sales * .55 + days * .45).clamp(0.0, 1.0);
   }
 
+  void _showDebugCelebrationPicker() {
+    if (!kDebugMode || !mounted) return;
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('معاينة احتفال المستوى'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: 10,
+            itemBuilder: (_, index) {
+              final level = index + 1;
+              return ListTile(
+                title: Text('المستوى $level'),
+                onTap: () {
+                  Navigator.of(dialogContext).pop();
+                  showDialog<void>(
+                    context: context,
+                    barrierDismissible: false,
+                    builder: (_) => LevelUpCelebration(
+                      level: level,
+                      previousLevel: level - 1,
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final nextBadge = _level < merchantBadges.length ? merchantBadges[_level] : null;
     return Scaffold(
-      appBar: AppBar(title: const Text('شارات المتجر')),
+      appBar: AppBar(
+        title: kDebugMode
+            ? GestureDetector(
+                onLongPress: _showDebugCelebrationPicker,
+                child: const Text('شارات المتجر'),
+              )
+            : const Text('شارات المتجر'),
+      ),
       body: _loading ? const Center(child: CircularProgressIndicator()) : _error != null
           ? Center(child: Padding(padding: const EdgeInsets.all(24), child: Text('تعذر تحميل الشارات:\n$_error', textAlign: TextAlign.center)))
           : RefreshIndicator(
