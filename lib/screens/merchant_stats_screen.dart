@@ -16,15 +16,36 @@ class _MerchantStatsScreenState extends State<MerchantStatsScreen>{
     catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(friendlyError(e,fallback:'تعذر تحميل الإحصائيات.'))));}
     finally{if(mounted)setState(()=>_loading=false);}
   }
-  @override Widget build(BuildContext context){
-    int total(String t)=>_rows.where((x)=>x['event_type']==t).fold(0,(s,x)=>s+(x['event_count'] as num).toInt());
-    final grouped=<String,List<Map<String,dynamic>>>{};
-    for(final x in _rows){grouped.putIfAbsent(x['listing_id'].toString(),()=>[]).add(x);}
-    return Scaffold(appBar:AppBar(title:const Text('إحصائيات المتجر')),body:Column(children:[
-      Padding(padding:const EdgeInsets.all(12),child:SegmentedButton<int>(segments:const[ButtonSegment(value:1,label:Text('اليوم')),ButtonSegment(value:7,label:Text('7 أيام')),ButtonSegment(value:30,label:Text('30 يوم'))],selected:{_days},onSelectionChanged:(v){_days=v.first;_load();})),
-      Row(mainAxisAlignment:MainAxisAlignment.spaceEvenly,children:[_stat('مشاهدات',total('view')),_stat('مفضلة',total('favorite')),_stat('تواصل',total('contact'))]),
-      Expanded(child:_loading?const Center(child:CircularProgressIndicator(color:AppColors.gold)):grouped.isEmpty?const Center(child:Text('لا توجد بيانات')):ListView(children:grouped.entries.map((e)=>Card(child:ListTile(title:Text('إعلان ${e.key}'),subtitle:Text(e.value.map((x)=>'${x['event_type']}: ${x['event_count']}').join(' • ')))).toList())),
-    ]));
+  @override Widget build(BuildContext context) {
+    int total(String t) => _rows.where((x) => x['event_type'] == t).fold(0, (s, x) => s + (x['event_count'] as num).toInt());
+    final grouped = <String, List<Map<String, dynamic>>>{};
+    for (final x in _rows) { grouped.putIfAbsent(x['listing_id'].toString(), () => []).add(x); }
+    final cards = <Widget>[];
+    for (final e in grouped.entries) {
+      cards.add(Card(child: ListTile(
+        title: Text('إعلان '+e.key),
+        subtitle: Text(e.value.map((x) => x['event_type'].toString()+': '+x['event_count'].toString()).join(' • ')),
+      )));
+    }
+    return Scaffold(
+      appBar: AppBar(title: const Text('إحصائيات المتجر')),
+      body: Column(children: [
+        Padding(padding: const EdgeInsets.all(12), child: SegmentedButton<int>(
+          segments: const [
+            ButtonSegment(value: 1, label: Text('اليوم')),
+            ButtonSegment(value: 7, label: Text('7 أيام')),
+            ButtonSegment(value: 30, label: Text('30 يوم')),
+          ],
+          selected: {_days},
+          onSelectionChanged: (v) { _days = v.first; _load(); },
+        )),
+        Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
+          _stat('مشاهدات', total('view')), _stat('مفضلة', total('favorite')), _stat('تواصل', total('contact')),
+        ]),
+        Expanded(child: _loading ? const Center(child: CircularProgressIndicator(color: AppColors.gold)) : cards.isEmpty ? const Center(child: Text('لا توجد بيانات')) : ListView(children: cards)),
+      ]),
+    );
   }
+
   Widget _stat(String t,int n)=>Column(children:[Text(n.toString(),style:const TextStyle(fontSize:20,fontWeight:FontWeight.bold,color:AppColors.gold)),Text(t)]);
 }
