@@ -34,10 +34,20 @@ def read_json(path):
 def candidates(manifest, new_code):
     history = manifest.get("history")
     if not isinstance(history, list):
-        history = [{"versionCode": manifest.get("versionCode"),
-                    "apkUrl": manifest.get("apkUrl"),
-                    "sha256": manifest.get("sha256")}]
+        history = []
+
+    # Always seed the current manifest entry when it is valid. Older manifests
+    # may have a history list that omitted the APK currently advertised at the
+    # top level, which would otherwise make that APK unavailable as a patch base.
+    seeded = {
+        "versionCode": manifest.get("versionCode"),
+        "apkUrl": manifest.get("apkUrl"),
+        "sha256": manifest.get("sha256"),
+    }
+    history = [seeded] + history
+
     out = []
+    seen = set()
     for item in history:
         if not isinstance(item, dict):
             continue
@@ -45,12 +55,13 @@ def candidates(manifest, new_code):
             code = int(item["versionCode"])
         except (KeyError, TypeError, ValueError):
             continue
-        if code >= new_code:
+        if code >= new_code or code in seen:
             continue
         url, digest = item.get("apkUrl"), item.get("sha256")
         if (not isinstance(url, str) or not url.startswith(PREFIX) or
                 not isinstance(digest, str) or len(digest) != 64):
             continue
+        seen.add(code)
         out.append({"versionCode": code, "apkUrl": url, "sha256": digest.lower()})
     out.sort(key=lambda x: x["versionCode"], reverse=True)
     return out[:max(0, int(os.environ.get("PHONEK_MAX_PATCH_BASES", "2")))]
@@ -63,9 +74,10 @@ def run(cmd, timeout):
 
 def build_one(item, new_apk, new_sha, started):
     base = int(item["versionCode"])
-    old = Path(f"old-{base}.apk")
-    patch = Path(f"patch-from-{base}.bin")
-    rebuilt = Path(f"reconstructed-{base}.apk")
+    workdir = Path.cwd()
+    old = workdir / f"old-{base}.apk"
+    patch = workdir / f"patch-from-{base}.bin"
+    rebuilt = workdir / f"reconstructed-{base}.apk"
     began = time.monotonic()
     old_size = 0
     kept = False
