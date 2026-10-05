@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import '../utils/friendly_error.dart';
 import 'package:provider/provider.dart';
@@ -224,44 +225,57 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Widget _composer() {
-    final quick = const ['متاح؟', 'آخر سعر؟', 'وين الموقع؟'];
+    const quick = ['متاح؟', 'آخر سعر؟', 'وين الموقع؟'];
     return SafeArea(
       top: false,
-      child: Column(mainAxisSize: MainAxisSize.min, children: [
-        if (!_loading) SingleChildScrollView(scrollDirection: Axis.horizontal, padding: const EdgeInsets.symmetric(horizontal: 8), child: Row(children: quick.map((text) => Padding(padding: const EdgeInsets.only(left: 6), child: ActionChip(label: Text(text), onPressed: _threadId == null ? null : () async { await context.read<AppState>().sendMessage(threadId: _threadId!, text: text); final messages = await context.read<AppState>().loadMessages(_threadId!); if (mounted) setState(() => _messages = messages); }))).toList())),
-        if(_recording||_recordedPath!=null) Padding(padding:const EdgeInsets.symmetric(horizontal:12,vertical:4),child:Row(children:[if(_recording)const Icon(Icons.fiber_manual_record,color:Colors.red,size:12),Text(_duration(_recordSeconds)),const Spacer(),IconButton(onPressed:_cancelRecording,icon:const Icon(Icons.close)),if(!_recording)IconButton(onPressed:_sendRecordedVoice,icon:const Icon(Icons.send,color:AppColors.gold))])),
-        if(!_recording&&_recordedPath==null) Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-        child: Row(
-          children: [
-            IconButton(
-              icon: const Icon(Icons.location_on_outlined, color: AppColors.gold),
-              onPressed: _threadId == null
-                  ? null
-                  : () => ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('إرسال الموقع سيُفعّل بعد إضافة صلاحية الموقع')),
-                      ),
-            ),
-            IconButton(onPressed:_toggleRecording,icon:const Icon(Icons.mic,color:AppColors.gold)),
-            Expanded(
-              child: TextField(
-                controller: _controller,
-                decoration: const InputDecoration(hintText: 'اكتب رسالتك...'),
-                onSubmitted: (_) => _send(),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (!_loading)
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: Row(
+                children: quick.map((text) => Padding(
+                  padding: const EdgeInsets.only(left: 6),
+                  child: ActionChip(
+                    label: Text(text),
+                    onPressed: _threadId == null ? null : () async {
+                      await context.read<AppState>().sendMessage(threadId: _threadId!, text: text);
+                      final messages = await context.read<AppState>().loadMessages(_threadId!);
+                      if (mounted) setState(() => _messages = messages);
+                    },
+                  ),
+                )).toList(),
               ),
             ),
-            const SizedBox(width: 6),
-            CircleAvatar(
-              backgroundColor: AppColors.gold,
-              child: IconButton(
-                icon: const Icon(Icons.send, color: Colors.black, size: 18),
-                onPressed: _send,
-              ),
+          if (_recording || _recordedPath != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              child: Row(children: [
+                if (_recording) const Icon(Icons.fiber_manual_record, color: Colors.red, size: 12),
+                Text(_duration(_recordSeconds)),
+                const Spacer(),
+                IconButton(onPressed: _cancelRecording, icon: const Icon(Icons.close)),
+                if (!_recording) IconButton(onPressed: _sendRecordedVoice, icon: const Icon(Icons.send, color: AppColors.gold)),
+              ]),
             ),
-          ],
-        ),
-        ),
-      ],
+          if (!_recording && _recordedPath == null)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+              child: Row(children: [
+                IconButton(
+                  icon: const Icon(Icons.location_on_outlined, color: AppColors.gold),
+                  onPressed: _threadId == null ? null : () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('إرسال الموقع سيُفعّل بعد إضافة صلاحية الموقع'))),
+                ),
+                IconButton(onPressed: _toggleRecording, icon: const Icon(Icons.mic, color: AppColors.gold)),
+                Expanded(child: TextField(controller: _controller, decoration: const InputDecoration(hintText: 'اكتب رسالتك...'), onSubmitted: (_) => _send())),
+                const SizedBox(width: 6),
+                CircleAvatar(backgroundColor: AppColors.gold, child: IconButton(icon: const Icon(Icons.send, color: Colors.black, size: 18), onPressed: _send)),
+              ]),
+            ),
+        ],
+      ),
     );
   }
 
