@@ -1,11 +1,9 @@
 import 'package:flutter/foundation.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../theme/app_theme.dart';
 import 'badge_model.dart';
 import 'badge_widgets.dart';
-import 'level_up_celebration.dart';
 import 'level_up_celebration.dart';
 
 class MerchantBadgesScreen extends StatefulWidget {
@@ -67,40 +65,6 @@ class _MerchantBadgesScreenState extends State<MerchantBadgesScreen> {
     final sales = badge.requiredSales == 0 ? 1.0 : (_sales / badge.requiredSales).clamp(0.0, 1.0);
     final days = badge.requiredDays == 0 ? 1.0 : (_activeDays / badge.requiredDays).clamp(0.0, 1.0);
     return (sales * .55 + days * .45).clamp(0.0, 1.0);
-  }
-
-  void _showDebugCelebrationPicker() {
-    if (!kDebugMode || !mounted) return;
-    showDialog<void>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('معاينة احتفال المستوى'),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: ListView.builder(
-            shrinkWrap: true,
-            itemCount: 10,
-            itemBuilder: (_, index) {
-              final level = index + 1;
-              return ListTile(
-                title: Text('المستوى $level'),
-                onTap: () {
-                  Navigator.of(dialogContext).pop();
-                  showDialog<void>(
-                    context: context,
-                    barrierDismissible: false,
-                    builder: (_) => LevelUpCelebration(
-                      level: level,
-                      previousLevel: level - 1,
-                    ),
-                  );
-                },
-              );
-            },
-          ),
-        ),
-      ),
-    );
   }
 
   void _showDebugCelebrationPicker(BuildContext context) {
