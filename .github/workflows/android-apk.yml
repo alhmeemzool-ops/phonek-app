@@ -138,7 +138,7 @@ jobs:
         shell: bash
         run: |
           git fetch origin main
-          git show origin/main:update.json > latest-update.json
+          git show origin/main:update.json > latest-update.json || cp update.json latest-update.json
 
       - name: Run incremental update tests
         shell: bash
