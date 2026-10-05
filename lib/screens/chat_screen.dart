@@ -77,10 +77,13 @@ class _ChatScreenState extends State<ChatScreen> {
     final appState = context.read<AppState>();
     _controller.clear();
     try {
-      await appState.sendMessage(threadId: _threadId!, text: text);
-      final messages = await appState.loadMessages(_threadId!);
-      if (mounted) {
-        setState(() => _messages = messages);
+      final sent = await appState.sendMessage(threadId: _threadId!, text: text);
+      if (mounted && sent != null) {
+        setState(() {
+          if (!_messages.any((message) => message.id == sent.id)) {
+            _messages.add(sent);
+          }
+        });
         _scrollToBottom();
       }
     } on AuthException catch (error) {
