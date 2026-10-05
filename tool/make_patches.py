@@ -110,8 +110,12 @@ def build_one(item, new_apk, new_sha, started):
                 pass
             except Exception:
                 pass
-        if not (patch.exists() and patch.name.startswith("patch-from-")):
-            pass
+        if patch.exists():
+            try:
+                if not patch.stat().st_size or not (patch.name.startswith("patch-from-") and not patch.name.endswith(".bin.tmp")):
+                    patch.unlink()
+            except Exception:
+                pass
 
 
 def write_summary(rows):
