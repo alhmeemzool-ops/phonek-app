@@ -47,10 +47,23 @@ class _ShopOffersScreenState extends State<ShopOffersScreen>{
     )));
     title.dispose();discount.dispose();
   }
-  @override Widget build(BuildContext context){
-    return Scaffold(appBar:AppBar(title:const Text('عروض المعرض')),body:_loading?const Center(child:CircularProgressIndicator(color:AppColors.gold)):ListView(padding:const EdgeInsets.all(12),children:[
-      ElevatedButton.icon(onPressed:_add,icon:const Icon(Icons.add),label:const Text('إنشاء عرض')),
-      ..._offers.map((x)=>Card(child:ListTile(title:Text(x['title'].toString()),subtitle:Text('-${x['discount_percent']}% • ${x['starts_at']} → ${x['ends_at']}'),trailing:IconButton(onPressed:()async{await Supabase.instance.client.from('shop_offers').delete().eq('id',x['id']);_load();},icon:const Icon(Icons.delete_outline))))),
-    ]);
+  @override Widget build(BuildContext context) {
+    final children = <Widget>[
+      ElevatedButton.icon(onPressed: _add, icon: const Icon(Icons.add), label: const Text('إنشاء عرض')),
+    ];
+    for (final x in _offers) {
+      children.add(Card(child: ListTile(
+        title: Text(x['title'].toString()),
+        subtitle: Text('-'+x['discount_percent'].toString()+'% • '+x['starts_at'].toString()+' → '+x['ends_at'].toString()),
+        trailing: IconButton(onPressed: () async {
+          await Supabase.instance.client.from('shop_offers').delete().eq('id', x['id']);
+          _load();
+        }, icon: const Icon(Icons.delete_outline)),
+      )));
+    }
+    return Scaffold(appBar: AppBar(title: const Text('عروض المعرض')), body: _loading
+      ? const Center(child: CircularProgressIndicator(color: AppColors.gold))
+      : ListView(padding: const EdgeInsets.all(12), children: children);
   }
+
 }

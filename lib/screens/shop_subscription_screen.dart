@@ -26,14 +26,34 @@ class _ShopSubscriptionScreenState extends State<ShopSubscriptionScreen>{
     await Supabase.instance.client.from('shop_subscriptions').insert({'shop_id':uid,'payment_proof_path':path,'status':'pending'});
     _load();
   }
-  @override Widget build(BuildContext context){
-    final price=SubscriptionConfig.priceSdg==0?'السعر تحدده الإدارة':'${SubscriptionConfig.priceSdg} ج.س';
-    final status=_current?['status']?.toString()??'لا يوجد';
-    return Scaffold(appBar:AppBar(title:const Text('اشتراك المعرض')),body:_loading?const Center(child:CircularProgressIndicator(color:AppColors.gold)):ListView(padding:const EdgeInsets.all(16),children:[
-      const Card(child:Padding(padding:EdgeInsets.all(14),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text('المزايا',style:TextStyle(fontWeight:FontWeight.bold)),Text('• ظهور أعلى عند ترتيب الأحدث\\n• وسم معرض مميز')])),
-      const SizedBox(height:12),Text('السعر: $price'),Text('المدة: ${SubscriptionConfig.durationDays} يوماً'),const SizedBox(height:8),Text(SubscriptionConfig.paymentInstructions),
-      const SizedBox(height:16),Text('الحالة: $status'),const SizedBox(height:12),
-      ElevatedButton(onPressed:_proof,child:const Text('إرسال إثبات الدفع')),
-    ]);
+  @override Widget build(BuildContext context) {
+    final price = SubscriptionConfig.priceSdg == 0 ? 'السعر تحدده الإدارة' : SubscriptionConfig.priceSdg.toString()+' ج.س';
+    final status = _current?['status']?.toString() ?? 'لا يوجد';
+    return Scaffold(
+      appBar: AppBar(title: const Text('اشتراك المعرض')),
+      body: _loading
+        ? const Center(child: CircularProgressIndicator(color: AppColors.gold))
+        : ListView(padding: const EdgeInsets.all(16), children: [
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: const [
+                  Text('المزايا', style: TextStyle(fontWeight: FontWeight.bold)),
+                  Text('• ظهور أعلى عند ترتيب الأحدث\n• وسم معرض مميز'),
+                ]),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text('السعر: '+price),
+            Text('المدة: '+SubscriptionConfig.durationDays.toString()+' يوماً'),
+            const SizedBox(height: 8),
+            Text(SubscriptionConfig.paymentInstructions),
+            const SizedBox(height: 16),
+            Text('الحالة: '+status),
+            const SizedBox(height: 12),
+            ElevatedButton(onPressed: _proof, child: const Text('إرسال إثبات الدفع')),
+          ]),
+    );
   }
+
 }
