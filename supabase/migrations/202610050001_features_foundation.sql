@@ -210,7 +210,7 @@ on conflict(id) do update set file_size_limit=excluded.file_size_limit,allowed_m
 
 drop policy if exists chat_voice_upload on storage.objects;
 create policy chat_voice_upload on storage.objects for insert to authenticated
-with check(bucket_id='chat-voice' and (storage.foldername(name))[1]=auth.uid()::text);
+with check(bucket_id='chat-voice' and exists(select 1 from public.chat_threads t where t.id=(storage.foldername(name))[1]::uuid and (t.buyer_id=auth.uid() or t.seller_id=auth.uid())));
 drop policy if exists chat_voice_read on storage.objects;
 create policy chat_voice_read on storage.objects for select to authenticated
 using(bucket_id='chat-voice' and exists(select 1 from public.chat_threads t where t.id=(storage.foldername(name))[1]::uuid and (t.buyer_id=auth.uid() or t.seller_id=auth.uid())));
