@@ -125,6 +125,7 @@ class PhoneListing {
   final DateTime createdAt;
   final int viewCount;
   final bool isFeatured;
+  final bool acceptsSwap;
   final String description;
 
   const PhoneListing({
@@ -152,6 +153,7 @@ class PhoneListing {
     required this.createdAt,
     this.viewCount = 0,
     this.isFeatured = false,
+    this.acceptsSwap = false,
     this.description = '',
   });
 
