@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -5,6 +7,7 @@ import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../data/app_state.dart';
 import '../models/phone_model.dart';
@@ -282,4 +285,11 @@ class _PhotoGalleryScreenState extends State<_PhotoGalleryScreen> {
   @override Widget build(BuildContext context) => Scaffold(backgroundColor: Colors.black, appBar: AppBar(backgroundColor: Colors.black, foregroundColor: Colors.white, title: Text('${widget.title}  •  ${_index + 1}/${widget.images.length}')), body: PageView.builder(
     controller: _controller, itemCount: widget.images.length, onPageChanged: (i) => setState(() => _index = i), itemBuilder: (_, i) => InteractiveViewer(minScale: 1, maxScale: 4, child: Center(child: CachedNetworkImage(imageUrl: widget.images[i], fit: BoxFit.contain, errorWidget: (_, __, ___) => const Icon(Icons.broken_image, color: Colors.white, size: 60)))),
   ));
+}
+
+class _ShareImageScreen extends StatefulWidget{const _ShareImageScreen({required this.listing,required this.link});final PhoneListing listing;final String link;@override State<_ShareImageScreen> createState()=>_ShareImageScreenState();}
+class _ShareImageScreenState extends State<_ShareImageScreen>{final key=GlobalKey();
+@override void initState(){super.initState();WidgetsBinding.instance.addPostFrameCallback((_){_capture();});}
+Future<void> _capture()async{try{if(widget.listing.imageUrls.isNotEmpty)await precacheImage(NetworkImage(widget.listing.imageUrls.first),context);await Future<void>.delayed(const Duration(milliseconds:250));final boundary=key.currentContext!.findRenderObject() as RenderRepaintBoundary;final image=await boundary.toImage(pixelRatio:1);final data=await image.toByteData(format:ui.ImageByteFormat.png);final dir=await getTemporaryDirectory();final file=File(dir.path+'/phonek_share.png');await file.writeAsBytes(data!.buffer.asUint8List());await Share.shareXFiles([XFile(file.path)],text:widget.listing.title+'\n'+widget.listing.city+'\n'+widget.link);}catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('تعذر إنشاء صورة المشاركة: '+e.toString())));}}
+@override Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title:const Text('مشاركة كصورة')),body:SingleChildScrollView(scrollDirection:Axis.horizontal,child:Center(child:RepaintBoundary(key:key,child:Directionality(textDirection:TextDirection.rtl,child:SizedBox(width:1080,height:1350,child:Container(color:AppColors.surface,padding:const EdgeInsets.all(60),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[if(widget.listing.imageUrls.isNotEmpty)SizedBox(height:650,width:1080,child:Image.network(widget.listing.imageUrls.first,fit:BoxFit.contain)),const SizedBox(height:30),Text(widget.listing.title,style:const TextStyle(fontSize:48,fontWeight:FontWeight.bold)),const SizedBox(height:20),Text(widget.listing.priceOnCall?'اتصل للسعر':AppFormatters.priceSDG(widget.listing.displayedPrice),style:const TextStyle(fontSize:44,color:AppColors.gold,fontWeight:FontWeight.bold)),Text(widget.listing.city,style:const TextStyle(fontSize:30,color:AppColors.textSecondary)),const Spacer(),const Text('PhoneK | فونك',style:TextStyle(fontSize:32,color:AppColors.gold,fontWeight:FontWeight.bold))]))))))));}
 }
