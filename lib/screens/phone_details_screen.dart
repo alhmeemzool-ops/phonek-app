@@ -15,17 +15,35 @@ import 'chat_screen.dart';
 import 'listing_settings_screen.dart';
 import 'shop_profile_screen.dart';
 
-class PhoneDetailsScreen extends StatelessWidget {
+class PhoneDetailsScreen extends StatefulWidget {
   const PhoneDetailsScreen({super.key, required this.listing});
   final PhoneListing listing;
+
+  @override
+  State<PhoneDetailsScreen> createState() => _PhoneDetailsScreenState();
+}
+
+class _PhoneDetailsScreenState extends State<PhoneDetailsScreen> {
+  PhoneListing get listing => widget.listing;
+
+  @override
+  void initState() {
+    super.initState();
+    if (listing.status == ListingStatus.active) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final state = context.read<AppState>();
+        if (state.currentUser?.id != listing.seller.id) {
+          state.recordListingView(listing.id);
+        }
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
     final isOwner = state.currentUser?.id == listing.seller.id;
-    if (!isOwner && listing.status == ListingStatus.active) {
-      state.recordListingView(listing.id);
-    }
     final similar = state.listings.where((p) => p.id != listing.id && p.brand == listing.brand).toList();
 
     return Scaffold(
