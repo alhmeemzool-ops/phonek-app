@@ -1,13 +1,10 @@
 import 'dart:async';
 import 'dart:math' as math;
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'badge_model.dart';
-import 'badge_sound_service.dart';
-import 'package:flutter/foundation.dart';
 import 'merchant_badge_art.dart';
 import 'badge_sound_service.dart';
 
@@ -128,7 +125,7 @@ class _LevelUpCelebrationState extends State<LevelUpCelebration> with SingleTick
 
   Future<void> _playNativeSfx() async {
     try {
-      await BadgeSoundService.playForLevel(widget.level);
+      await BadgeSoundService.instance.playForLevel(widget.level);
       return;
     } catch (error, stackTrace) {
       if (kDebugMode) {
