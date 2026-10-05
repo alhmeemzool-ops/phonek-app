@@ -452,9 +452,6 @@ class _ListingFormState extends State<ListingForm> {
         existingImageUrls: List.unmodifiable(_existingImages),
         newImages: List.unmodifiable(_newImages),
       ));
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تعذر حفظ الإعلان. حاول مرة أخرى.')));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
