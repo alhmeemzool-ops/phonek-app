@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -49,6 +51,7 @@ class AppState extends ChangeNotifier {
     }
 
     unawaited(_loadDataSaver());
+    unawaited(_initConnectivity());
     unawaited(loadListings());
   }
 
@@ -65,6 +68,9 @@ class AppState extends ChangeNotifier {
   String? _userName;
   bool _isLoadingListings = false;
   bool _dataSaver = false;
+  bool _offline = false;
+  List<PhoneListing> _recentOfflineListings = [];
+  StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
   String? _listingsError;
 
   bool isFavorite(String id) => _favoriteIds.contains(id);
@@ -90,6 +96,32 @@ class AppState extends ChangeNotifier {
   bool get isAdmin => _isAdmin;
   bool get isShopOwner => _isShopOwner;
   bool get dataSaverEnabled => _dataSaver;
+  bool get isOffline => _offline;
+  List<PhoneListing> get recentOfflineListings => List.unmodifiable(_recentOfflineListings);
+
+  Future<void> _initConnectivity() async {
+    final result=await Connectivity().checkConnectivity();
+    _offline=result.contains(ConnectivityResult.none);
+    _connectivitySubscription=Connectivity().onConnectivityChanged.listen((items){
+      final next=items.contains(ConnectivityResult.none);
+      final wasOffline=_offline; _offline=next; notifyListeners();
+      if(wasOffline && !next) unawaited(loadListings());
+    });
+    await _loadOfflineCache();
+  }
+
+  Future<void> _loadOfflineCache() async {
+    final prefs=await SharedPreferences.getInstance();
+    final raw=prefs.getStringList('phonek_recent_listings')??const <String>[];
+    _recentOfflineListings=raw.map((s){try{return PhoneListing.fromJson(jsonDecode(s) as Map<String,dynamic>);}catch(_){return null;}}).whereType<PhoneListing>().take(20).toList();
+    notifyListeners();
+  }
+
+  Future<void> _saveOfflineListing(PhoneListing listing) async {
+    final prefs=await SharedPreferences.getInstance();
+    final items=<String>[jsonEncode(listing.toJson()),...((prefs.getStringList('phonek_recent_listings')??const <String>[]).where((s){try{return (jsonDecode(s) as Map<String,dynamic>)['id']!=listing.id;}catch(_){return true;}}))].take(20).toList();
+    await prefs.setStringList('phonek_recent_listings',items);
+  }
 
   Future<void> _loadDataSaver() async {
     final prefs = await SharedPreferences.getInstance();
