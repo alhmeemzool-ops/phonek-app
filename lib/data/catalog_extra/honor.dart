@@ -1,4 +1,5 @@
-/// Additional verified catalog entries for honor.\nconst List<String> honorExtraModels = [
+/// Additional verified catalog entries for honor.
+const List<String> honorExtraModels = [
   "HONOR Magic8 Pro",
   "HONOR Magic8",
   "HONOR Magic V6",
@@ -199,4 +200,4 @@
   "HONOR Magic4 Ultimate 128GB",
   "HONOR Magic4 Ultimate 256GB",
   "HONOR Magic4 Ultimate 512GB",
-];\n
+];
