@@ -47,23 +47,33 @@ class MerchantBadge3DViewer extends StatelessWidget {
       child: SizedBox(
         width: size,
         height: size,
-        child: Opacity(
-          opacity: locked ? .30 : 1,
-          child: ModelViewer(
-            src: modelPath,
-            alt: 'مجسم ثلاثي الأبعاد لشارة المستوى $level',
-            backgroundColor: Colors.transparent,
-            autoRotate: true,
-            autoRotateDelay: 0,
-            disableZoom: true,
-            cameraControls: false,
-          ),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            MerchantBadgeArt(
+              level: level,
+              size: size,
+              locked: locked,
+            ),
+            Opacity(
+              opacity: locked ? .30 : 1,
+              child: ModelViewer(
+                src: modelPath,
+                alt: 'مجسم ثلاثي الأبعاد لشارة المستوى $level',
+                backgroundColor: Colors.transparent,
+                autoRotate: true,
+                autoRotateDelay: 0,
+                disableZoom: true,
+                cameraControls: false,
+                loading: Loading.eager,
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
-
 class _FallbackBadge extends StatelessWidget {
   const _FallbackBadge({required this.level, required this.size});
   final int level;
