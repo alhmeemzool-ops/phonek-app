@@ -147,7 +147,7 @@ class _BadgeCelebrationDialogState extends State<_BadgeCelebrationDialog>
                 ],
               ),
               const SizedBox(height: 4),
-              MerchantBadge3DViewer(level: widget.badge.level, size: 180),
+              MerchantBadgeArt(level: widget.badge.level, size: 180),
               const SizedBox(height: 8),
               Text(widget.badge.nameAr, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900)),
               const SizedBox(height: 3),

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:model_viewer_plus/model_viewer_plus.dart';
 import 'badge_model.dart';
 
 class MerchantBadgeArt extends StatelessWidget {
@@ -12,19 +11,6 @@ class MerchantBadgeArt extends StatelessWidget {
     return RepaintBoundary(child: Semantics(label: 'شارة ${badge.nameAr}، المستوى ${badge.level}', image: true, child: Opacity(
       opacity: locked ? .28 : 1, child: Image.asset(badge.assetPath, width: size, height: size, fit: BoxFit.contain, filterQuality: FilterQuality.high, errorBuilder: (_, __, ___) => _FallbackBadge(level: badge.level, size: size)),
     )));
-  }
-}
-
-class MerchantBadge3DViewer extends StatelessWidget {
-  const MerchantBadge3DViewer({super.key, required this.level, this.size = 180, this.locked = false});
-  final int level; final double size; final bool locked;
-  @override Widget build(BuildContext context) {
-    final safeLevel = level.clamp(1, 10).toString().padLeft(2, '0');
-    final modelPath = 'assets/badges/3d/badge_level_$safeLevel.glb';
-    return RepaintBoundary(child: SizedBox(width: size, height: size, child: Stack(alignment: Alignment.center, children: [
-      MerchantBadgeArt(level: level, size: size * .82, locked: locked),
-      Opacity(opacity: locked ? .30 : 1, child: ModelViewer(src: modelPath, alt: 'مجسم ثلاثي الأبعاد لشارة المستوى $level', backgroundColor: Colors.transparent, autoRotate: true, autoRotateDelay: 0, disableZoom: true, cameraControls: false, loading: Loading.eager, reveal: Reveal.auto)),
-    ])));
   }
 }
 

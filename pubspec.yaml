@@ -31,7 +31,6 @@ dependencies:
   firebase_messaging: ^16.7.0
   flutter_local_notifications: ^22.3.1
   binary_patch: ^1.0.0
-  model_viewer_plus: ^1.10.0
   audioplayers: ^6.8.1
   record: ^6.1.2
   connectivity_plus: ^6.1.5
@@ -53,6 +52,5 @@ flutter:
   uses-material-design: true
   assets:
     - assets/badges/
-    - assets/badges/3d/
     - assets/icon/phonek_logo_mark.png
     - assets/audio/phonek_welcome.mp3
