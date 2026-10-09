@@ -2,35 +2,35 @@
   "versionCode": 89,
   "versionName": "1.0.89",
   "apkUrl": "https://github.com/alhmeemzool-ops/phonek-app/releases/download/quick-v1.0.89/app-release.apk",
-  "sha256": "5a4fa0d1516b9c721ee1f6061e69d3c1d96985f58a036243d35a8db8833015ef",
+  "sha256": "d3ef88beb43e4db4eabd3101a2cd6b3ed73ee3ff602a36bd05a29b8a0d31f084",
   "patchUrl": "https://github.com/alhmeemzool-ops/phonek-app/releases/download/quick-v1.0.89/patch-from-88.bin",
-  "patchSha256": "b9ddc18b345835712242129145124719287c5f480abac2765d17904a6f399881",
+  "patchSha256": "b64f88e762366401f3cfc0bdaf729c88017c75e28bf50fd893d1ef31f560ab36",
   "patchBaseVersionCode": 88,
   "minSupportedVersionCode": 58,
   "mandatory": false,
   "notes": "تحديث سريع جديد لـ PhoneK.",
-  "apkSize": 48156343,
+  "apkSize": 48102083,
   "patches": [
     {
       "baseVersionCode": 88,
       "baseSha256": "7bf54385d4a5b55017c049a1f83606744f0c5794b3b5ae400e080af946ac61c0",
       "url": "https://github.com/alhmeemzool-ops/phonek-app/releases/download/quick-v1.0.89/patch-from-88.bin",
-      "sha256": "b9ddc18b345835712242129145124719287c5f480abac2765d17904a6f399881",
-      "size": 2933956
+      "sha256": "b64f88e762366401f3cfc0bdaf729c88017c75e28bf50fd893d1ef31f560ab36",
+      "size": 2883922
     },
     {
       "baseVersionCode": 87,
       "baseSha256": "87ec44057f30457dde743e76043cbe7d6901709fd1330afc5eb2abd19a98c2f1",
       "url": "https://github.com/alhmeemzool-ops/phonek-app/releases/download/quick-v1.0.89/patch-from-87.bin",
-      "sha256": "22847f0ec74c1278bdd7fc04ad2a6c869149e413b8be3de4c0bc229b1e0e7931",
-      "size": 3118807
+      "sha256": "567cfc204c8cf4be810484b23e71e92ad986390ee6ce12e40bf9e3292988abe8",
+      "size": 3069245
     }
   ],
   "history": [
     {
       "versionCode": 89,
       "apkUrl": "https://github.com/alhmeemzool-ops/phonek-app/releases/download/quick-v1.0.89/app-release.apk",
-      "sha256": "5a4fa0d1516b9c721ee1f6061e69d3c1d96985f58a036243d35a8db8833015ef"
+      "sha256": "d3ef88beb43e4db4eabd3101a2cd6b3ed73ee3ff602a36bd05a29b8a0d31f084"
     },
     {
       "versionCode": 88,
