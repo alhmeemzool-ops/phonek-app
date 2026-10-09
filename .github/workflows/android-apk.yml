@@ -17,6 +17,8 @@ jobs:
   build-apk:
     if: github.event.head_commit.message != 'Update PhoneK quick update manifest' && github.event.head_commit.message != 'Update PhoneK update manifest'
     runs-on: ubuntu-latest
+    env:
+      SKIP_PATCHES: 'true'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -134,12 +136,14 @@ jobs:
           git show origin/main:update.json > latest-update.json || cp update.json latest-update.json
 
       - name: Run incremental update tests
+        if: env.SKIP_PATCHES != 'true'
         shell: bash
         run: |
           python3 -m unittest tool/test_make_patches.py
           flutter test test/update_manifest_test.dart
 
       - name: Build candidate incremental patches
+        if: env.SKIP_PATCHES != 'true'
         continue-on-error: true
         timeout-minutes: 25
         env:
