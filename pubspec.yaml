@@ -54,3 +54,5 @@ flutter:
   assets:
     - assets/badges/
     - assets/badges/3d/
+    - assets/icon/phonek_logo_mark.png
+    - assets/audio/phonek_welcome.mp3

@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'data/app_state.dart';
 import 'screens/home_screen.dart';
 import 'screens/chat_screen.dart';
+import 'screens/splash_screen.dart';
 import 'services/update_service.dart';
 import 'widgets/phonek_update_dialog.dart';
 import 'features/merchant_badges/level_up_celebration.dart';
@@ -150,8 +151,10 @@ class PhoneKApp extends StatelessWidget {
             child: child ?? const SizedBox.shrink(),
           );
         },
-        home: const PhoneKUpdateGate(
-          child: MerchantLevelUpGate(child: HomeScreen()),
+        home: const PhoneKSplashGate(
+          child: PhoneKUpdateGate(
+            child: MerchantLevelUpGate(child: HomeScreen()),
+          ),
         ),
       ),
     );
