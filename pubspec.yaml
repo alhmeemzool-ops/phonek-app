@@ -41,6 +41,13 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^3.0.1
+  flutter_launcher_icons: ^0.14.4
+
+flutter_launcher_icons:
+  android: true
+  image_path: "assets/icon/phonek_icon_1024.png"
+  adaptive_icon_foreground: "assets/icon/phonek_adaptive_foreground.png"
+  adaptive_icon_background: "assets/icon/phonek_adaptive_background.png"
 
 flutter:
   uses-material-design: true
