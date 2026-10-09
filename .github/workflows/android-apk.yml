@@ -18,7 +18,7 @@ jobs:
     if: github.event.head_commit.message != 'Update PhoneK quick update manifest' && github.event.head_commit.message != 'Update PhoneK update manifest'
     runs-on: ubuntu-latest
     env:
-      SKIP_PATCHES: 'true'
+      SKIP_PATCHES: 'false'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -147,7 +147,7 @@ jobs:
         continue-on-error: true
         timeout-minutes: 25
         env:
-          PHONEK_MAX_PATCH_BASES: 2
+          PHONEK_MAX_PATCH_BASES: 1
         run: |
           python3 tool/make_patches.py build --manifest latest-update.json --new-apk build/app/outputs/flutter-apk/app-release.apk --new-version-code "${{ steps.version.outputs.version_code }}" --output patch-results.json
 
