@@ -1,25 +1,30 @@
 {
-  "versionCode": 92,
-  "versionName": "1.0.92",
-  "apkUrl": "https://github.com/alhmeemzool-ops/phonek-app/releases/download/quick-v1.0.92/app-release.apk",
-  "sha256": "f12ac15d0d0bda6025e113656723734215a3f913a86567c7a5080a5457fa0721",
-  "patchUrl": "https://github.com/alhmeemzool-ops/phonek-app/releases/download/quick-v1.0.92/patch-from-91.bin",
-  "patchSha256": "f16644a5c0de2918f5b0f198aecb3633557127c494ba973fe242f2ec1e39ae9a",
-  "patchBaseVersionCode": 91,
+  "versionCode": 93,
+  "versionName": "1.0.93",
+  "apkUrl": "https://github.com/alhmeemzool-ops/phonek-app/releases/download/quick-v1.0.93/app-release.apk",
+  "sha256": "f450fd85e4e6300b884245d2bd7348ca9a3cfaea8562cd12a770956ef3d3c0fc",
+  "patchUrl": "https://github.com/alhmeemzool-ops/phonek-app/releases/download/quick-v1.0.93/patch-from-92.bin",
+  "patchSha256": "f63753f211b03eb11b63a0ad82bb7effe95c0fd5691bdd10840ad455e7c45404",
+  "patchBaseVersionCode": 92,
   "minSupportedVersionCode": 58,
   "mandatory": false,
   "notes": "تحديث سريع جديد لـ PhoneK.",
   "apkSize": 43853300,
   "patches": [
     {
-      "baseVersionCode": 91,
-      "baseSha256": "754f18b5e5f4fda31d0a08c5589810c8fbd959bd4b57904d54fcb8f3b5c4f8f6",
-      "url": "https://github.com/alhmeemzool-ops/phonek-app/releases/download/quick-v1.0.92/patch-from-91.bin",
-      "sha256": "f16644a5c0de2918f5b0f198aecb3633557127c494ba973fe242f2ec1e39ae9a",
-      "size": 56470
+      "baseVersionCode": 92,
+      "baseSha256": "f12ac15d0d0bda6025e113656723734215a3f913a86567c7a5080a5457fa0721",
+      "url": "https://github.com/alhmeemzool-ops/phonek-app/releases/download/quick-v1.0.93/patch-from-92.bin",
+      "sha256": "f63753f211b03eb11b63a0ad82bb7effe95c0fd5691bdd10840ad455e7c45404",
+      "size": 56255
     }
   ],
   "history": [
+    {
+      "versionCode": 93,
+      "apkUrl": "https://github.com/alhmeemzool-ops/phonek-app/releases/download/quick-v1.0.93/app-release.apk",
+      "sha256": "f450fd85e4e6300b884245d2bd7348ca9a3cfaea8562cd12a770956ef3d3c0fc"
+    },
     {
       "versionCode": 92,
       "apkUrl": "https://github.com/alhmeemzool-ops/phonek-app/releases/download/quick-v1.0.92/app-release.apk",
@@ -39,11 +44,6 @@
       "versionCode": 89,
       "apkUrl": "https://github.com/alhmeemzool-ops/phonek-app/releases/download/quick-v1.0.89/app-release.apk",
       "sha256": "d3ef88beb43e4db4eabd3101a2cd6b3ed73ee3ff602a36bd05a29b8a0d31f084"
-    },
-    {
-      "versionCode": 88,
-      "apkUrl": "https://github.com/alhmeemzool-ops/phonek-app/releases/download/quick-v1.0.88/app-release.apk",
-      "sha256": "7bf54385d4a5b55017c049a1f83606744f0c5794b3b5ae400e080af946ac61c0"
     }
   ]
 }
