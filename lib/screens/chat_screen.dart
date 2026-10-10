@@ -71,11 +71,11 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
-  Future<void> _send() async {
-    final text = _controller.text.trim();
+  Future<void> _send({String? messageText}) async {
+    final text = (messageText ?? _controller.text).trim();
     if (text.isEmpty || _threadId == null) return;
     final appState = context.read<AppState>();
-    _controller.clear();
+    if (messageText == null) _controller.clear();
     try {
       final sent = await appState.sendMessage(threadId: _threadId!, text: text);
       if (mounted && sent != null) {
@@ -90,6 +90,8 @@ class _ChatScreenState extends State<ChatScreen> {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.message)));
     } on PostgrestException catch (error) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(friendlyError(error, fallback: 'تعذر إرسال الرسالة.'))));
+    } catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(friendlyError(error, fallback: 'تعذر إرسال الرسالة. تحقق من الاتصال ثم حاول مجدداً.'))));
     }
   }
 
@@ -318,11 +320,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   padding: const EdgeInsets.only(left: 6),
                   child: ActionChip(
                     label: Text(text),
-                    onPressed: _threadId == null ? null : () async {
-                      await context.read<AppState>().sendMessage(threadId: _threadId!, text: text);
-                      final messages = await context.read<AppState>().loadMessages(_threadId!);
-                      if (mounted) setState(() => _messages = messages);
-                    },
+                    onPressed: _threadId == null ? null : () => _send(messageText: text),
                   ),
                 )).toList(),
               ),
