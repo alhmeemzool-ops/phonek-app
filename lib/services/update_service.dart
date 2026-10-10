@@ -518,14 +518,18 @@ class PhoneKUpdateService {
           onPhase: onPhase,
         );
         if (!builtFromPatch) {
+          // Never download the full APK through the in-app updater. If the
+          // patch is missing or fails validation, stop safely and keep the
+          // currently installed app untouched.
           debugPrint(
-            'PhoneK update: full APK used because the selected patch was unavailable or failed validation.',
+            'PhoneK update stopped: no valid lightweight patch for this installed build; full APK download is disabled.',
           );
-          await _downloadFullApk(
-            update,
-            file,
-            onProgress: onProgress,
-            onPhase: onPhase,
+          await file.delete().catchError((_) => file);
+          final partialApk = File('${file.path}.part');
+          await partialApk.delete().catchError((_) => partialApk);
+          throw const PhoneKUpdateException(
+            'patch_required',
+            userMessage: 'لا يتوفر تحديث خفيف صالح لهذه النسخة حالياً. لم يتم تنزيل ملف التطبيق الكامل. حاول مرة أخرى لاحقاً بعد تجهيز التحديث الخفيف.',
           );
         }
       }
