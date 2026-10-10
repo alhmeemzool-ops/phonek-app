@@ -498,40 +498,32 @@ class PhoneKUpdateService {
       onPhase?.call(PhoneKUpdatePhase.preparing);
       await _deleteUpdateFiles((version) => version != update.versionCode);
 
-      var cachedApkIsValid = false;
-      if (await file.exists() && await file.length() > 0) {
-        onPhase?.call(PhoneKUpdatePhase.verifying);
-        final cachedDigest = await _sha256File(file);
-        cachedApkIsValid = cachedDigest.toLowerCase() == update.sha256;
-        if (cachedApkIsValid) {
-          onProgress?.call(1.0);
-        } else {
-          await file.delete().catchError((_) => file);
-        }
-      }
+      // Never trust an APK already present in the temp directory: older app
+      // versions may have left a full APK there from the former fallback path.
+      // Delete cached APK/partial APK and reconstruct only from a verified patch.
+      await file.delete().catchError((_) => file);
+      final partialApk = File('${file.path}.part');
+      await partialApk.delete().catchError((_) => partialApk);
 
-      if (!cachedApkIsValid) {
-        final builtFromPatch = await _tryBuildFromPatch(
-          update,
-          file,
-          onProgress: onProgress,
-          onPhase: onPhase,
+      final builtFromPatch = await _tryBuildFromPatch(
+        update,
+        file,
+        onProgress: onProgress,
+        onPhase: onPhase,
+      );
+      if (!builtFromPatch) {
+        // Never download the full APK through the in-app updater. If the
+        // patch is missing or fails validation, stop safely and keep the
+        // currently installed app untouched.
+        debugPrint(
+          'PhoneK update stopped: no valid lightweight patch for this installed build; full APK download is disabled.',
         );
-        if (!builtFromPatch) {
-          // Never download the full APK through the in-app updater. If the
-          // patch is missing or fails validation, stop safely and keep the
-          // currently installed app untouched.
-          debugPrint(
-            'PhoneK update stopped: no valid lightweight patch for this installed build; full APK download is disabled.',
-          );
-          await file.delete().catchError((_) => file);
-          final partialApk = File('${file.path}.part');
-          await partialApk.delete().catchError((_) => partialApk);
-          throw const PhoneKUpdateException(
-            'patch_required',
-            userMessage: 'لا يتوفر تحديث خفيف صالح لهذه النسخة حالياً. لم يتم تنزيل ملف التطبيق الكامل. حاول مرة أخرى لاحقاً بعد تجهيز التحديث الخفيف.',
-          );
-        }
+        await file.delete().catchError((_) => file);
+        await partialApk.delete().catchError((_) => partialApk);
+        throw const PhoneKUpdateException(
+          'patch_required',
+          userMessage: 'لا يتوفر تحديث خفيف صالح لهذه النسخة حالياً. لم يتم تنزيل ملف التطبيق الكامل. حاول مرة أخرى لاحقاً بعد تجهيز التحديث الخفيف.',
+        );
       }
 
       onPhase?.call(PhoneKUpdatePhase.installing);
@@ -632,27 +624,6 @@ class PhoneKUpdateService {
         }
       }
     }
-  }
-
-  static Future<void> _downloadFullApk(
-    PhoneKUpdate update,
-    File file, {
-    void Function(double progress)? onProgress,
-    void Function(PhoneKUpdatePhase phase)? onPhase,
-  }) async {
-    onPhase?.call(PhoneKUpdatePhase.downloadingApk);
-    await _downloadWithResume(
-      Uri.parse(update.apkUrl),
-      file,
-      onProgress: onProgress,
-    );
-    onPhase?.call(PhoneKUpdatePhase.verifying);
-    final digest = await _sha256File(file);
-    if (digest.toLowerCase() != update.sha256) {
-      await file.delete().catchError((_) => file);
-      throw const PhoneKUpdateException('apk_checksum', userMessage: 'فشل التحقق من ملف التحديث. لن يتم تثبيت ملف غير موثوق. أعد المحاولة.');
-    }
-    onProgress?.call(1.0);
   }
 
   static Future<void> _downloadWithResume(
