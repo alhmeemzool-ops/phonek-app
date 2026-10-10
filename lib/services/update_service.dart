@@ -455,6 +455,55 @@ class PhoneKUpdateService {
         return const PhoneKUpdateCheckResult.upToDate();
       }
 
+      // Do not advertise an update that cannot be applied as a lightweight
+      // patch. This catches unsupported base versions and non-identical APKs
+      // before the user starts a download; the full APK is never a fallback.
+      final patch = update.patchForBuild(currentBuildNumber);
+      if (patch == null) {
+        const reason = 'manifest has no patch for installed build';
+        debugPrint('PhoneK update check blocked: $reason ($currentBuildNumber).');
+        return const PhoneKUpdateCheckResult.failed(PhoneKUpdateException(
+          'patch_unavailable',
+          userMessage: 'لا يتوفر تحديث خفيف متوافق مع نسختك الحالية. لن يتم تنزيل التطبيق كاملاً. يلزم تجهيز تحديث خفيف لهذه النسخة.',
+          detail: reason,
+        ));
+      }
+
+      final installedPath = await _installedApkPath();
+      if (installedPath == null || installedPath.isEmpty) {
+        const reason = 'installed base APK path is unavailable (possibly a split APK install)';
+        debugPrint('PhoneK update check blocked: $reason.');
+        return const PhoneKUpdateCheckResult.failed(PhoneKUpdateException(
+          'patch_base_unavailable',
+          userMessage: 'تعذر الوصول إلى ملف النسخة المثبتة لإنشاء التحديث الخفيف. لم يتم تنزيل التطبيق كاملاً.',
+          detail: reason,
+        ));
+      }
+
+      final installedApk = File(installedPath);
+      if (!await installedApk.exists()) {
+        const reason = 'installed base APK file does not exist';
+        debugPrint('PhoneK update check blocked: $reason.');
+        return const PhoneKUpdateCheckResult.failed(PhoneKUpdateException(
+          'patch_base_unavailable',
+          userMessage: 'تعذر العثور على ملف النسخة المثبتة لإنشاء التحديث الخفيف. لم يتم تنزيل التطبيق كاملاً.',
+          detail: reason,
+        ));
+      }
+
+      if (patch.baseSha256 != null) {
+        final installedSha = await _sha256File(installedApk);
+        if (installedSha.toLowerCase() != patch.baseSha256) {
+          const reason = 'installed base APK SHA-256 does not match published patch base';
+          debugPrint('PhoneK update check blocked: $reason.');
+          return const PhoneKUpdateCheckResult.failed(PhoneKUpdateException(
+            'patch_base_mismatch',
+            userMessage: 'ملف النسخة المثبتة لا يطابق أساس التحديث الخفيف المنشور. لم يتم تنزيل التطبيق كاملاً؛ يلزم تجهيز تحديث متوافق مع نسختك.',
+            detail: reason,
+          ));
+        }
+      }
+
       return PhoneKUpdateCheckResult.updateAvailable(update);
     } catch (error, stackTrace) {
       debugPrint('PhoneK update check failed: $error');
