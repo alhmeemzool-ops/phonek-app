@@ -51,11 +51,12 @@ Future<void> main(List<String> args) async {
         'summary': result.summary,
       }),
     );
-  } catch (error) {
-    // أي فشل في بناء الفرق (مثلاً أول إصدار بدون نسخة سابقة، أو خطأ غير
-    // متوقع) لا يجب أن يوقف عملية الإصدار؛ نكتفي بالإبلاغ ونترك الـ CI
-    // يتابع بدون ملف فرق لهذا الإصدار (سيستخدم المستخدمون التحميل الكامل).
-    stdout.writeln(jsonEncode({'ok': false, 'error': error.toString()}));
-    exit(0);
+  } catch (error, stackTrace) {
+    // Fail explicitly so CI logs identify patch-generation failures.
+    // The Quick APK workflow must stop before publishing if no valid patch
+    // can be produced; never silently report a failed patch build as success.
+    stderr.writeln(jsonEncode({'ok': false, 'error': error.toString()}));
+    stderr.writeln(stackTrace);
+    exit(1);
   }
 }
