@@ -43,7 +43,7 @@ class _ShopProfileScreenState extends State<ShopProfileScreen> {
     if (_error != null) return Scaffold(appBar: AppBar(title: const Text('المتجر')), body: Center(child: Text('تعذر تحميل المتجر:\n$_error', textAlign: TextAlign.center)));
     final state = context.watch<AppState>();
     final listings = state.listings.where((p) => p.seller.id == widget.shopId && p.status == ListingStatus.active).toList();
-    final seller = listings.isNotEmpty ? listings.first.seller : widget.initialSeller;
+    final seller = listings.isNotEmpty ? listings.first.seller : widget.initialSeller ?? _sellerFromProfile();
     final sales = seller?.completedSales ?? (_profile['completed_sales'] as num?)?.toInt() ?? 0;
     final rating = seller?.rating ?? (_profile['rating'] as num?)?.toDouble() ?? 0;
     final level = levelForSales(sales);
@@ -125,15 +125,41 @@ class _ShopProfileScreenState extends State<ShopProfileScreen> {
         ? parsed
         : Uri.parse('https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(trimmed)}');
   }
+
+  SellerInfo? _sellerFromProfile() {
+    if (_profile.isEmpty) return null;
+    return SellerInfo(
+      id: _profile['id']?.toString() ?? widget.shopId,
+      name: _profile['name']?.toString() ?? 'المتجر',
+      phone: '',
+      whatsapp: null,
+      bio: _profile['bio']?.toString(),
+      avatarUrl: _profile['avatar_url']?.toString(),
+      isVerifiedStore: _profile['is_verified_store'] == true,
+      isShop: _profile['is_shop'] == true,
+      rating: (_profile['rating'] as num?)?.toDouble() ?? 0,
+      completedSales: (_profile['completed_sales'] as num?)?.toInt() ?? 0,
+      city: _profile['city']?.toString() ?? '',
+      replySpeedLabel: _profile['reply_speed_label']?.toString() ?? 'يرد عادة خلال ساعات',
+    );
+  }
+
+  void _showContactMessage(BuildContext context, String message) {
+    if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+
   Future<void> _call(BuildContext context, String sellerId) async {
     try {
       final contact = await context.read<AppState>().getSellerContact(sellerId);
       final phone = contact['phone'] ?? '';
-      if (phone.trim().isEmpty) return;
+      if (phone.trim().isEmpty) {
+        _showContactMessage(context, 'رقم الاتصال غير متوفر لهذا المتجر');
+        return;
+      }
       final uri = Uri(scheme: 'tel', path: phone.trim());
-      if (await canLaunchUrl(uri)) await launchUrl(uri);
+      if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) _showContactMessage(context, 'تعذر فتح تطبيق الاتصال');
     } catch (e) {
-      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذر الحصول على رقم البائع: ' + e.toString())));
+      _showContactMessage(context, 'تعذر الحصول على رقم الاتصال: $e');
     }
   }
 
@@ -143,12 +169,26 @@ class _ShopProfileScreenState extends State<ShopProfileScreen> {
       var digits = ((contact['whatsapp']?.trim().isNotEmpty == true ? contact['whatsapp']! : contact['phone'] ?? '')).replaceAll(RegExp(r'[^0-9]'), '');
       if (digits.startsWith('0')) digits = '249' + digits.substring(1);
       if (digits.startsWith('9') && digits.length == 9) digits = '249' + digits;
-      if (digits.isEmpty) return;
+      if (digits.isEmpty) {
+        _showContactMessage(context, 'رقم واتساب غير متوفر لهذا المتجر');
+        return;
+      }
       final uri = Uri.parse('https://wa.me/' + digits);
-      if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) _showContactMessage(context, 'تعذر فتح واتساب');
     } catch (e) {
-      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذر الحصول على رقم البائع: ' + e.toString())));
+      _showContactMessage(context, 'تعذر الحصول على رقم واتساب: $e');
     }
   }
-  void _chat(BuildContext context, SellerInfo seller, List<PhoneListing> listings) { if (listings.isEmpty) return; if (context.read<AppState>().currentUser?.id == seller.id) return; Navigator.push(context, MaterialPageRoute(builder: (_) => ChatScreen(listing: listings.first))); }
+  void _chat(BuildContext context, SellerInfo seller, List<PhoneListing> listings) {
+    if (context.read<AppState>().currentUser == null) {
+      _showContactMessage(context, 'سجّل الدخول لبدء الدردشة مع المتجر');
+      return;
+    }
+    if (listings.isEmpty) {
+      _showContactMessage(context, 'لا يوجد إعلان نشط لبدء الدردشة');
+      return;
+    }
+    if (context.read<AppState>().currentUser?.id == seller.id) return;
+    Navigator.push(context, MaterialPageRoute(builder: (_) => ChatScreen(listing: listings.first)));
+  }
 }
