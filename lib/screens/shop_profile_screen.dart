@@ -51,6 +51,8 @@ class _ShopProfileScreenState extends State<ShopProfileScreen> {
     final bio = _profile['bio']?.toString() ?? seller?.bio ?? '';
     final address = _profile['shop_address']?.toString() ?? '';
     final location = _profile['shop_location_url']?.toString() ?? '';
+    final latitude = (_profile['shop_latitude'] as num?)?.toDouble();
+    final longitude = (_profile['shop_longitude'] as num?)?.toDouble();
     final payments = (_profile['payment_methods'] as List?)?.whereType<String>().toList() ?? const <String>[];
 
     return Scaffold(
@@ -75,7 +77,8 @@ class _ShopProfileScreenState extends State<ShopProfileScreen> {
             _info(Icons.location_on_outlined, 'الموقع', address.isEmpty ? (seller?.city ?? 'غير محدد') : address),
             _info(Icons.schedule, 'ساعات العمل', _hours(_profile['shop_hours'])),
             if (payments.isNotEmpty) _info(Icons.payments_outlined, 'طرق الدفع', payments.join(' • ')),
-            if (location.trim().isNotEmpty) ListTile(contentPadding: EdgeInsets.zero, leading: const Icon(Icons.map_outlined, color: AppColors.gold), title: const Text('فتح موقع المتجر'), onTap: () => _open(location)),
+            if (location.trim().isNotEmpty || (latitude != null && longitude != null))
+              ListTile(contentPadding: EdgeInsets.zero, leading: const Icon(Icons.map_outlined, color: AppColors.gold), title: const Text('فتح موقع المتجر'), onTap: () => _open(location, latitude: latitude, longitude: longitude)),
           ]))),
           const SizedBox(height: 10),
           Row(children: [
@@ -108,11 +111,19 @@ class _ShopProfileScreenState extends State<ShopProfileScreen> {
     if (value is List) return value.join(' • ');
     return value?.toString().trim().isNotEmpty == true ? value.toString() : 'غير محددة';
   }
-  Future<void> _open(String value) async {
-    final trimmed = value.trim();
-    final uri = Uri.tryParse(trimmed) ?? Uri.parse('https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(trimmed)}');
-    final target = uri.hasScheme ? uri : Uri.parse('https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(trimmed)}');
+  Future<void> _open(String value, {double? latitude, double? longitude}) async {
+    final target = latitude != null && longitude != null
+        ? Uri.parse('https://www.google.com/maps/search/?api=1&query=$latitude,$longitude')
+        : _locationUri(value);
     if (await canLaunchUrl(target)) await launchUrl(target, mode: LaunchMode.externalApplication);
+  }
+
+  Uri _locationUri(String value) {
+    final trimmed = value.trim();
+    final parsed = Uri.tryParse(trimmed);
+    return parsed != null && parsed.hasScheme
+        ? parsed
+        : Uri.parse('https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(trimmed)}');
   }
   Future<void> _call(BuildContext context, String sellerId) async {
     try {
