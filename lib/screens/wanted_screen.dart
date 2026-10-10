@@ -65,8 +65,13 @@ class _WantedScreenState extends State<WantedScreen> {
     if(selected==null)return;
     try{
       final tid=await s.startWantedChat(requestId:item['id'].toString(),listingId:selected['id'].toString());
-      final listing=await s.getListingById(selected['id']);
-      if(mounted&&listing!=null)Navigator.push(context,MaterialPageRoute(builder:(_)=>ChatScreen(listing:listing)));
+      final listing=await s.getListingById(selected['id'].toString());
+      final thread=await s.getChatThreadById(tid);
+      if(mounted&&listing!=null&&thread!=null) {
+        Navigator.push(context,MaterialPageRoute(builder:(_)=>ChatScreen(listing:listing,thread:thread)));
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('تم إنشاء المحادثة، لكن تعذر فتحها. افتح قائمة المحادثات وحاول مجدداً.')));
+      }
     }catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(friendlyError(e,fallback:'تعذر بدء المحادثة.'))));}
   }
   Future<void> _close(Map<String,dynamic> item,{bool delete=false}) async {
