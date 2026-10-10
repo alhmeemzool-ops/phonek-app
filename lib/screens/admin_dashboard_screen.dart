@@ -7,6 +7,7 @@ import '../theme/app_theme.dart';
 import 'admin_operations_monitor_screen.dart';
 import 'admin_shop_applications_screen.dart';
 import 'admin_stores_screen.dart';
+import 'admin_reports_screen.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
@@ -89,7 +90,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       if (!approve) updateData['rejection_reason'] = reason?.isEmpty == true ? null : reason;
       await client.from('listings').update(updateData).eq('id', id);
       if (!mounted) return;
-      Navigator.of(context).maybePop();
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(approve ? 'تم اعتماد الإعلان.' : 'تم رفض الإعلان.')));
       await _load();
     } on PostgrestException catch (error) { if (!mounted) return; ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذر تنفيذ العملية: ${error.message}'))); }
@@ -336,7 +336,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                           const SizedBox(height: 8),
                           ..._allListings.map(_managedCard),
                           const SizedBox(height: 16),
-                          _statusCard(Icons.flag_outlined, 'البلاغات', 'سيتم تفعيل البلاغات عند إضافة جدول البلاغات وربطه بالـRLS.'),
+                          Card(child: ListTile(
+                            leading: const Icon(Icons.flag_outlined, color: AppColors.danger),
+                            title: const Text('البلاغات', style: TextStyle(fontWeight: FontWeight.bold)),
+                            subtitle: const Text('مراجعة البلاغات واتخاذ الإجراء المناسب.'),
+                            trailing: const Icon(Icons.chevron_left),
+                            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminReportsScreen())),
+                          )),
                         ],
                       ),
                     ),

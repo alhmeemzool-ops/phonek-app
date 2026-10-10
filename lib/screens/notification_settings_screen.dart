@@ -146,7 +146,7 @@ class _NotificationSettingsScreenState
                     title: const Text('صوت الإشعارات'),
                     subtitle: Text(
                       soundEnabled
-                          ? 'تشغيل صوت عند وصول إشعار PhoneK'
+                          ? 'استخدام صوت النظام عند وصول إشعار PhoneK'
                           : 'الإشعارات تصل بدون صوت',
                     ),
                     value: soundEnabled,

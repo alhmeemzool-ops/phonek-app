@@ -96,7 +96,12 @@ class _AdminStoresScreenState extends State<AdminStoresScreen> {
     final created = DateTime.tryParse('${s['created_at']}');
     final fallbackActiveDays = created == null ? 0 : DateTime.now().difference(created).inDays.clamp(0, 100000);
     final activeDays = (s['active_days'] as num?)?.toInt() ?? fallbackActiveDays;
-    final level = (s['current_level'] as num?)?.toInt() ?? levelForStatus(sales: sales, activeDays: activeDays, identityVerified: s['identity_verified'] == true || s['is_verified_store'] == true, licenseVerified: s['license_verified'] == true, rating: rating);
+    final acceptedStore = s['is_shop'] == true || s['is_verified_store'] == true;
+    final calculatedLevel = levelForStatus(sales: sales, activeDays: activeDays, identityVerified: s['identity_verified'] == true || acceptedStore, licenseVerified: s['license_verified'] == true, rating: rating);
+    final storedLevel = (s['current_level'] as num?)?.toInt() ?? 0;
+    final level = acceptedStore
+        ? (storedLevel > 0 ? storedLevel : calculatedLevel.clamp(1, merchantBadges.length))
+        : storedLevel > 0 ? storedLevel : calculatedLevel;
     final ads = _listingCounts[id] ?? 0;
     final seller = SellerInfo(id: id, name: s['name']?.toString() ?? 'متجر', phone: s['phone']?.toString() ?? '', whatsapp: s['whatsapp']?.toString(), bio: s['bio']?.toString(), avatarUrl: s['avatar_url']?.toString(), isShop: true, isVerifiedStore: s['is_verified_store'] == true, rating: rating, completedSales: sales, city: s['city']?.toString() ?? '', replySpeedLabel: s['reply_speed_label']?.toString() ?? 'يرد عادة خلال ساعات');
     return Card(

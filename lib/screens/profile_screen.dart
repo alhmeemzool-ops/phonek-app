@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 import '../data/app_state.dart';
 import '../theme/app_theme.dart';
@@ -59,6 +60,17 @@ class ProfileScreen extends StatelessWidget {
       _tile(context, Icons.description_outlined, 'الشروط والأحكام وسياسة الخصوصية', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TermsPrivacyScreen()))),
       const Divider(height: 32),
       _tile(context, Icons.logout, 'تسجيل الخروج', () => appState.logout(), color: AppColors.textSecondary),
+      const SizedBox(height: 12),
+      FutureBuilder<PackageInfo>(
+        future: PackageInfo.fromPlatform(),
+        builder: (_, snapshot) => Center(
+          child: Text(
+            'الإصدار ${snapshot.data?.version ?? '—'}${snapshot.data?.buildNumber == null ? '' : '+${snapshot.data!.buildNumber}'}',
+            style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+          ),
+        ),
+      ),
+      const SizedBox(height: 16),
     ]));
   }
   Widget _tile(BuildContext context, IconData icon, String title, VoidCallback onTap, {Color? color}) => ListTile(leading: Icon(icon, color: color ?? AppColors.gold), title: Text(title, style: TextStyle(color: color)), trailing: const Icon(Icons.chevron_left, color: AppColors.textSecondary), onTap: onTap);

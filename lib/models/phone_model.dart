@@ -71,8 +71,8 @@ extension DeviceConditionValue on DeviceCondition {
 
 
 class SellerInfo {
-  Map<String,dynamic> toJson()=>{'id':id,'name':name,'phone':'','whatsapp':whatsapp,'bio':bio,'avatar_url':avatarUrl,'is_verified_store':isVerifiedStore,'is_shop':isShop,'rating':rating,'completed_sales':completedSales,'city':city,'reply_speed_label':replySpeedLabel};
-  factory SellerInfo.fromJson(Map<String,dynamic> j)=>SellerInfo(id:j['id']?.toString()??'',name:j['name']?.toString()??'',phone:'',whatsapp:j['whatsapp']?.toString(),bio:j['bio']?.toString(),avatarUrl:j['avatar_url']?.toString(),isVerifiedStore:j['is_verified_store']==true,isShop:j['is_shop']==true,rating:(j['rating'] as num?)?.toDouble()??0,completedSales:(j['completed_sales'] as num?)?.toInt()??0,city:j['city']?.toString()??'',replySpeedLabel:j['reply_speed_label']?.toString()??'يرد عادة خلال ساعات');
+  Map<String,dynamic> toJson()=>{'id':id,'name':name,'phone':'','whatsapp':whatsapp,'bio':bio,'avatar_url':avatarUrl,'is_verified_store':isVerifiedStore,'is_shop':isShop,'rating':rating,'completed_sales':completedSales,'merchant_badge_level':merchantBadgeLevel,'city':city,'reply_speed_label':replySpeedLabel};
+  factory SellerInfo.fromJson(Map<String,dynamic> j)=>SellerInfo(id:j['id']?.toString()??'',name:j['name']?.toString()??'',phone:'',whatsapp:j['whatsapp']?.toString(),bio:j['bio']?.toString(),avatarUrl:j['avatar_url']?.toString(),isVerifiedStore:j['is_verified_store']==true,isShop:j['is_shop']==true,rating:(j['rating'] as num?)?.toDouble()??0,completedSales:(j['completed_sales'] as num?)?.toInt()??0,merchantBadgeLevel:(j['merchant_badge_level'] as num?)?.toInt()??0,city:j['city']?.toString()??'',replySpeedLabel:j['reply_speed_label']?.toString()??'يرد عادة خلال ساعات');
   final String id;
   final String name;
   final String phone;
@@ -83,6 +83,7 @@ class SellerInfo {
   final bool isShop; // تاجر/معرض
   final double rating; // 0-5
   final int completedSales;
+  final int merchantBadgeLevel;
   final String city;
   final String replySpeedLabel; // "يرد عادة خلال دقائق"
 
@@ -97,6 +98,7 @@ class SellerInfo {
     this.isShop = false,
     this.rating = 0,
     this.completedSales = 0,
+    this.merchantBadgeLevel = 0,
     required this.city,
     this.replySpeedLabel = 'يرد عادة خلال ساعات',
   });

@@ -69,6 +69,7 @@ class _PhoneDetailsScreenState extends State<PhoneDetailsScreen> {
               onPressed: () => state.toggleFavorite(listing.id),
             ),
           IconButton(icon: const Icon(Icons.share), onPressed: () => _share(context)),
+          if (!isOwner) IconButton(icon: const Icon(Icons.flag_outlined), tooltip: 'الإبلاغ عن الإعلان', onPressed: () => _report(context)),
         ],
       ),
       body: ListView(
@@ -164,7 +165,7 @@ class _PhoneDetailsScreenState extends State<PhoneDetailsScreen> {
         CircleAvatar(radius: 25, backgroundColor: AppColors.surfaceLight, child: seller.avatarUrl?.isNotEmpty == true ? ClipOval(child: Image.network(seller.avatarUrl!, width: 50, height: 50, fit: BoxFit.cover)) : Text(AppFormatters.firstChar(seller.name), style: const TextStyle(color: AppColors.gold))),
         const SizedBox(width: 12),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(children: [Flexible(child: Text(seller.name, style: const TextStyle(fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis)), if (seller.isVerifiedStore) ...[const SizedBox(width: 5), const Icon(Icons.verified, size: 16, color: Colors.lightBlueAccent), const SizedBox(width: 5), MerchantBadgeChip(level: levelForSales(seller.completedSales), compact: true)]]),
+          Row(children: [Flexible(child: Text(seller.name, style: const TextStyle(fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis)), if (seller.isVerifiedStore) ...[const SizedBox(width: 5), const Icon(Icons.verified, size: 16, color: Colors.lightBlueAccent), const SizedBox(width: 5), MerchantBadgeChip(level: seller.merchantBadgeLevel > 0 ? seller.merchantBadgeLevel : levelForSales(seller.completedSales), compact: true)]]),
           const SizedBox(height: 3), Text(seller.isShop ? 'فتح صفحة المتجر' : seller.replySpeedLabel, style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
         ])),
         if (seller.isShop) const Icon(Icons.chevron_left, color: AppColors.gold),
@@ -187,6 +188,59 @@ class _PhoneDetailsScreenState extends State<PhoneDetailsScreen> {
   Widget _action(IconData icon, String label, VoidCallback onTap) => Padding(padding: const EdgeInsets.only(left: 4), child: InkWell(onTap: onTap, child: Padding(padding: const EdgeInsets.all(5), child: Column(mainAxisSize: MainAxisSize.min, children: [Icon(icon, color: AppColors.gold), Text(label, style: const TextStyle(fontSize: 10))]))));
 
   Future<void> _recordContact() async { try { await context.read<AppState>().recordListingEvent(listing.id,'contact'); } catch (_) {} }
+
+  Future<void> _report(BuildContext context) async {
+    final user = context.read<AppState>().currentUser;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('سجّل الدخول لإرسال بلاغ')));
+      return;
+    }
+    final details = TextEditingController();
+    var reason = 'scam';
+    final submitted = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(builder: (dialogContext, setDialogState) => AlertDialog(
+        title: const Text('الإبلاغ عن الإعلان'),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          DropdownButtonFormField<String>(
+            value: reason,
+            decoration: const InputDecoration(labelText: 'سبب البلاغ'),
+            items: const [
+              DropdownMenuItem(value: 'scam', child: Text('احتيال أو طلب دفع مشبوه')),
+              DropdownMenuItem(value: 'wrong_info', child: Text('معلومات أو سعر غير صحيح')),
+              DropdownMenuItem(value: 'prohibited', child: Text('محتوى أو منتج مخالف')),
+              DropdownMenuItem(value: 'harassment', child: Text('إساءة أو مضايقة')),
+              DropdownMenuItem(value: 'other', child: Text('سبب آخر')),
+            ],
+            onChanged: (value) => setDialogState(() => reason = value ?? reason),
+          ),
+          const SizedBox(height: 10),
+          TextField(controller: details, maxLines: 3, decoration: const InputDecoration(labelText: 'تفاصيل إضافية (اختياري)')),
+        ]),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('إلغاء')),
+          FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('إرسال البلاغ')),
+        ],
+      )),
+    );
+    if (submitted != true || !mounted) {
+      details.dispose();
+      return;
+    }
+    try {
+      await Supabase.instance.client.from('reports').insert({
+        'reporter_id': user.id,
+        'listing_id': listing.id,
+        'reason': reason,
+        'details': details.text.trim(),
+      });
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم إرسال البلاغ للمراجعة')));
+    } catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذر إرسال البلاغ: $error')));
+    } finally {
+      details.dispose();
+    }
+  }
 
   Future<void> _tel(BuildContext context) async {
     await _recordContact();

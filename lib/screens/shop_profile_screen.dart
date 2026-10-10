@@ -46,7 +46,8 @@ class _ShopProfileScreenState extends State<ShopProfileScreen> {
     final seller = listings.isNotEmpty ? listings.first.seller : widget.initialSeller ?? _sellerFromProfile();
     final sales = seller?.completedSales ?? (_profile['completed_sales'] as num?)?.toInt() ?? 0;
     final rating = seller?.rating ?? (_profile['rating'] as num?)?.toDouble() ?? 0;
-    final level = levelForSales(sales);
+    final storedLevel = (_profile['merchant_badge_level'] as num?)?.toInt() ?? seller?.merchantBadgeLevel ?? 0;
+    final level = storedLevel > 0 ? storedLevel : levelForSales(sales);
     final name = _profile['name']?.toString() ?? seller?.name ?? 'المتجر';
     final bio = _profile['bio']?.toString() ?? seller?.bio ?? '';
     final address = _profile['shop_address']?.toString() ?? '';

@@ -3,8 +3,10 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../data/app_state.dart';
 import 'badge_model.dart';
 import 'merchant_badge_art.dart';
 import 'badge_sound_service.dart';
@@ -78,6 +80,7 @@ class _MerchantLevelUpGateState extends State<MerchantLevelUpGate> with WidgetsB
           barrierDismissible: false,
           builder: (_) => LevelUpCelebration(level: current, previousLevel: seen),
         );
+        if (mounted) unawaited(context.read<AppState>().loadListings());
         _showing = false;
       }
     } catch (error, stackTrace) {

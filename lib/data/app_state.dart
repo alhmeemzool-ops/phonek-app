@@ -776,6 +776,7 @@ class AppState extends ChangeNotifier {
           isShop: seller['is_shop'] as bool? ?? false,
           rating: (seller['rating'] as num?)?.toDouble() ?? 0,
           completedSales: (seller['completed_sales'] as num?)?.toInt() ?? 0,
+          merchantBadgeLevel: (seller['merchant_badge_level'] as num?)?.toInt() ?? 0,
           city: seller['city'] as String? ?? row['city'] as String? ?? '',
           replySpeedLabel: seller['reply_speed_label'] as String? ?? 'يرد عادة خلال ساعات',
         ),
