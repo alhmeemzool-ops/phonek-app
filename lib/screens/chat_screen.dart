@@ -48,25 +48,39 @@ class _ChatScreenState extends State<ChatScreen> {
     final appState = context.read<AppState>();
     try {
       _threadId ??= await appState.ensureChatThread(widget.listing);
-      final messages = await appState.loadMessages(_threadId!);
+      if (!mounted) return;
+      // Subscribe before loading history so messages arriving during the initial
+      // fetch are not lost. Merge by ID instead of overwriting realtime events.
       _channel = appState.subscribeToMessages(_threadId!, (message) {
         if (!mounted) return;
         setState(() {
           final index = _messages.indexWhere((item) => item.id == message.id);
-          if (index >= 0) { _messages[index] = message; } else { _messages.add(message); }
+          if (index >= 0) {
+            _messages[index] = message;
+          } else {
+            _messages.add(message);
+          }
+          _messages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
         });
         _scrollToBottom();
       });
-      if (mounted) setState(() { _messages = messages; _loading = false; });
-    } on AuthException catch (error) {
+      final messages = await appState.loadMessages(_threadId!);
+      if (!mounted) return;
+      setState(() {
+        final merged = <String, ChatMessage>{};
+        for (final message in messages) { merged[message.id] = message; }
+        for (final message in _messages) { merged[message.id] = message; }
+        _messages = merged.values.toList()
+          ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
+        _loading = false;
+      });
+      _scrollToBottom();
+    } catch (error) {
       if (mounted) {
         setState(() => _loading = false);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(friendlyError(error, fallback: 'تعذر تحميل المحادثة.'))));
-      }
-    } on PostgrestException catch (error) {
-      if (mounted) {
-        setState(() => _loading = false);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(friendlyError(error, fallback: 'تعذر تحميل المحادثة.'))));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(friendlyError(error, fallback: 'تعذر تحميل المحادثة. تحقق من الاتصال ثم حاول مجدداً.'))),
+        );
       }
     }
   }
