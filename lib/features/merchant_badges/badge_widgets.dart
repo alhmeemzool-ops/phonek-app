@@ -44,11 +44,42 @@ class MerchantBadgeGallery extends StatelessWidget {
         final current = badge.level == currentLevel;
         return InkWell(
           borderRadius: BorderRadius.circular(16),
-          onTap: () => showMerchantBadgeDetails(context, badge, current: current, unlocked: unlocked),
+          onTap: unlocked ? () => showMerchantBadgeDetails(context, badge, current: current) : null,
           child: Card(
+            color: unlocked ? null : const Color(0xFF111827),
             elevation: 0,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: current ? const Color(0xFFFFD700) : Colors.transparent, width: current ? 2 : 0)),
-            child: Padding(padding: const EdgeInsets.all(10), child: Column(children: [Expanded(child: Center(child: MerchantBadgeArt(level: badge.level, size: 104, locked: !unlocked))), Text('المستوى ${badge.level}', style: TextStyle(fontWeight: FontWeight.w800, color: current ? const Color(0xFFFFD700) : null)), const SizedBox(height: 3), Text(badge.nameAr, textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.w700)), const SizedBox(height: 3), Text(badge.descriptionAr, textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Color(0xFF64748B), fontSize: 11))])),
+            child: Semantics(
+              button: unlocked,
+              enabled: unlocked,
+              label: unlocked ? 'شارة ${badge.nameAr}، المستوى ${badge.level}' : 'شارة مقفلة، المستوى ${badge.level}',
+              child: Padding(
+                padding: const EdgeInsets.all(10),
+                child: Column(
+                  children: [
+                    Expanded(
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          Center(child: MerchantBadgeArt(level: badge.level, size: 104, locked: !unlocked)),
+                          if (!unlocked)
+                            Container(
+                              padding: const EdgeInsets.all(9),
+                              decoration: BoxDecoration(color: const Color(0xCC020617), shape: BoxShape.circle, border: Border.all(color: const Color(0xFF475569))),
+                              child: const Icon(Icons.lock_outline, color: Color(0xFFCBD5E1), size: 25),
+                            ),
+                        ],
+                      ),
+                    ),
+                    Text('المستوى ${badge.level}', style: TextStyle(fontWeight: FontWeight.w800, color: unlocked ? (current ? const Color(0xFFFFD700) : null) : const Color(0xFF64748B))),
+                    const SizedBox(height: 3),
+                    Text(badge.nameAr, textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.w700, color: unlocked ? null : const Color(0xFF64748B))),
+                    const SizedBox(height: 3),
+                    Text(unlocked ? badge.descriptionAr : 'مقفلة — واصل التقدم لفتحها', textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Color(0xFF64748B), fontSize: 11)),
+                  ],
+                ),
+              ),
+            ),
           ),
         );
       },
@@ -56,19 +87,18 @@ class MerchantBadgeGallery extends StatelessWidget {
   }
 }
 
-void showMerchantBadgeDetails(BuildContext context, MerchantBadge badge, {required bool current, bool unlocked = true}) {
+void showMerchantBadgeDetails(BuildContext context, MerchantBadge badge, {required bool current}) {
   showDialog<void>(
     context: context,
     barrierColor: Colors.black54,
-    builder: (_) => _BadgeCelebrationDialog(badge: badge, current: current, unlocked: unlocked),
+    builder: (_) => _BadgeCelebrationDialog(badge: badge, current: current),
   );
 }
 
 class _BadgeCelebrationDialog extends StatefulWidget {
-  const _BadgeCelebrationDialog({required this.badge, required this.current, required this.unlocked});
+  const _BadgeCelebrationDialog({required this.badge, required this.current});
   final MerchantBadge badge;
   final bool current;
-  final bool unlocked;
 
   @override
   State<_BadgeCelebrationDialog> createState() => _BadgeCelebrationDialogState();
@@ -85,9 +115,7 @@ class _BadgeCelebrationDialogState extends State<_BadgeCelebrationDialog>
       vsync: this,
       duration: const Duration(milliseconds: 3600),
     )..repeat();
-    if (widget.unlocked) {
-      unawaited(_playBadgeSound());
-    }
+    unawaited(_playBadgeSound());
   }
 
   Future<void> _playBadgeSound() async {
@@ -109,7 +137,7 @@ class _BadgeCelebrationDialogState extends State<_BadgeCelebrationDialog>
 
   @override
   Widget build(BuildContext context) {
-    final accent = widget.unlocked ? const Color(0xFFFFD700) : const Color(0xFF64748B);
+    const accent = Color(0xFFFFD700);
     return Dialog(
       backgroundColor: Colors.transparent,
       insetPadding: const EdgeInsets.symmetric(horizontal: 34, vertical: 28),
@@ -131,11 +159,11 @@ class _BadgeCelebrationDialogState extends State<_BadgeCelebrationDialog>
             children: [
               Row(
                 children: [
-                  Icon(widget.unlocked ? Icons.auto_awesome : Icons.lock_outline, color: accent, size: 24),
+                  const Icon(Icons.auto_awesome, color: accent, size: 24),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      widget.current ? '✨ شارتك المملوكة' : widget.unlocked ? '✨ شارة مملوكة' : 'شارة قادمة',
+                      widget.current ? '✨ شارتك المملوكة' : '✨ شارة مملوكة',
                       style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w900),
                     ),
                   ),
@@ -154,7 +182,7 @@ class _BadgeCelebrationDialogState extends State<_BadgeCelebrationDialog>
               Text('المستوى ${widget.badge.level}', style: TextStyle(color: accent, fontSize: 14, fontWeight: FontWeight.w800)),
               const SizedBox(height: 8),
               Text(
-                widget.current ? 'احتفظت بهذه الشارة بجدارة 🎉' : widget.unlocked ? 'هذه الشارة مفتوحة في متجرك 🎉' : 'واصل التقدم لفتحها',
+                widget.current ? 'احتفظت بهذه الشارة بجدارة 🎉' : 'هذه الشارة مفتوحة في متجرك 🎉',
                 textAlign: TextAlign.center,
                 style: const TextStyle(color: Colors.white70, fontSize: 13, height: 1.4),
               ),

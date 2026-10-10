@@ -29,7 +29,7 @@ class MerchantBadge {
 const merchantBadges = <MerchantBadge>[
   MerchantBadge(
       level: 1,
-      nameAr: 'بائع مبتدئ',
+      nameAr: 'مبتدئ',
       nameEn: 'Novice',
       descriptionAr: 'تفعيل المتجر والتحقق من الهوية.',
       requiredSales: 0,
@@ -37,7 +37,7 @@ const merchantBadges = <MerchantBadge>[
       assetPath: 'assets/badges/badge_level_01.webp'),
   MerchantBadge(
       level: 2,
-      nameAr: 'بائع ناشئ',
+      nameAr: 'ناشئ',
       nameEn: 'Emerging',
       descriptionAr: '15 عملية بيع ناجحة + 7 أيام نشاط.',
       requiredSales: 15,
@@ -45,7 +45,7 @@ const merchantBadges = <MerchantBadge>[
       assetPath: 'assets/badges/badge_level_02.webp'),
   MerchantBadge(
       level: 3,
-      nameAr: 'بائع صاعد',
+      nameAr: 'صاعد',
       nameEn: 'Rising',
       descriptionAr: '40 عملية بيع ناجحة + 30 يوماً.',
       requiredSales: 40,
@@ -53,7 +53,7 @@ const merchantBadges = <MerchantBadge>[
       assetPath: 'assets/badges/badge_level_03.webp'),
   MerchantBadge(
       level: 4,
-      nameAr: 'بائع موثوق',
+      nameAr: 'موثوق',
       nameEn: 'Verified',
       descriptionAr: '80 عملية بيع ناجحة + 60 يوماً + توثيق المتجر.',
       requiredSales: 80,
@@ -62,7 +62,7 @@ const merchantBadges = <MerchantBadge>[
       assetPath: 'assets/badges/badge_level_04.webp'),
   MerchantBadge(
       level: 5,
-      nameAr: 'بائع متميز',
+      nameAr: 'متميز',
       nameEn: 'Star',
       descriptionAr: '150 عملية بيع + 120 يوماً + تقييم أعلى من 4.2.',
       requiredSales: 150,
@@ -71,7 +71,7 @@ const merchantBadges = <MerchantBadge>[
       assetPath: 'assets/badges/badge_level_05.webp'),
   MerchantBadge(
       level: 6,
-      nameAr: 'بائع محترف',
+      nameAr: 'محترف',
       nameEn: 'Pro',
       descriptionAr: '300 عملية بيع ناجحة + 180 يوماً.',
       requiredSales: 300,
@@ -79,7 +79,7 @@ const merchantBadges = <MerchantBadge>[
       assetPath: 'assets/badges/badge_level_06.webp'),
   MerchantBadge(
       level: 7,
-      nameAr: 'بائع خبير',
+      nameAr: 'خبير',
       nameEn: 'Expert',
       descriptionAr: '600 عملية بيع ناجحة + 270 يوماً.',
       requiredSales: 600,
@@ -87,23 +87,23 @@ const merchantBadges = <MerchantBadge>[
       assetPath: 'assets/badges/badge_level_07.webp'),
   MerchantBadge(
       level: 8,
-      nameAr: 'بائع نخبة',
-      nameEn: 'Elite',
+      nameAr: 'معتمد',
+      nameEn: 'Certified',
       descriptionAr: '1,200 عملية بيع ناجحة + سنة كاملة.',
       requiredSales: 1200,
       requiredDays: 365,
       assetPath: 'assets/badges/badge_level_08.webp'),
   MerchantBadge(
       level: 9,
-      nameAr: 'بائع معتمد',
-      nameEn: 'Master',
+      nameAr: 'نخبة',
+      nameEn: 'Elite',
       descriptionAr: '2,500 عملية بيع ناجحة + 18 شهراً.',
       requiredSales: 2500,
       requiredDays: 540,
       assetPath: 'assets/badges/badge_level_09.webp'),
   MerchantBadge(
       level: 10,
-      nameAr: 'تاجر أسطوري',
+      nameAr: 'أسطوري',
       nameEn: 'Legendary',
       descriptionAr: '5,000 عملية بيع ناجحة + سنتان.',
       requiredSales: 5000,
