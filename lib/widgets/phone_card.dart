@@ -32,7 +32,7 @@ class PhoneCard extends StatelessWidget {
     // used only for verified stores to avoid inventing unearned badge levels.
     final merchantLevel = listing.seller.isShop
         ? (storedMerchantLevel > 0
-            ? storedMerchantLevel.clamp(1, merchantBadges.length)
+            ? storedMerchantLevel.clamp(1, merchantBadges.length).toInt()
             : (listing.seller.isVerifiedStore
                 ? levelForSales(listing.seller.completedSales)
                 : 0))
