@@ -130,7 +130,6 @@ jobs:
               raise SystemExit(f"Invalid manifest versionName: {current_name}")
           major, minor, patch = map(int, sem.groups())
           # Keep versionCode strictly increasing and avoid reusing an existing release tag.
-          code = current_code + 1
           while True:
               patch += 1
               name = f"{major}.{minor}.{patch}"
@@ -140,6 +139,9 @@ jobs:
               )
               if result.returncode != 0:
                   break
+          # Version code must be consecutive, and never lower than the release suffix
+          # when a previous run created a release but failed before updating update.json.
+          code = max(current_code + 1, patch)
           with open(Path.home() / "version.env", "w") as out:
               out.write(f"VERSION_NAME={name}\nVERSION_CODE={code}\n")
           print(f"Allocated unique Quick APK version: {name}+{code}")
