@@ -158,6 +158,11 @@ class _PhoneDetailsScreenState extends State<PhoneDetailsScreen> {
 
   Widget _seller(BuildContext context) {
     final seller = listing.seller;
+    final merchantLevel = seller.isShop
+        ? (seller.merchantBadgeLevel > 0
+            ? seller.merchantBadgeLevel.clamp(1, merchantBadges.length).toInt()
+            : levelForSales(seller.completedSales))
+        : 0;
     return InkWell(
       borderRadius: BorderRadius.circular(12),
       onTap: seller.isShop && seller.id.isNotEmpty ? () => Navigator.push(context, MaterialPageRoute(builder: (_) => ShopProfileScreen(shopId: seller.id, initialSeller: seller))) : null,
@@ -165,7 +170,7 @@ class _PhoneDetailsScreenState extends State<PhoneDetailsScreen> {
         CircleAvatar(radius: 25, backgroundColor: AppColors.surfaceLight, child: seller.avatarUrl?.isNotEmpty == true ? ClipOval(child: Image.network(seller.avatarUrl!, width: 50, height: 50, fit: BoxFit.cover)) : Text(AppFormatters.firstChar(seller.name), style: const TextStyle(color: AppColors.gold))),
         const SizedBox(width: 12),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(children: [Flexible(child: Text(seller.name, style: const TextStyle(fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis)), if (seller.isVerifiedStore) ...[const SizedBox(width: 5), const Icon(Icons.verified, size: 16, color: Colors.lightBlueAccent), const SizedBox(width: 5), MerchantBadgeChip(level: seller.merchantBadgeLevel > 0 ? seller.merchantBadgeLevel : levelForSales(seller.completedSales), compact: true)]]),
+          Row(children: [Flexible(child: Text(seller.name, style: const TextStyle(fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis)), if (seller.isVerifiedStore) ...[const SizedBox(width: 5), const Icon(Icons.verified, size: 16, color: Colors.lightBlueAccent)], if (merchantLevel > 0) ...[const SizedBox(width: 5), MerchantBadgeChip(level: merchantLevel, compact: true)]]),
           const SizedBox(height: 3), Text(seller.isShop ? 'فتح صفحة المتجر' : seller.replySpeedLabel, style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
         ])),
         if (seller.isShop) const Icon(Icons.chevron_left, color: AppColors.gold),

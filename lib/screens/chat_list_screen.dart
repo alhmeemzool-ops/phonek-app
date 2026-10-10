@@ -73,10 +73,7 @@ class ChatListScreen extends StatelessWidget {
 
   void _openThread(BuildContext context, AppState appState, dynamic thread) {
     final matches = appState.listings.where((listing) => listing.id == thread.phoneListingId).toList();
-    if (matches.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تعذر العثور على الإعلان المرتبط بالمحادثة')));
-      return;
-    }
-    Navigator.push(context, MaterialPageRoute(builder: (_) => ChatScreen(listing: matches.first, thread: thread)));
+    final listing = matches.isEmpty ? null : matches.first;
+    Navigator.push(context, MaterialPageRoute(builder: (_) => ChatScreen(listing: listing, thread: thread)));
   }
 }

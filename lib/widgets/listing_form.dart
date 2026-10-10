@@ -19,6 +19,7 @@ class ListingFormData {
   final String ram;
   final int? batteryHealth;
   final DeviceCondition condition;
+  final WarrantyType warranty;
   final bool hasDamage;
   final String? damageNotes;
   final bool hasBox;
@@ -34,7 +35,7 @@ class ListingFormData {
     required this.title, required this.brand, required this.price,
     required this.priceNegotiable, required this.priceOnCall, required this.acceptsSwap,
     required this.storage, required this.ram, required this.batteryHealth,
-    required this.condition, required this.hasDamage, required this.damageNotes,
+    required this.condition, required this.warranty, required this.hasDamage, required this.damageNotes,
     required this.hasBox, required this.hasCharger, required this.hasInvoice,
     required this.hasEarphones, required this.city, required this.description,
     required this.existingImageUrls, required this.newImages,
@@ -73,6 +74,7 @@ class _ListingFormState extends State<ListingForm> {
   String _storage = '128GB';
   String _ram = '6GB';
   DeviceCondition _condition = DeviceCondition.excellent;
+  WarrantyType _warranty = WarrantyType.none;
   bool _priceNegotiable = true;
   bool _priceOnCall = false;
   bool _acceptsSwap = false;
@@ -86,7 +88,7 @@ class _ListingFormState extends State<ListingForm> {
   final List<String> _existingImages = [];
   final List<XFile> _newImages = [];
 
-  static const _storageOptions = ['32GB', '64GB', '128GB', '256GB', '512GB', '1TB'];
+  static const _storageOptions = ['32GB', '64GB', '128GB', '256GB', '512GB', '1TB', '2TB'];
   static const _ramOptions = ['3GB', '4GB', '6GB', '8GB', '12GB'];
 
   bool get _isIphone => _brand == 'Apple';
@@ -97,14 +99,15 @@ class _ListingFormState extends State<ListingForm> {
     final listing = widget.initialListing;
     if (listing == null) return;
     _brand = listing.brand;
-    _phoneModel = listing.title;
-    _titleController.text = listing.title;
+    _phoneModel = catalog.CatalogData.modelNameOnly(listing.title);
+    _titleController.text = _phoneModel!;
     _priceController.text = listing.price.toString();
     _descController.text = listing.description;
     _city = listing.city;
     _storage = listing.storage;
     _ram = listing.ram;
     _condition = listing.condition;
+    _warranty = listing.warranty;
     _priceNegotiable = listing.priceIsNegotiable;
     _priceOnCall = listing.priceOnCall;
     _acceptsSwap = listing.acceptsSwap;
@@ -256,6 +259,19 @@ class _ListingFormState extends State<ListingForm> {
               FilterChip(label: const Text('الفاتورة'), selected: _hasInvoice, onSelected: _saving ? null : (v) => setState(() => _hasInvoice = v)),
               FilterChip(label: const Text('السماعة'), selected: _hasEarphones, onSelected: _saving ? null : (v) => setState(() => _hasEarphones = v)),
             ],
+          ),
+          _label('الضمان'),
+          Wrap(
+            spacing: 8,
+            children: WarrantyType.values.map((warranty) => ChoiceChip(
+              label: Text(switch (warranty) {
+                WarrantyType.none => 'بدون ضمان',
+                WarrantyType.storeWarranty => 'ضمان متجر',
+                WarrantyType.agentWarranty => 'ضمان وكيل رسمي',
+              }),
+              selected: _warranty == warranty,
+              onSelected: _saving ? null : (_) => setState(() => _warranty = warranty),
+            )).toList(),
           ),
           const SizedBox(height: 16),
           _label('المدينة'),
@@ -449,7 +465,7 @@ class _ListingFormState extends State<ListingForm> {
         title: _phoneModel!.trim(), brand: _brand!, price: price,
         priceNegotiable: _priceNegotiable, priceOnCall: _priceOnCall, acceptsSwap: _acceptsSwap,
         storage: _storage, ram: _ram, batteryHealth: _isIphone ? _batteryHealth : null,
-        condition: _condition, hasDamage: _hasDamage,
+        condition: _condition, warranty: _warranty, hasDamage: _hasDamage,
         damageNotes: _hasDamage ? _damageController.text.trim() : null,
         hasBox: _hasBox, hasCharger: _hasCharger, hasInvoice: _hasInvoice,
         hasEarphones: _hasEarphones, city: _city!, description: _descController.text.trim(),

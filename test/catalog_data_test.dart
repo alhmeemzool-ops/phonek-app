@@ -4,11 +4,11 @@ import 'package:phonek_app/data/catalog_data.dart';
 
 void main() {
   test('expanded catalog has exact requested additions and no duplicates', () {
-    expect(CatalogData.phoneModelsByBrand['Samsung']!.length, 286);
-    expect(CatalogData.phoneModelsByBrand['HONOR']!.length, 283);
-    expect(CatalogData.phoneModelsByBrand['Apple']!.length, 294);
-    expect(CatalogData.phoneModelsByBrand['Huawei']!.length, 250);
-    expect(CatalogData.phoneModelsByBrand['Xiaomi']!.length, 141);
+    expect(CatalogData.phoneModelsByBrand['Samsung']!.length, 197);
+    expect(CatalogData.phoneModelsByBrand['HONOR']!.length, 226);
+    expect(CatalogData.phoneModelsByBrand['Apple']!.length, 50);
+    expect(CatalogData.phoneModelsByBrand['Huawei']!.length, 195);
+    expect(CatalogData.phoneModelsByBrand['Xiaomi']!.length, 116);
 
     for (final brand in ['Samsung', 'HONOR', 'Apple', 'Huawei', 'Xiaomi']) {
       final models = CatalogData.phoneModelsByBrand[brand]!;

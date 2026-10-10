@@ -23,6 +23,7 @@ class ListingSettingsScreen extends StatelessWidget {
         ram: data.ram,
         batteryHealthPercent: data.batteryHealth,
         condition: data.condition,
+        warranty: data.warranty,
         damageNotes: data.hasDamage ? data.damageNotes : null,
         hasBox: data.hasBox,
         hasCharger: data.hasCharger,

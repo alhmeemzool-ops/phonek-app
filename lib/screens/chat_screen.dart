@@ -16,9 +16,9 @@ import '../theme/app_theme.dart';
 import '../utils/formatters.dart';
 
 class ChatScreen extends StatefulWidget {
-  final PhoneListing listing;
+  final PhoneListing? listing;
   final ChatThread? thread;
-  const ChatScreen({super.key, required this.listing, this.thread});
+  const ChatScreen({super.key, this.listing, this.thread}) : assert(listing != null || thread != null);
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -47,7 +47,11 @@ class _ChatScreenState extends State<ChatScreen> {
   Future<void> _initialize() async {
     final appState = context.read<AppState>();
     try {
-      _threadId ??= await appState.ensureChatThread(widget.listing);
+      if (_threadId == null) {
+        final listing = widget.listing;
+        if (listing == null) throw const AuthException('تعذر العثور على الإعلان لبدء المحادثة');
+        _threadId = await appState.ensureChatThread(listing);
+      }
       if (!mounted) return;
       // Subscribe before loading history so messages arriving during the initial
       // fetch are not lost. Merge by ID instead of overwriting realtime events.
@@ -89,9 +93,9 @@ class _ChatScreenState extends State<ChatScreen> {
     final text = (messageText ?? _controller.text).trim();
     if (text.isEmpty || _threadId == null) return;
     final appState = context.read<AppState>();
-    if (messageText == null) _controller.clear();
     try {
       final sent = await appState.sendMessage(threadId: _threadId!, text: text);
+      if (messageText == null && sent != null && _controller.text.trim() == text) _controller.clear();
       if (mounted && sent != null) {
         setState(() {
           if (!_messages.any((message) => message.id == sent.id)) {
@@ -199,8 +203,8 @@ class _ChatScreenState extends State<ChatScreen> {
       appBar: AppBar(
         title: Column(
           children: [
-            Text(widget.thread?.otherUserName ?? widget.listing.seller.name, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
-            Text(widget.listing.title, style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+            Text(widget.thread?.otherUserName ?? widget.listing?.seller.name ?? 'مستخدم PhoneK', style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+            Text(widget.listing?.title ?? widget.thread?.phoneTitle ?? 'إعلان PhoneK', style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
           ],
         ),
       ),
@@ -304,7 +308,7 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Widget _swapCard(ChatMessage m,bool isMe) {
-    final p=m.payload??{};final status=p['status']?.toString()??'pending';final sellerIsCurrent=context.read<AppState>().currentUser?.id==widget.listing.seller.id;
+    final p=m.payload??{};final status=p['status']?.toString()??'pending';final sellerId=widget.listing?.seller.id;final sellerIsCurrent=sellerId!=null&&context.read<AppState>().currentUser?.id==sellerId;
     final statusText=status=='accepted'?'تم القبول':status=='rejected'?'تم الرفض':'بانتظار الرد';
     return Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
       const Text('عرض تبديل',style:TextStyle(fontWeight:FontWeight.bold)),
