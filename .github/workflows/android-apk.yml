@@ -119,13 +119,13 @@ jobs:
           manifest = json.loads(Path("update.json").read_text())
           current_code = int(manifest.get("versionCode", 0))
           pubspec = Path("pubspec.yaml").read_text()
-          m = re.search(r"^version:\\s*([0-9]+\\.[0-9]+\\.[0-9]+)\\+([0-9]+)\\s*$", pubspec, re.M)
+          m = re.search(r"^version:\s*([0-9]+\.[0-9]+\.[0-9]+)\+([0-9]+)\s*$", pubspec, re.M)
           if not m:
               raise SystemExit("Cannot parse pubspec.yaml version")
           pub_name, pub_code = m.group(1), int(m.group(2))
           current_code = max(current_code, pub_code)
           current_name = str(manifest.get("versionName", pub_name))
-          sem = re.fullmatch(r"(\\d+)\\.(\\d+)\\.(\\d+)", current_name)
+          sem = re.fullmatch(r"(\d+)\.(\d+)\.(\d+)", current_name)
           if not sem:
               raise SystemExit(f"Invalid manifest versionName: {current_name}")
           major, minor, patch = map(int, sem.groups())
@@ -141,7 +141,7 @@ jobs:
               if result.returncode != 0:
                   break
           with open(Path.home() / "version.env", "w") as out:
-              out.write(f"VERSION_NAME={name}\\nVERSION_CODE={code}\\n")
+              out.write(f"VERSION_NAME={name}\nVERSION_CODE={code}\n")
           print(f"Allocated unique Quick APK version: {name}+{code}")
           PY
           source "$HOME/version.env"
