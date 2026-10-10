@@ -179,7 +179,9 @@ jobs:
         continue-on-error: true
         timeout-minutes: 25
         env:
-          PHONEK_MAX_PATCH_BASES: 1
+          # Keep direct patches for the two latest published bases so users
+          # who skipped one Quick release can still update without full APK.
+          PHONEK_MAX_PATCH_BASES: 2
         run: |
           python3 tool/make_patches.py build --manifest latest-update.json --new-apk build/app/outputs/flutter-apk/app-release.apk --new-version-code "${{ steps.version.outputs.version_code }}" --output patch-results.json
 
@@ -275,6 +277,11 @@ jobs:
               except Exception as exc:
                   print(f"Dropping {filename}: verification failed: {exc}")
                   subprocess.run(["gh","release","delete-asset",tag,filename,"--yes"],check=False)
+          if not kept:
+              raise SystemExit(
+                  "Every published patch failed post-upload verification. "
+                  "Refusing to publish a manifest without a valid lightweight patch."
+              )
           data["patches"]=kept
           path.write_text(json.dumps(data,ensure_ascii=False,indent=2)+"\n")
           PY
