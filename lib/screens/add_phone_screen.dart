@@ -48,7 +48,7 @@ class AddPhoneScreen extends StatelessWidget {
         'has_charger': data.hasCharger,
         'has_invoice': data.hasInvoice,
         'has_earphones': data.hasEarphones,
-        'warranty': WarrantyType.none.value,
+        'warranty': data.warranty.value,
         'city': data.city,
         'image_urls': imageUrls,
         'status': ListingStatus.pendingReview.value,

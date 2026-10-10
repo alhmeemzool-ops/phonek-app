@@ -154,7 +154,7 @@ class CatalogData {
 
   static const List<String> brands = ['Samsung', 'Apple', 'HONOR', 'Xiaomi', 'vivo', 'OPPO', 'TECNO', 'Infinix', 'Huawei', 'Motorola', 'realme', 'OnePlus', 'Google Pixel', 'Nokia', 'Sony', 'Nothing', 'ZTE'];
 
-  static final Map<String, List<String>> phoneModelsByBrand = {
+  static final Map<String, List<String>> _rawPhoneModelsByBrand = {
     'Samsung': [...samsungExtraModels, 'Galaxy S26', 'Galaxy S25', 'Galaxy S25+', 'Galaxy S25 Ultra', 'Galaxy S25 Edge', 'Galaxy S25 FE', 'Galaxy Z Fold7', 'Galaxy Z Flip7', 'Galaxy Z Flip7 FE', 'Galaxy A56 5G', 'Galaxy A27 5G', 'Galaxy Z Flip8', 'Galaxy Z Fold8', 'Galaxy Z Fold8 Ultra', 'Galaxy S24', 'Galaxy S24', 'Galaxy S24 Ultra', 'Galaxy S24 Ultra', 'Galaxy S24+', 'Galaxy S24+', 'Galaxy Z Fold6', 'Galaxy Z Fold6', 'Galaxy Z Fold6', 'Galaxy A14', 'Galaxy A14', 'Galaxy A24', 'Galaxy A24', 'Galaxy A34', 'Galaxy A34', 'Galaxy A54', 'Galaxy A54', 'Galaxy F14', 'Galaxy F14', 'Galaxy F34', 'Galaxy F34', 'Galaxy F54', 'Galaxy F54', 'Galaxy M14', 'Galaxy M14', 'Galaxy M34', 'Galaxy M34', 'Galaxy M54', 'Galaxy M54', 'Galaxy S23', 'Galaxy S23', 'Galaxy S23 Ultra', 'Galaxy S23 Ultra', 'Galaxy S23+', 'Galaxy S23+', 'Galaxy Z Flip 5', 'Galaxy Z Flip 5', 'Galaxy Z Fold 5', 'Galaxy Z Fold 5', 'Galaxy A04', 'Galaxy A04', 'Galaxy M04', 'Galaxy M04', 'Galaxy S22', 'Galaxy S22', 'Galaxy S22 Ultra', 'Galaxy S22 Ultra', 'Galaxy S22+', 'Galaxy S22+', 'Galaxy Xcover 6 Pro', 'Galaxy Z Flip 4', 'Galaxy Z Flip 4', 'Galaxy Z Fold 4', 'Galaxy Z Fold 4', 'Galaxy W22 5G', 'Galaxy Note 20', 'Galaxy Note 20', 'Galaxy Note 20 Ultra', 'Galaxy Note 20 Ultra', 'Galaxy W21 5G', 'Galaxy Xcover 5', 'Galaxy Note 10', 'Galaxy Note 10', 'Galaxy Note 10+', 'Galaxy Note 10+', 'Galaxy J4', 'Galaxy J6+', 'Galaxy J8', 'Galaxy C7 Pro', 'Galaxy J7 Pro', 'Galaxy C5', 'Galaxy C9 Pro'],
     'Apple': [...appleExtraModels, 'iPhone 18', 'iPhone 16e', 'iPhone 17', 'iPhone 17 Pro', 'iPhone 17 Pro Max', 'iPhone 17 Air', 'iPhone 16', 'iPhone 16 Plus', 'iPhone 16 Pro', 'iPhone 16 Pro Max', 'iPhone 17e', 'iPhone 18 Pro', 'iPhone 18 Pro Max', 'iPhone Air', 'iPhone 16', 'iPhone 16', 'iPhone 16', 'iPhone 16 Plus', 'iPhone 16 Plus', 'iPhone 16 Plus', 'iPhone 16 Pro', 'iPhone 16 Pro', 'iPhone 16 Pro', 'iPhone 16 Pro Max', 'iPhone 16 Pro Max', 'iPhone 16 Pro Max', 'iPhone 15', 'iPhone 15', 'iPhone 15', 'iPhone 15 Plus', 'iPhone 15 Plus', 'iPhone 15 Plus', 'iPhone 15 Pro', 'iPhone 15 Pro', 'iPhone 15 Pro', 'iPhone 15 Pro Max', 'iPhone 15 Pro Max', 'iPhone 15 Pro Max', 'iPhone 14', 'iPhone 14', 'iPhone 14', 'iPhone 14 Plus', 'iPhone 14 Plus', 'iPhone 14 Plus', 'iPhone 14 Pro', 'iPhone 14 Pro', 'iPhone 14 Pro', 'iPhone 14 Pro Max', 'iPhone 14 Pro Max', 'iPhone 14 Pro Max', 'iPhone 13', 'iPhone 13', 'iPhone 13', 'iPhone 13 mini', 'iPhone 13 mini', 'iPhone 13 mini', 'iPhone 13 Pro', 'iPhone 13 Pro', 'iPhone 13 Pro', 'iPhone 13 Pro Max', 'iPhone 13 Pro Max', 'iPhone 13 Pro Max', 'iPhone 12', 'iPhone 12', 'iPhone 12', 'iPhone 12 mini', 'iPhone 12 mini', 'iPhone 12 mini', 'iPhone 12 Pro', 'iPhone 12 Pro', 'iPhone 12 Pro', 'iPhone 12 Pro Max', 'iPhone 12 Pro Max', 'iPhone 12 Pro Max', 'iPhone 11', 'iPhone 11', 'iPhone 11', 'iPhone 11 Pro', 'iPhone 11 Pro', 'iPhone 11 Pro', 'iPhone 11 Pro Max', 'iPhone 11 Pro Max', 'iPhone 11 Pro Max', 'iPhone XR', 'iPhone XR', 'iPhone XR', 'iPhone XS', 'iPhone XS', 'iPhone XS', 'iPhone XS Max', 'iPhone XS Max', 'iPhone XS Max', 'iPhone X', 'iPhone X'],
     'HONOR': [...honorExtraModels, 'HONOR X8d', 'HONOR 400 Pro', 'HONOR 400', 'HONOR Magic V5', 'HONOR Magic7 Pro', 'HONOR Magic7 RSR', 'HONOR X9d', 'HONOR X7d', 'HONOR X6c', 'HONOR Play10', 'HONOR 600', 'HONOR 600 Lite', 'HONOR 600 Pro', 'HONOR Robot Phone', 'Magic V2', 'Magic V3', 'Magic6', 'Magic6 Pro', 'Magic6 Ultimate', 'Magic7', 'Magic7 Pro', 'Magic7 Ultimate', 'MagicPad 2', 'MagicPad 3', '90', '90 Pro', '90 SE', 'Magic Vs', 'Magic5', 'Magic5 Pro', 'Magic5 Ultimate', 'MagicPad 13', 'Play 7', 'Play 7T', 'Play 8', 'Play 8T', 'Play 9', 'Play 9T', 'X50', 'X50i', 'X60', 'X60i', '70', '70 Pro', '70 Pro+', '80', '80 Pro', '80 SE', 'Magic V', 'Magic4', 'Magic4 Pro', 'Magic4 Ultimate', 'Play 6', 'Play 6T', 'X40', 'X40i', '50', '50 Pro', '50 SE', '60', '60 Pro', '60 SE', 'Magic3', 'Magic3 Pro', 'Magic3 Pro+', 'Play 5', 'Play 5T', 'V40', 'X20', 'X20 SE', 'X30', 'X30 Max', 'X30i', '10X Lite', '30', '30 Pro', '30 Pro+', '30S', '9X Lite', 'Play 4', 'Play 4 Pro', 'X10', 'X10 Max'],
@@ -172,5 +172,24 @@ class CatalogData {
     'Sony': ['Xperia 1 VII', 'Xperia 10 VII', 'Xperia 1 VI', 'Xperia 10 VI', 'Xperia 5 V', 'Xperia 1 V', 'Xperia 10 V', 'Xperia 5 IV', 'Xperia 1 IV', 'Xperia 1 VI', 'Xperia 10 VI', 'Xperia 5 VI', 'Xperia 1 V', 'Xperia 10 V', 'Xperia 5 V', 'Xperia 1 IV', 'Xperia 10 IV', 'Xperia 5 IV'],
     'Nothing': ['Nothing Phone (3)', 'Nothing Phone (3a)', 'Nothing Phone (3a) Pro', 'Nothing Phone (3a) Lite', 'Nothing Phone (2a)', 'Nothing Phone (2a) Plus', 'Nothing Phone (2)', 'CMF Phone 2 Pro', 'CMF Phone 1', 'Nothing Phone (4)', 'Nothing Phone (4a)'],
     'ZTE': ['nubia A77 5G', 'nubia Z80 Ultra', 'nubia Z70S Ultra', 'nubia Neo 3 GT 5G', 'nubia Neo 3 5G', 'nubia Flip 2 5G', 'nubia Focus 2 Ultra 5G', 'nubia Focus 2 5G', 'nubia Air', 'nubia Z60 Ultra', 'Axon 60 Ultra', 'nubia Z70 Ultra', 'RedMagic 11 Pro'],
+   };
+
+  /// Removes a storage suffix from legacy catalog titles while preserving
+  /// model identifiers such as 5G.
+  static String modelNameOnly(String model) => model
+      .replaceFirst(RegExp(r'\s+\d+\s*(?:GB|TB)$', caseSensitive: false), '')
+      .trim();
+
+  static List<String> _uniquePhoneModels(List<String> models) {
+    final seen = <String>{};
+    return models
+        .map(modelNameOnly)
+        .where((model) => model.isNotEmpty && seen.add(model.toLowerCase()))
+        .toList(growable: false);
+  }
+
+  static final Map<String, List<String>> phoneModelsByBrand = {
+    for (final entry in _rawPhoneModelsByBrand.entries)
+      entry.key: _uniquePhoneModels(entry.value),
   };
 }

@@ -27,15 +27,12 @@ class PhoneCard extends StatelessWidget {
     final imageQuality = dataSaver ? 50 : 72;
     final hasDiscount=listing.hasActiveOffer || (listing.oldPrice!=null&&listing.oldPrice!>listing.price);
     final storedMerchantLevel=listing.seller.merchantBadgeLevel;
-    // Show an earned badge for any shop even when its separate store-verification
-    // flag is false. The badge level is authoritative; sales-based fallback is
-    // used only for verified stores to avoid inventing unearned badge levels.
+    // Keep listing cards consistent with the shop profile: prefer the stored
+    // badge level, and use the same sales-based fallback when none is stored.
     final merchantLevel = listing.seller.isShop
         ? (storedMerchantLevel > 0
             ? storedMerchantLevel.clamp(1, merchantBadges.length).toInt()
-            : (listing.seller.isVerifiedStore
-                ? levelForSales(listing.seller.completedSales)
-                : 0))
+            : levelForSales(listing.seller.completedSales))
         : 0;
     return GestureDetector(onTap:onTap,child:Card(clipBehavior:Clip.antiAlias,child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
       Expanded(child:Stack(children:[Positioned.fill(child:ColoredBox(color:AppColors.surfaceLight,child:listing.imageUrls.isNotEmpty?CachedNetworkImage(

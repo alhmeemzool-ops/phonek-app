@@ -32,6 +32,16 @@ void main() {
       }
     });
 
+    test('keeps storage capacity separate from unique model names', () {
+      final capacitySuffix = RegExp(r'\s+\d+\s*(?:GB|TB)$', caseSensitive: false);
+      for (final models in CatalogData.phoneModelsByBrand.values) {
+        expect(models.map((model) => model.toLowerCase()).toSet().length, models.length);
+        expect(models.where(capacitySuffix.hasMatch), isEmpty);
+      }
+      expect(CatalogData.modelNameOnly('iPhone 18 Pro Max 2TB'), 'iPhone 18 Pro Max');
+      expect(CatalogData.modelNameOnly('Galaxy A56 5G'), 'Galaxy A56 5G');
+    });
+
     test('matches Supabase enum names for listing persistence', () {
       expect(DeviceCondition.newDevice.name, 'newDevice');
       expect(DeviceCondition.minorScratches.name, 'minorScratches');
