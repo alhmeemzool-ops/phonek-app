@@ -86,7 +86,7 @@ class _ListingFormState extends State<ListingForm> {
   final List<String> _existingImages = [];
   final List<XFile> _newImages = [];
 
-  static const _storageOptions = ['32GB', '64GB', '128GB', '256GB', '512GB'];
+  static const _storageOptions = ['32GB', '64GB', '128GB', '256GB', '512GB', '1TB'];
   static const _ramOptions = ['3GB', '4GB', '6GB', '8GB', '12GB'];
 
   bool get _isIphone => _brand == 'Apple';
@@ -186,20 +186,20 @@ class _ListingFormState extends State<ListingForm> {
               return null;
             },
           ),
-          Row(
+          Column(
             children: [
-              Expanded(child: CheckboxListTile(
+              CheckboxListTile(
                 contentPadding: EdgeInsets.zero,
                 value: _priceNegotiable,
                 onChanged: _saving ? null : (v) => setState(() => _priceNegotiable = v ?? true),
                 title: const Text('قابل للتفاوض', style: TextStyle(fontSize: 13)),
-              )),
-              Expanded(child: CheckboxListTile(
+              ),
+              CheckboxListTile(
                 contentPadding: EdgeInsets.zero,
                 value: _priceOnCall,
                 onChanged: _saving ? null : (v) => setState(() => _priceOnCall = v ?? false),
                 title: const Text('اتصل للسعر', style: TextStyle(fontSize: 13)),
-              )),
+              ),
             ],
           ),
           const SizedBox(height: 8),
