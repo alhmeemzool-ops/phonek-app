@@ -78,6 +78,7 @@ class ChatThread {
   final String otherUserName;
   final String? otherUserAvatar;
   final bool otherUserOnline;
+  final String? sellerId;
   final List<ChatMessage> messages;
 
   const ChatThread({
@@ -87,6 +88,7 @@ class ChatThread {
     required this.otherUserName,
     this.otherUserAvatar,
     this.otherUserOnline = false,
+    this.sellerId,
     this.messages = const [],
   });
 
