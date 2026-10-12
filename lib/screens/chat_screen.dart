@@ -324,12 +324,14 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Widget _composer() {
     const quick = ['متاح؟', 'آخر سعر؟', 'وين الموقع؟'];
+    final sellerId = widget.thread?.sellerId ?? widget.listing?.seller.id;
+    final isSeller = sellerId != null && sellerId == context.read<AppState>().currentUser?.id;
     return SafeArea(
       top: false,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (!_loading)
+          if (!_loading && !isSeller)
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 8),

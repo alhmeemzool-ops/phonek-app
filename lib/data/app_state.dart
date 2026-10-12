@@ -224,6 +224,7 @@ class AppState extends ChangeNotifier {
           phoneListingId: row['listing_id'] as String,
           phoneTitle: listing?.title ?? 'إعلان PhoneK',
           otherUserName: otherUserName,
+          sellerId: row['seller_id']?.toString(),
         ));
       }
       if (_session?.user.id != userId) return;
@@ -496,6 +497,7 @@ class AppState extends ChangeNotifier {
         phoneListingId: listing.id,
         phoneTitle: listing.title,
         otherUserName: otherUserName,
+        sellerId: listing.seller.id,
       );
     } catch (error) {
       debugPrint('PhoneK notification thread lookup failed: $error');
