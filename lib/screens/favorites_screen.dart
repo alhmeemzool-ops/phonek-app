@@ -48,11 +48,14 @@ class FavoritesScreen extends StatelessWidget {
                           width: 50,
                           height: 50,
                           child: p.imageUrls.isNotEmpty
-                              ? CachedNetworkImage(
-                                  imageUrl: p.imageUrls.first,
-                                  fit: BoxFit.cover,
-                                  errorWidget: (context, url, error) => const _FavoriteImagePlaceholder(),
-                                  placeholder: (context, url) => const _FavoriteImagePlaceholder(),
+                              ? ColoredBox(
+                                  color: AppColors.surfaceLight,
+                                  child: CachedNetworkImage(
+                                    imageUrl: p.imageUrls.first,
+                                    fit: BoxFit.contain,
+                                    errorWidget: (context, url, error) => const _FavoriteImagePlaceholder(),
+                                    placeholder: (context, url) => const _FavoriteImagePlaceholder(),
+                                  ),
                                 )
                               : const _FavoriteImagePlaceholder(),
                         ),
