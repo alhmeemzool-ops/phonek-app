@@ -2,8 +2,10 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../data/app_state.dart';
 import '../data/catalog_data.dart' as catalog;
 import '../models/phone_model.dart';
 import '../theme/app_theme.dart';
@@ -138,7 +140,7 @@ class _ListingFormState extends State<ListingForm> {
         padding: const EdgeInsets.all(16),
         children: [
           _label('صور الهاتف'),
-          _imagePickerRow(),
+          _imagePickerRow(context),
           const SizedBox(height: 16),
           _label('الماركة'),
           DropdownButtonFormField<String>(
@@ -344,7 +346,8 @@ class _ListingFormState extends State<ListingForm> {
     );
   }
 
-  Widget _imagePickerRow() {
+  Widget _imagePickerRow(BuildContext context) {
+    final aspectRatio = context.watch<AppState>().listingImageAspectRatio;
     final total = _existingImages.length + _newImages.length;
     return SizedBox(
       height: 90,
@@ -352,46 +355,46 @@ class _ListingFormState extends State<ListingForm> {
         scrollDirection: Axis.horizontal, itemCount: total + 1,
         separatorBuilder: (_, __) => const SizedBox(width: 8),
         itemBuilder: (_, index) {
-          if (index == 0) return _addImageBox();
+          if (index == 0) return _addImageBox(aspectRatio);
           final imageIndex = index - 1;
-          if (imageIndex < _existingImages.length) return _networkImagePreview(_existingImages[imageIndex], imageIndex);
-          return _newImagePreview(imageIndex - _existingImages.length);
+          if (imageIndex < _existingImages.length) return _networkImagePreview(_existingImages[imageIndex], imageIndex, aspectRatio);
+          return _newImagePreview(imageIndex - _existingImages.length, aspectRatio);
         },
       ),
     );
   }
 
-  Widget _addImageBox() => InkWell(
+  Widget _addImageBox(double aspectRatio) => InkWell(
     onTap: _pickImages,
     child: Container(
-      width: 90, height: 90,
+      width: 90 * aspectRatio, height: 90,
       decoration: BoxDecoration(color: AppColors.surfaceLight, borderRadius: BorderRadius.circular(10), border: Border.all(color: Colors.white24)),
       child: const Icon(Icons.add_a_photo, color: AppColors.gold),
     ),
   );
 
-  Widget _networkImagePreview(String url, int index) => Stack(
+  Widget _networkImagePreview(String url, int index, double aspectRatio) => Stack(
     children: [
       ClipRRect(
         borderRadius: BorderRadius.circular(10),
-        child: Image.network(url, width: 90, height: 90, fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => const ColoredBox(color: AppColors.surfaceLight, child: SizedBox(width: 90, height: 90, child: Icon(Icons.broken_image))),
+        child: Image.network(url, width: 90 * aspectRatio, height: 90, fit: BoxFit.contain,
+          errorBuilder: (_, __, ___) => ColoredBox(color: AppColors.surfaceLight, child: SizedBox(width: 90 * aspectRatio, height: 90, child: const Icon(Icons.broken_image))),
         ),
       ),
       _removeButton(() => setState(() => _existingImages.removeAt(index))),
     ],
   );
 
-  Widget _newImagePreview(int index) {
+  Widget _newImagePreview(int index, double aspectRatio) {
     final image = _newImages[index];
     return FutureBuilder<Uint8List>(
       future: image.readAsBytes(),
       builder: (_, snapshot) => Stack(
         children: [
           Container(
-            width: 90, height: 90, clipBehavior: Clip.antiAlias,
+            width: 90 * aspectRatio, height: 90, clipBehavior: Clip.antiAlias,
             decoration: BoxDecoration(borderRadius: BorderRadius.circular(10)),
-            child: snapshot.hasData ? Image.memory(snapshot.data!, fit: BoxFit.cover) : const ColoredBox(color: AppColors.surfaceLight, child: Center(child: CircularProgressIndicator(strokeWidth: 2))),
+            child: snapshot.hasData ? Image.memory(snapshot.data!, fit: BoxFit.contain) : const ColoredBox(color: AppColors.surfaceLight, child: Center(child: CircularProgressIndicator(strokeWidth: 2))),
           ),
           _removeButton(() => setState(() => _newImages.removeAt(index))),
         ],

@@ -207,8 +207,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   return Padding(
                     padding: const EdgeInsets.fromLTRB(12, 6, 12, 10),
                     child: AspectRatio(
-                      // العرض كما هو، والطول ضعف العرض تماماً.
-                      aspectRatio: 0.5,
+                      aspectRatio: appState.listingImageAspectRatio,
                       child: PhoneCard(
                         listing: phone,
                         isFavorite: appState.isFavorite(phone.id),

@@ -175,7 +175,31 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close)),
             ]),
             if (images.isNotEmpty) ...[
-              SizedBox(height: 230, child: PageView.builder(itemCount: images.length, itemBuilder: (_, i) => Padding(padding: const EdgeInsets.only(right: 8), child: ClipRRect(borderRadius: BorderRadius.circular(14), child: Image.network(images[i], fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Center(child: Icon(Icons.broken_image, size: 50))))))),
+              SizedBox(
+                height: 230,
+                child: PageView.builder(
+                  itemCount: images.length,
+                  itemBuilder: (_, i) => Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(14),
+                      child: ColoredBox(
+                      color: AppColors.surfaceLight,
+                        child: Center(
+                          child: AspectRatio(
+                            aspectRatio: context.read<AppState>().listingImageAspectRatio,
+                            child: Image.network(
+                              images[i],
+                              fit: BoxFit.contain,
+                              errorBuilder: (_, __, ___) => const Center(child: Icon(Icons.broken_image, size: 50)),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
               const SizedBox(height: 14),
             ],
             Text(title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
@@ -227,7 +251,16 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 borderRadius: BorderRadius.circular(10),
                 child: images.isEmpty
                     ? Container(width: 64, height: 64, color: AppColors.surface, child: const Icon(Icons.phone_android))
-                    : Image.network(images.first, width: 64, height: 64, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Container(width: 64, height: 64, color: AppColors.surface, child: const Icon(Icons.broken_image))),
+                    : ColoredBox(
+                        color: AppColors.surfaceLight,
+                        child: Image.network(
+                          images.first,
+                          width: 64,
+                          height: 64,
+                          fit: BoxFit.contain,
+                          errorBuilder: (_, __, ___) => Container(width: 64, height: 64, color: AppColors.surface, child: const Icon(Icons.broken_image)),
+                        ),
+                      ),
               ),
               const SizedBox(width: 12),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

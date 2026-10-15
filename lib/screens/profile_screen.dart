@@ -19,7 +19,30 @@ class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
   @override Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
-    if (!appState.isLoggedIn) return Scaffold(appBar: AppBar(title: const Text('حسابي')), body: Center(child: ElevatedButton(onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LoginScreen())), child: const Text('تسجيل الدخول'))));
+    if (!appState.isLoggedIn) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('حسابي')),
+        body: ListView(
+          children: [
+            const SizedBox(height: 48),
+            Center(
+              child: ElevatedButton(
+                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LoginScreen())),
+                child: const Text('تسجيل الدخول'),
+              ),
+            ),
+            const Divider(height: 32),
+            _imageAspectRatioTile(context, appState),
+            SwitchListTile(
+              title: const Text('توفير البيانات'),
+              value: appState.dataSaverEnabled,
+              onChanged: appState.setDataSaverEnabled,
+              secondary: const Icon(Icons.data_saver_on, color: AppColors.gold),
+            ),
+          ],
+        ),
+      );
+    }
     final merchant = appState.isShopOwner || appState.isAdmin;
     return Scaffold(appBar: AppBar(title: const Text('حسابي')), body: ListView(children: [
       const SizedBox(height: 16),
@@ -55,6 +78,7 @@ class ProfileScreen extends StatelessWidget {
       _tile(context, Icons.system_update_outlined, 'التحقق من التحديثات', () => _checkForUpdates(context)),
       _tile(context, Icons.person_add_alt_1, 'ادعُ صديقاً', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const InviteFriendScreen()))),
       SwitchListTile(title: const Text('توفير البيانات'), value: appState.dataSaverEnabled, onChanged: appState.setDataSaverEnabled, secondary: const Icon(Icons.data_saver_on, color: AppColors.gold)),
+      _imageAspectRatioTile(context, appState),
       _tile(context, Icons.notifications, 'إعدادات الإشعارات', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const NotificationSettingsScreen()))),
       _tile(context, Icons.help_outline, 'الأسئلة الشائعة', () => _showComingSoon(context, 'الأسئلة الشائعة')),
       _tile(context, Icons.description_outlined, 'الشروط والأحكام وسياسة الخصوصية', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TermsPrivacyScreen()))),
@@ -74,6 +98,47 @@ class ProfileScreen extends StatelessWidget {
     ]));
   }
   Widget _tile(BuildContext context, IconData icon, String title, VoidCallback onTap, {Color? color}) => ListTile(leading: Icon(icon, color: color ?? AppColors.gold), title: Text(title, style: TextStyle(color: color)), trailing: const Icon(Icons.chevron_left, color: AppColors.textSecondary), onTap: onTap);
+
+  Widget _imageAspectRatioTile(BuildContext context, AppState appState) => ListTile(
+        leading: const Icon(Icons.aspect_ratio, color: AppColors.gold),
+        title: const Text('نسبة صور الإعلانات'),
+        subtitle: Text('${appState.listingImageAspectRatioLabel} — تُطبّق على صور الإعلانات في التطبيق'),
+        trailing: const Icon(Icons.chevron_left, color: AppColors.textSecondary),
+        onTap: () => _selectListingImageAspectRatio(context, appState),
+      );
+
+  Future<void> _selectListingImageAspectRatio(BuildContext context, AppState appState) async {
+    final selectedRatio = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('نسبة صور الإعلانات'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (final ratio in AppState.supportedListingImageAspectRatios)
+              RadioListTile<String>(
+                value: ratio,
+                groupValue: appState.listingImageAspectRatioLabel,
+                title: Text(ratio),
+                subtitle: Text(switch (ratio) {
+                  '9:16' => 'عمودي — مناسب لشاشات الهواتف',
+                  '4:3' => 'أفقي',
+                  _ => 'مربع',
+                }),
+                onChanged: (value) => Navigator.pop(dialogContext, value),
+              ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('إلغاء')),
+        ],
+      ),
+    );
+    if (selectedRatio != null) {
+      await appState.setListingImageAspectRatio(selectedRatio);
+    }
+  }
+
   Future<void> _checkForUpdates(BuildContext context) async {
     final result = await PhoneKUpdateService.check();
     if (!context.mounted) return;

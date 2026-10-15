@@ -29,7 +29,7 @@ class MyListingsScreen extends StatelessWidget {
                     : GridView.builder(
                         physics: const AlwaysScrollableScrollPhysics(),
                         padding: const EdgeInsets.all(12),
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, crossAxisSpacing: 10, mainAxisSpacing: 10, childAspectRatio: 0.62),
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, crossAxisSpacing: 10, mainAxisSpacing: 10, childAspectRatio: state.listingImageAspectRatio),
                         itemCount: listings.length,
                         itemBuilder: (context, index) {
                           final listing = listings[index];

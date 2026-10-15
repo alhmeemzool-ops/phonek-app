@@ -75,8 +75,8 @@ class _PhoneDetailsScreenState extends State<PhoneDetailsScreen> {
       body: ListView(
         padding: const EdgeInsets.only(bottom: 110),
         children: [
-          _heroImage(context),
-          if (listing.imageUrls.length > 1) _thumbnails(context),
+          _heroImage(context, state.listingImageAspectRatio),
+          if (listing.imageUrls.length > 1) _thumbnails(context, state.listingImageAspectRatio),
           Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
@@ -128,17 +128,24 @@ class _PhoneDetailsScreenState extends State<PhoneDetailsScreen> {
     );
   }
 
-  Widget _heroImage(BuildContext context) => GestureDetector(
+  Widget _heroImage(BuildContext context, double aspectRatio) => GestureDetector(
     onTap: listing.imageUrls.isEmpty ? null : () => Navigator.push(context, MaterialPageRoute(builder: (_) => _PhotoGalleryScreen(images: listing.imageUrls, initialIndex: 0, title: listing.title))),
-    child: SizedBox(height: 300, child: Stack(fit: StackFit.expand, children: [
-      listing.imageUrls.isEmpty ? const ColoredBox(color: AppColors.surfaceLight, child: Icon(Icons.phone_android, size: 80, color: AppColors.gold)) : CachedNetworkImage(imageUrl: listing.imageUrls.first, fit: BoxFit.cover, errorWidget: (_, __, ___) => const ColoredBox(color: AppColors.surfaceLight, child: Icon(Icons.broken_image))),
+    child: AspectRatio(aspectRatio: aspectRatio, child: Stack(fit: StackFit.expand, children: [
+      listing.imageUrls.isEmpty ? const ColoredBox(color: AppColors.surfaceLight, child: Icon(Icons.phone_android, size: 80, color: AppColors.gold)) : ColoredBox(
+        color: AppColors.surfaceLight,
+        child: CachedNetworkImage(
+          imageUrl: listing.imageUrls.first,
+          fit: BoxFit.contain,
+          errorWidget: (_, __, ___) => const ColoredBox(color: AppColors.surfaceLight, child: Icon(Icons.broken_image)),
+        ),
+      ),
       if (listing.imageUrls.length > 1) Positioned(left: 12, bottom: 12, child: Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(20)), child: Text('${listing.imageUrls.length} صور • اضغط للتكبير', style: const TextStyle(color: Colors.white)))),
     ])),
   );
 
-  Widget _thumbnails(BuildContext context) => SizedBox(height: 74, child: ListView.separated(
+  Widget _thumbnails(BuildContext context, double aspectRatio) => SizedBox(height: 74, child: ListView.separated(
     scrollDirection: Axis.horizontal, padding: const EdgeInsets.all(10), itemCount: listing.imageUrls.length, separatorBuilder: (_, __) => const SizedBox(width: 8),
-    itemBuilder: (_, i) => GestureDetector(onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => _PhotoGalleryScreen(images: listing.imageUrls, initialIndex: i, title: listing.title))), child: ClipRRect(borderRadius: BorderRadius.circular(8), child: CachedNetworkImage(imageUrl: listing.imageUrls[i], width: 82, height: 58, fit: BoxFit.cover))),
+    itemBuilder: (_, i) => GestureDetector(onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => _PhotoGalleryScreen(images: listing.imageUrls, initialIndex: i, title: listing.title))), child: ClipRRect(borderRadius: BorderRadius.circular(8), child: ColoredBox(color: AppColors.surfaceLight, child: CachedNetworkImage(imageUrl: listing.imageUrls[i], width: 58 * aspectRatio, height: 58, fit: BoxFit.contain)))),
   ));
 
   Widget _section(String text) => Padding(padding: const EdgeInsets.only(bottom: 8), child: Text(text, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)));

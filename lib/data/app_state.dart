@@ -13,6 +13,13 @@ import '../services/notification_service.dart';
 
 /// Global application state for authentication, listings, favorites, and account role.
 class AppState extends ChangeNotifier {
+  static const List<String> supportedListingImageAspectRatios = ['9:16', '4:3', '1:1'];
+  static const Map<String, double> _listingImageAspectRatios = {
+    '9:16': 9 / 16,
+    '4:3': 4 / 3,
+    '1:1': 1,
+  };
+
   AppState() {
     _authSubscription = Supabase.instance.client.auth.onAuthStateChange.listen((data) {
       _session = data.session;
@@ -51,6 +58,7 @@ class AppState extends ChangeNotifier {
     }
 
     unawaited(_loadDataSaver());
+    unawaited(_loadListingImageAspectRatio());
     unawaited(_initConnectivity());
     unawaited(loadListings());
   }
@@ -68,6 +76,7 @@ class AppState extends ChangeNotifier {
   String? _userName;
   bool _isLoadingListings = false;
   bool _dataSaver = false;
+  String _listingImageAspectRatioLabel = '9:16';
   bool _offline = false;
   List<PhoneListing> _recentOfflineListings = [];
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
@@ -100,6 +109,8 @@ class AppState extends ChangeNotifier {
   bool get isAdmin => _isAdmin;
   bool get isShopOwner => _isShopOwner;
   bool get dataSaverEnabled => _dataSaver;
+  String get listingImageAspectRatioLabel => _listingImageAspectRatioLabel;
+  double get listingImageAspectRatio => _listingImageAspectRatios[_listingImageAspectRatioLabel] ?? 9 / 16;
   bool get isOffline => _offline;
   List<PhoneListing> get recentOfflineListings => List.unmodifiable(_recentOfflineListings);
 
@@ -139,6 +150,32 @@ class AppState extends ChangeNotifier {
     await prefs.setBool('phonek_data_saver', enabled);
     notifyListeners();
   }
+
+  Future<void> _loadListingImageAspectRatio() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final savedRatio = prefs.getString('phonek_listing_image_aspect_ratio');
+      if (savedRatio != null && supportedListingImageAspectRatios.contains(savedRatio)) {
+        _listingImageAspectRatioLabel = savedRatio;
+      }
+      notifyListeners();
+    } catch (error) {
+      debugPrint('PhoneK image aspect ratio load failed: $error');
+    }
+  }
+
+  Future<void> setListingImageAspectRatio(String ratio) async {
+    if (!supportedListingImageAspectRatios.contains(ratio)) return;
+    _listingImageAspectRatioLabel = ratio;
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('phonek_listing_image_aspect_ratio', ratio);
+    } catch (error) {
+      debugPrint('PhoneK image aspect ratio save failed: $error');
+    }
+  }
+
   String? get shopName => _shopName;
   User? get currentUser => _session?.user;
 

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../data/app_state.dart';
 import '../models/phone_model.dart';
 import '../theme/app_theme.dart';
 
@@ -18,10 +20,11 @@ class _CompareScreenState extends State<CompareScreen>{
       ]));
     }
     final b=second!;
+    final imageAspectRatio = context.watch<AppState>().listingImageAspectRatio;
     return Scaffold(appBar:AppBar(title:const Text('مقارنة')),body:SingleChildScrollView(scrollDirection:Axis.horizontal,child:DataTable(
       columns:[DataColumn(label:Text(widget.first.title)),DataColumn(label:Text(b.title))],
       rows:[
-        DataRow(cells:[DataCell(_img(widget.first)),DataCell(_img(b))]),
+        DataRow(cells:[DataCell(_img(widget.first, imageAspectRatio)),DataCell(_img(b, imageAspectRatio))]),
         _row('السعر',widget.first.priceOnCall?'اتصل للسعر':widget.first.price.toString(),b.priceOnCall?'اتصل للسعر':b.price.toString(),lower:true),
         _row('التخزين',widget.first.storage,b.storage),
         _row('الرام',widget.first.ram,b.ram),
@@ -32,7 +35,7 @@ class _CompareScreenState extends State<CompareScreen>{
       ],
     )));
   }
-  Widget _img(PhoneListing x)=>SizedBox(width:150,height:120,child:x.imageUrls.isEmpty?const Icon(Icons.phone_android,color:AppColors.gold):Image.network(x.imageUrls.first,fit:BoxFit.contain));
+  Widget _img(PhoneListing x, double aspectRatio)=>SizedBox(width:150,height:200,child:Center(child:AspectRatio(aspectRatio:aspectRatio,child:x.imageUrls.isEmpty?const Icon(Icons.phone_android,color:AppColors.gold):Image.network(x.imageUrls.first,fit:BoxFit.contain))));
   DataRow _row(String n,String a,String b,{bool lower=false}){
     final na=int.tryParse(a.replaceAll(RegExp(r'[^0-9]'),'')),nb=int.tryParse(b.replaceAll(RegExp(r'[^0-9]'),''));
     final ca=na!=null&&nb!=null&&((lower&&na<nb)||(!lower&&na>nb)),cb=na!=null&&nb!=null&&((lower&&nb<na)||(!lower&&nb>na));
