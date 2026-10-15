@@ -12,6 +12,7 @@ class FavoritesScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
+    final imageAspectRatio = appState.listingImageAspectRatio;
     final favorites = appState.listings.where((p) => appState.isFavorite(p.id)).toList();
 
     return Scaffold(
@@ -45,8 +46,8 @@ class FavoritesScreen extends StatelessWidget {
                       leading: ClipRRect(
                         borderRadius: BorderRadius.circular(8),
                         child: SizedBox(
-                          width: 50,
-                          height: 50,
+                          width: 56 * imageAspectRatio,
+                          height: 56,
                           child: p.imageUrls.isNotEmpty
                               ? ColoredBox(
                                   color: AppColors.surfaceLight,

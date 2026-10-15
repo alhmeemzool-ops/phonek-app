@@ -184,11 +184,16 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(14),
                       child: ColoredBox(
-                        color: AppColors.surfaceLight,
-                        child: Image.network(
-                          images[i],
-                          fit: BoxFit.contain,
-                          errorBuilder: (_, __, ___) => const Center(child: Icon(Icons.broken_image, size: 50)),
+                      color: AppColors.surfaceLight,
+                        child: Center(
+                          child: AspectRatio(
+                            aspectRatio: context.read<AppState>().listingImageAspectRatio,
+                            child: Image.network(
+                              images[i],
+                              fit: BoxFit.contain,
+                              errorBuilder: (_, __, ___) => const Center(child: Icon(Icons.broken_image, size: 50)),
+                            ),
+                          ),
                         ),
                       ),
                     ),

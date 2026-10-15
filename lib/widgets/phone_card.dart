@@ -22,8 +22,11 @@ class PhoneCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context){
-    final dataSaver = context.watch<AppState>().dataSaverEnabled;
+    final appState = context.watch<AppState>();
+    final dataSaver = appState.dataSaverEnabled;
+    final imageAspectRatio = appState.listingImageAspectRatio;
     final imageWidth = dataSaver ? 320 : 700;
+    final imageCacheHeight = (320 / imageAspectRatio).round();
     final imageQuality = dataSaver ? 50 : 72;
     final hasDiscount=listing.hasActiveOffer || (listing.oldPrice!=null&&listing.oldPrice!>listing.price);
     final storedMerchantLevel=listing.seller.merchantBadgeLevel;
@@ -34,28 +37,51 @@ class PhoneCard extends StatelessWidget {
             ? storedMerchantLevel.clamp(1, merchantBadges.length).toInt()
             : levelForSales(listing.seller.completedSales))
         : 0;
-    return GestureDetector(onTap:onTap,child:Card(clipBehavior:Clip.antiAlias,child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-      Expanded(child:Stack(children:[Positioned.fill(child:ColoredBox(color:AppColors.surfaceLight,child:listing.imageUrls.isNotEmpty?CachedNetworkImage(
-        imageUrl:_optimizedListingImageUrl(listing.imageUrls.first, width: imageWidth, quality: imageQuality),
-        fit:BoxFit.contain,
-        alignment:Alignment.center,
-        memCacheWidth:320,
-        memCacheHeight:320,
-        maxWidthDiskCache:320,
-        maxHeightDiskCache:320,
-        fadeInDuration:const Duration(milliseconds:140),
-        placeholder:(_,__)=>const _ImagePlaceholder(),
-        errorWidget:(_,__,___)=>const _ImagePlaceholder(),
-      ):const _ImagePlaceholder())),
-        Positioned(bottom:6,right:6,child:Container(padding:const EdgeInsets.symmetric(horizontal:6,vertical:2),decoration:BoxDecoration(color:Colors.black.withValues(alpha:.55),borderRadius:BorderRadius.circular(4)),child:const Text('PhoneK',style:TextStyle(color:AppColors.gold,fontSize:9)))),
-        if(listing.subscriptionActive)const Positioned(top:58,right:6,child:_Badge(text:'معرض مميز',color:AppColors.gold,textColor:Colors.black)),
-        if(listing.hasActiveOffer)Positioned(top:82,right:6,child:_Badge(text:'عرض -'+listing.offerDiscountPercent.toString()+'%',color:AppColors.success,textColor:Colors.black)),
-        if(listing.isFeatured)const Positioned(top:6,right:6,child:_Badge(text:'مميز',color:AppColors.gold,textColor:Colors.black)),
-        if(listing.acceptsSwap)const Positioned(top:34,right:6,child:_Badge(text:'يقبل التبديل',color:AppColors.success,textColor:Colors.black)),
-        if(listing.status==ListingStatus.sold)const Positioned(top:6,left:6,child:_Badge(text:'تم البيع',color:AppColors.danger,textColor:Colors.white)),
-        if(listing.condition==DeviceCondition.cracked)const Positioned(top:6,left:6,child:_Badge(text:'به عيوب',color:AppColors.warning,textColor:Colors.black)),
-        Positioned(top:4,left:listing.condition==DeviceCondition.cracked?70:6,child:GestureDetector(onTap:onFavoriteToggle,child:Icon(isFavorite?Icons.favorite:Icons.favorite_border,color:isFavorite?AppColors.danger:Colors.white70,size:20))),
-      ])),
+    return GestureDetector(
+      onTap: onTap,
+      child: Card(
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: ColoredBox(
+                      color: AppColors.surfaceLight,
+                      child: Center(
+                        child: AspectRatio(
+                          aspectRatio: imageAspectRatio,
+                          child: listing.imageUrls.isNotEmpty
+                              ? CachedNetworkImage(
+                                  imageUrl: _optimizedListingImageUrl(listing.imageUrls.first, width: imageWidth, quality: imageQuality),
+                                  fit: BoxFit.contain,
+                                  alignment: Alignment.center,
+                                  memCacheWidth: 320,
+                                  memCacheHeight: imageCacheHeight,
+                                  maxWidthDiskCache: 320,
+                                  maxHeightDiskCache: imageCacheHeight,
+                                  fadeInDuration: const Duration(milliseconds: 140),
+                                  placeholder: (_, __) => const _ImagePlaceholder(),
+                                  errorWidget: (_, __, ___) => const _ImagePlaceholder(),
+                                )
+                              : const _ImagePlaceholder(),
+                        ),
+                      ),
+                    ),
+                  ),
+                  Positioned(bottom: 6, right: 6, child: Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2), decoration: BoxDecoration(color: Colors.black.withValues(alpha: .55), borderRadius: BorderRadius.circular(4)), child: const Text('PhoneK', style: TextStyle(color: AppColors.gold, fontSize: 9)))),
+                  if (listing.subscriptionActive) const Positioned(top: 58, right: 6, child: _Badge(text: 'معرض مميز', color: AppColors.gold, textColor: Colors.black)),
+                  if (listing.hasActiveOffer) Positioned(top: 82, right: 6, child: _Badge(text: 'عرض -${listing.offerDiscountPercent}%', color: AppColors.success, textColor: Colors.black)),
+                  if (listing.isFeatured) const Positioned(top: 6, right: 6, child: _Badge(text: 'مميز', color: AppColors.gold, textColor: Colors.black)),
+                  if (listing.acceptsSwap) const Positioned(top: 34, right: 6, child: _Badge(text: 'يقبل التبديل', color: AppColors.success, textColor: Colors.black)),
+                  if (listing.status == ListingStatus.sold) const Positioned(top: 6, left: 6, child: _Badge(text: 'تم البيع', color: AppColors.danger, textColor: Colors.white)),
+                  if (listing.condition == DeviceCondition.cracked) const Positioned(top: 6, left: 6, child: _Badge(text: 'به عيوب', color: AppColors.warning, textColor: Colors.black)),
+                  Positioned(top: 4, left: listing.condition == DeviceCondition.cracked ? 70 : 6, child: GestureDetector(onTap: onFavoriteToggle, child: Icon(isFavorite ? Icons.favorite : Icons.favorite_border, color: isFavorite ? AppColors.danger : Colors.white70, size: 20))),
+                ],
+              ),
+            ),
       Padding(padding:const EdgeInsets.all(8),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
         Text(listing.title,maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(fontWeight:FontWeight.bold,fontSize:13)),
         if(merchantLevel>0)...[const SizedBox(height:4),Row(children:[MerchantBadgeChip(level:merchantLevel,compact:true),const SizedBox(width:6),Flexible(child:Text(badgeForLevel(merchantLevel).nameAr,overflow:TextOverflow.ellipsis,style:const TextStyle(color:AppColors.textSecondary,fontSize:10,fontWeight:FontWeight.w700)))])],
