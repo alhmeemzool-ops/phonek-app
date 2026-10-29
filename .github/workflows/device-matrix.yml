@@ -65,7 +65,7 @@ jobs:
       - name: Install Flutter dependencies
         run: flutter pub get
       - name: Build debug APK for emulator smoke
-        run: flutter build apk --debug --target-platform android-arm,android-arm64 --no-pub
+        run: flutter build apk --release --target-platform android-arm,android-arm64 --no-pub --dart-define=PHONEK_TEST_BUILD=true
       - name: Run Android emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
