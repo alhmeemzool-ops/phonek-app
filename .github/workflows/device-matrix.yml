@@ -45,13 +45,13 @@ jobs:
         include:
           - device: Pixel 2 API 30
             api: 30
-            profile: pixel_2
+            profile: pixel
           - device: Pixel 6 API 34
             api: 34
-            profile: pixel_6
+            profile: pixel
           - device: Pixel 8 API 35
             api: 35
-            profile: pixel_8
+            profile: pixel
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
