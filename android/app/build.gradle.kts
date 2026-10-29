@@ -43,7 +43,7 @@ android {
 
     buildTypes {
         debug {
-            // Keep debug builds buildable on CI/emulators without release signing secrets.
+            // Debug builds use the default debug keystore and must not depend on release secrets.
         }
         release {
             if (!keystorePropertiesFile.exists()) {
