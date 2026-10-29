@@ -48,7 +48,7 @@ android {
         release {
             if (keystorePropertiesFile.exists()) {
                 signingConfig = signingConfigs.getByName("release")
-            } else if (project.findProperty("PHONEK_TEST_BUILD") == "true") {
+            } else if (providers.gradleProperty("PHONEK_TEST_BUILD").orNull == "true") {
                 // CI-only emulator smoke tests: allow a locally signed test APK, never a production release.
                 signingConfig = signingConfigs.getByName("debug")
             } else {
