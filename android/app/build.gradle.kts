@@ -42,6 +42,9 @@ android {
     }
 
     buildTypes {
+        debug {
+            // Keep debug builds buildable on CI/emulators without release signing secrets.
+        }
         release {
             if (!keystorePropertiesFile.exists()) {
                 throw GradleException("Release signing is not configured. GitHub Actions must provide android/key.properties and upload-keystore.jks.")
