@@ -46,10 +46,14 @@ android {
             // Debug builds use the default debug keystore and must not depend on release secrets.
         }
         release {
-            if (!keystorePropertiesFile.exists()) {
+            if (keystorePropertiesFile.exists()) {
+                signingConfig = signingConfigs.getByName("release")
+            } else if (project.findProperty("PHONEK_TEST_BUILD") == "true") {
+                // CI-only emulator smoke tests: allow a locally signed test APK, never a production release.
+                signingConfig = signingConfigs.getByName("debug")
+            } else {
                 throw GradleException("Release signing is not configured. GitHub Actions must provide android/key.properties and upload-keystore.jks.")
             }
-            signingConfig = signingConfigs.getByName("release")
         }
     }
 }
