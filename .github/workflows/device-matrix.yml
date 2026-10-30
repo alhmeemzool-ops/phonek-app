@@ -74,7 +74,7 @@ jobs:
           arch: x86_64
           disable-animations: true
           script: |
-            set -Eeuo pipefail
+            set -eu
             APK=build/app/outputs/flutter-apk/app-debug.apk
             adb wait-for-device
             adb shell getprop ro.build.version.release
