@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:intl/intl.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 enum MessageStatus { sent, delivered, read }
 
@@ -50,7 +53,7 @@ class ChatMessage {
   final int? offerAmount;
   final Map<String, dynamic>? payload;
 
-  const ChatMessage({
+  ChatMessage({
     required this.id,
     required this.senderId,
     required this.text,
@@ -59,7 +62,39 @@ class ChatMessage {
     this.status = MessageStatus.sent,
     this.offerAmount,
     this.payload,
-  });
+  }) {
+    _scheduleReceipt();
+  }
+
+  void _scheduleReceipt() {
+    unawaited(_advanceReceipt());
+  }
+
+  Future<void> _advanceReceipt() async {
+    try {
+      final currentUserId = Supabase.instance.client.auth.currentUser?.id;
+      if (currentUserId == null || senderId == currentUserId) return;
+      if (status == MessageStatus.read) return;
+
+      // The message has reached this signed-in PhoneK client. Advance the
+      // sender's receipt to delivered first so the UI can show the gray
+      // double-check before the read receipt is emitted.
+      await Supabase.instance.client.rpc(
+        'mark_chat_message_delivered',
+        params: {'p_message_id': id},
+      );
+
+      if (status == MessageStatus.read) return;
+      await Future<void>.delayed(const Duration(milliseconds: 700));
+
+      await Supabase.instance.client.rpc(
+        'mark_chat_message_read',
+        params: {'p_message_id': id},
+      );
+    } catch (_) {
+      // Receipt updates must never block or break the chat UI.
+    }
+  }
 
   String get displayText {
     if (type == MessageType.swap) return 'عرض تبديل';
